@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: quan-ly-tam-ung-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: quan_ly_tam_ung
+      POSTGRES_USER: app_web
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5436:5432"
+    volumes:
+      - quan_ly_tam_ung_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_web -d quan_ly_tam_ung"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  quan_ly_tam_ung_postgres:
