@@ -132,6 +132,10 @@ describe('schemaGiaoDich validation', () => {
       // Bỏ đơn vị đi thì dòng tiền nội bộ hợp lệ.
       expect(schemaGiaoDich.safeParse({ ...coBan, hinh_thuc }).success).toBe(true)
     })
+
+    it.each(['Tạm ứng thêm', 'Giao tiền chị Thúy', 'Nộp hoàn CQ'])('cho phép nội dung rỗng vì máy chủ điền tên hình thức %s', hinh_thuc => {
+      expect(schemaGiaoDich.safeParse({ ...coBan, hinh_thuc, noi_dung: '' }).success).toBe(true)
+    })
   })
 
   describe('Giao tiền chị Thúy transactions', () => {
@@ -207,23 +211,40 @@ describe('schemaGiaoDich validation', () => {
       expect(result.success).toBe(false)
     })
 
-    it('rejects missing description', () => {
-      const result = schemaGiaoDich.safeParse({
+    it('chấp nhận nội dung thiếu hoặc rỗng với Tạm ứng thêm vì máy chủ điền tên hình thức', () => {
+      const thieu = schemaGiaoDich.safeParse({
         ngay: '2026-01-15',
         hinh_thuc: 'Tạm ứng thêm',
         tam_ung_tu_cq: 1000000,
         trang_thai_hd: 'Hợp lệ',
         trang_thai_tt_phi: 'Không phát sinh',
       })
-      expect(result.success).toBe(false)
-    })
-
-    it('rejects empty description', () => {
-      const result = schemaGiaoDich.safeParse({
+      const rong = schemaGiaoDich.safeParse({
         ngay: '2026-01-15',
         noi_dung: '   ',
         hinh_thuc: 'Tạm ứng thêm',
         tam_ung_tu_cq: 1000000,
+        trang_thai_hd: 'Hợp lệ',
+        trang_thai_tt_phi: 'Không phát sinh',
+      })
+      const tuNull = schemaGiaoDich.safeParse({
+        ngay: '2026-01-15',
+        noi_dung: null,
+        hinh_thuc: 'Tạm ứng thêm',
+        tam_ung_tu_cq: 1000000,
+        trang_thai_hd: 'Hợp lệ',
+        trang_thai_tt_phi: 'Không phát sinh',
+      })
+      expect(thieu.success).toBe(true)
+      expect(rong.success).toBe(true)
+      expect(tuNull.success).toBe(true)
+    })
+
+    it('từ chối nội dung rỗng khi hình thức không tự điền', () => {
+      const result = schemaGiaoDich.safeParse({
+        ngay: '2026-01-15',
+        noi_dung: '',
+        hinh_thuc: 'Không tồn tại',
         trang_thai_hd: 'Hợp lệ',
         trang_thai_tt_phi: 'Không phát sinh',
       })

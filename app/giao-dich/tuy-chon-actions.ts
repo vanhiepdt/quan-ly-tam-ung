@@ -26,7 +26,7 @@ export async function luuTuyChonCot(value: unknown): Promise<{ ok: boolean; thon
     const phien = await layPhien()
     if (!phien) return { ok: false, thongBao: 'Phiên không hợp lệ. Vui lòng đăng nhập lại.' }
     const ketQua = tuyChonSchema.safeParse(value)
-    if (!ketQua.success) return { ok: false, thongBao: 'Tùy chọn không hợp lệ: chiều rộng phải là số nguyên từ 90–600 px và giữ ít nhất một cột dữ liệu.' }
+    if (!ketQua.success) return { ok: false, thongBao: 'Tùy chọn không hợp lệ: chiều rộng phải là số nguyên từ 90–600 px, số dòng mỗi trang là 10/20/50/100, và giữ ít nhất một cột dữ liệu.' }
     await db.query(`insert into tuy_chon_cot_nhat_ky (nguoi_dung_id, tuy_chon)
       values ($1, $2::jsonb) on conflict (nguoi_dung_id)
       do update set tuy_chon=excluded.tuy_chon, sua_luc=now()`, [phien.id, JSON.stringify(ketQua.data)])

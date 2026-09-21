@@ -27,7 +27,7 @@ const keToan: CanBo = {
   phong: 'Phòng Kế toán', laLanhDao: false, dangHoatDong: true,
 }
 
-const TK: TaiKhoanNhan = { soTaiKhoan: '123456789', nganHang: 'NHCSXH', tenChuTk: 'Phạm Văn Hiệp' }
+const TK: TaiKhoanNhan = { soTaiKhoan: '123456789', nganHang: 'NHCSXH', tenChuTk: 'Phạm Văn Hiệp', canBoId: nguoiDeNghi.id, chiNhanh: 'Hà Nội' }
 
 const gd = (phan: Partial<GiaoDichTinh>): GiaoDichTinh => ({
   id: 'g1', ngay: '2026-09-20', soThuTu: 1, taoLuc: '2026-09-20T00:00:00.000Z', noiDung: 'Tiếp Phòng Kế hoạch',
@@ -50,6 +50,13 @@ const ctx = (phan: Partial<BoiCanhGiay> = {}): BoiCanhGiay => ({
   },
   taiKhoanTheoNguoiLayHd: {},
   ...phan,
+})
+
+describe('viết tắt phòng trên giấy', () => {
+  it.each([['Phòng Hành chính Tổ chức', 'PHÒNG HCTC'], ['Phòng Kế toán', 'PHÒNG KT'], ['Phòng Đào tạo', 'PHÒNG ĐT'], ['P. HCTC', 'PHÒNG HCTC'], ['', '']])('%s → %s', (phong, expected) => {
+    const g = dungGiay(LOAI_GIAY.TIEP_KHACH, gd({}), ctx({ nguoiDeNghi: { ...nguoiDeNghi, phong } }))
+    expect(g.thayThe.PHONGTK).toBe(expected)
+  })
 })
 
 describe('giấy theo hình thức giao dịch', () => {
@@ -85,15 +92,16 @@ describe('số tiền trên giấy', () => {
 })
 
 describe('tài khoản nhận tiền in trên giấy', () => {
-  it('ưu tiên người lấy hóa đơn của giao dịch, sau đó tới người mặc định', () => {
+  it('lấy tài khoản liên kết đúng người đề nghị, không lấy theo giao dịch hoặc mặc định', () => {
     const c = ctx({
       taiKhoanTheoNguoiLayHd: { 'nl-a': TK, 'nl-b': { soTaiKhoan: '999', nganHang: null, tenChuTk: null } },
       cauHinh: { ...CAU_HINH_GIAY_MAC_DINH, nguoiLayHdMacDinhId: 'nl-b' },
     })
     expect(taiKhoanNhan(gd({ nguoiLayHdId: 'nl-a' }), c)).toEqual(TK)
-    expect(taiKhoanNhan(gd({ nguoiLayHdId: null }), c)).toEqual({ soTaiKhoan: '999', nganHang: null, tenChuTk: null })
-    // Người lấy hóa đơn của giao dịch chưa cấu hình tài khoản thì rơi về người mặc định.
-    expect(taiKhoanNhan(gd({ nguoiLayHdId: 'nl-khac' }), c)).toEqual({ soTaiKhoan: '999', nganHang: null, tenChuTk: null })
+    expect(taiKhoanNhan(gd({ nguoiLayHdId: null }), c)).toEqual(TK)
+    expect(taiKhoanNhan(gd({ nguoiLayHdId: 'nl-khac' }), c)).toEqual(TK)
+    expect(taiKhoanNhan(gd({}), { ...c, nguoiDeNghi: lanhDaoTk })).toBeNull()
+    expect(taiKhoanNhan(gd({}), { ...c, taiKhoanTheoNguoiLayHd: { a: TK, b: TK } })).toBeNull()
   })
 
   it('không có cả hai thì trả về null để giấy chỉ in chữ "Chuyển khoản"', () => {
@@ -109,7 +117,7 @@ describe('giấy đề nghị tạm ứng', () => {
 
     expect(giay.tieuDe).toBe('Giấy đề nghị tạm ứng')
     expect(giay.dongNgay).toBe('Hà Nội, ngày 20 tháng 9 năm 2026')
-    expect(giay.dauTrang).toEqual(['NGÂN HÀNG CHÍNH SÁCH XÃ HỘI', 'TRUNG TÂM ĐÀO TẠO', 'P. PHÒNG HÀNH CHÍNH TỔ CHỨC'])
+    expect(giay.dauTrang).toEqual(['NGÂN HÀNG CHÍNH SÁCH XÃ HỘI', 'TRUNG TÂM ĐÀO TẠO', 'PHÒNG HCTC'])
     expect(giay.kinhGui).toBe('Kính gửi: Ông Nguyễn Văn A – Giám đốc Trung tâm Đào tạo')
     expect(giay.than).toContain('Số tiền đề nghị tạm ứng: 2.000.000 đ')
     expect(giay.than).toContain('Hình thức tạm ứng: ☒ Chuyển khoản  ☐ Tiền mặt.')
@@ -156,8 +164,8 @@ describe('giấy tiếp khách và giấy thanh toán', () => {
     }), ctx({ taiKhoanTheoNguoiLayHd: { 'nl-a': TK } }))
     expect(giay.taiKhoan).toEqual(TK)
     expect(giay.than).toContain(
-      '3. Hình thức thanh toán: Chuyển khoản – Số tài khoản: 123456789 – Ngân hàng: NHCSXH – Chủ tài khoản: Phạm Văn Hiệp.')
-    expect(giay.thayThe.dongtaikhoan).toBe('Số tài khoản: 123456789 – Ngân hàng: NHCSXH – Chủ tài khoản: Phạm Văn Hiệp')
+      '3. Hình thức thanh toán: Chuyển khoản – Số tài khoản: 123456789 – Ngân hàng: NHCSXH – Chi nhánh: Hà Nội – Chủ tài khoản: Phạm Văn Hiệp.')
+    expect(giay.thayThe.dongtaikhoan).toBe('Số tài khoản: 123456789 – Ngân hàng: NHCSXH – Chi nhánh: Hà Nội – Chủ tài khoản: Phạm Văn Hiệp')
     expect(giay.thayThe.sotaiKhoan).toBe('123456789')
   })
 
@@ -202,7 +210,7 @@ describe('thay chữ gõ cứng trong mẫu Word', () => {
 
     const thay = (chuoi: string) => giay.thayCoDinh.reduce((acc, r) => acc.replace(r.mau, r.thay), chuoi)
     expect(thay('Độc lập - Tự do - Tự do')).toBe('Độc lập - Tự do - Hạnh phúc')
-    expect(thay('P. HÀNH CHÍNH TỔ CHỨC')).toBe('P. PHÒNG HÀNH CHÍNH TỔ CHỨC')
+    expect(thay('P. HÀNH CHÍNH TỔ CHỨC')).toBe('PHÒNG HCTC')
     expect(thay('Phòng HCTC')).toBe('Phòng Hành chính Tổ chức')
     expect(thay('TRUNG TÂM ĐÀO TẠO').normalize('NFC')).toBe('TRUNG TÂM TIN HỌC')
     expect(thay('Trung tâm Đào tạo')).toBe('Trung tâm Tin học')
@@ -284,6 +292,28 @@ const nguoiDeNghiRieng: CanBo = { ...nguoiDeNghi, hoTen: 'Vũ Văn E' }
 const ctxRieng = (phan: Partial<BoiCanhGiay> = {}) => ctx({ nguoiDeNghi: nguoiDeNghiRieng, cauHinh: cauHinhRieng, ...phan })
 
 describe('điền vào tệp Word thật', () => {
+  it('hai phần nội dung từ Căn cứ đến hết lời đề nghị dùng Times New Roman 14pt', () => {
+    const g = dungGiay(LOAI_GIAY.THANH_TOAN, gd({}), ctx())
+    const bytes = dienMauDocx(MAU.thanh_toan, g.thayThe, g.thayCoDinh).duLieu
+    const xml = docZip(bytes).find(e => e.ten === TEP_NOI_DUNG)!.duLieu.toString('utf8')
+    let active = false, sections = 0, checked = 0
+    for (const [p] of xml.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)) {
+      const text = [...p.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(m => m[1]).join('').normalize('NFC').trim()
+      if (text.startsWith('Căn cứ')) { active = true; sections++ }
+      if (/^(DUYỆT CỦA|NGÂN HÀNG)/.test(text)) active = false
+      if (!active) continue
+      for (const [run] of p.matchAll(/<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g)) {
+        if (!/<w:t[\s>]/.test(run)) continue
+        expect(run).toContain('w:ascii="Times New Roman"')
+        expect(run).toContain('w:hAnsi="Times New Roman"')
+        expect(run).toContain('<w:sz w:val="28"/>')
+        expect(run).toContain('<w:szCs w:val="28"/>')
+        checked++
+      }
+    }
+    expect(sections).toBe(2)
+    expect(checked).toBeGreaterThan(20)
+  })
   it('giấy tạm ứng không còn chỗ trống và không giữ chữ gõ cứng của người soạn mẫu', () => {
     const { chu, thieu } = giayThat(LOAI_GIAY.TAM_UNG, gd({
       hinhThuc: HINH_THUC.TAM_UNG_THEM, tamUngTuCq: 2_000_000, hinhThucThanhToan: 'chuyen_khoan',
@@ -319,7 +349,7 @@ describe('điền vào tệp Word thật', () => {
     // Dòng mục 3 của mẫu gõ cứng "Hoàn tạm ứng"; cơ quan trả thẳng bằng chuyển khoản phải
     // in lại cả hình thức lẫn tài khoản nhận tiền, vì mẫu chỉ có một dòng cho mục này.
     expect(chu).not.toContain('3. Hình thức thanh toán: Hoàn tạm ứng.')
-    expect(chu).toContain('3. Hình thức thanh toán: Chuyển khoản – Số tài khoản: 123456789 – Ngân hàng: NHCSXH – Chủ tài khoản: Phạm Văn Hiệp.')
+    expect(chu).toContain('3. Hình thức thanh toán: Chuyển khoản – Số tài khoản: 123456789 – Ngân hàng: NHCSXH – Chi nhánh: Hà Nội – Chủ tài khoản: Vũ Văn E.')
     expect(chu).toContain('2. Số tiền đề nghị thanh toán: 1.500.000 đồng')
     expect(chu).toContain('Kính gửi: Bà Trần Thị B – Phó Giám đốc Trung tâm Tin học')
     expect(chu).toContain('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/9/2026;')
@@ -339,6 +369,6 @@ describe('điền vào tệp Word thật', () => {
     expect(tiepKhach.chu).toContain('(Bằng chữ: Một triệu năm trăm nghìn đồng)')
     expect(tiepKhach.chu).toContain('Ngày tiếp khách: 20/9/2026')
     // Mẫu tiếp khách để phòng trần ở chỗ trống [[PHONGTK]], không kèm chữ "P." như mẫu tạm ứng.
-    expect(tiepKhach.chu).toContain('PHÒNG HÀNH CHÍNH TỔ CHỨC')
+    expect(tiepKhach.chu).toContain('PHÒNG HCTC')
   })
 })

@@ -29,6 +29,7 @@ function form(overrides: Record<string, string> = {}) {
   data.set('thoi_han_thanh_toan', ' Sau khi hoàn thành công việc ')
   for (const vaiTro of VAI_TRO_KY) data.set(`ky_${vaiTro.id}`, canBo)
   data.set('nguoi_lay_hd_mac_dinh', nguoiLayHd)
+  data.set('trang_thai_tt_phi_mac_dinh', 'Chưa thanh toán')
   // Client input must never override the authenticated audit actor.
   data.set('nguoi_sua', 'forged-actor')
   for (const [k, v] of Object.entries(overrides)) {
@@ -48,7 +49,7 @@ function giaTriTheoKhoa() {
 beforeEach(() => {
   vi.resetAllMocks()
   batBuocVaiTro.mockResolvedValue({ id: actor, vai_tro: 'admin' })
-  query.mockResolvedValue({ rowCount: 6, rows: [] })
+  query.mockResolvedValue({ rowCount: 7, rows: [] })
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 afterEach(() => vi.restoreAllMocks())
@@ -66,7 +67,7 @@ describe('luuCauHinhGiay', () => {
   it('writes every key in one statement and only then revalidates', async () => {
     query.mockImplementation(async () => {
       expect(revalidatePath).not.toHaveBeenCalled()
-      return { rowCount: 6, rows: [] }
+      return { rowCount: 7, rows: [] }
     })
     expect(await luuCauHinhGiay({}, form())).toEqual({ thanhCong: 'Đã lưu thông tin giấy đề nghị.' })
     expect(query).toHaveBeenCalledTimes(1)
@@ -77,8 +78,12 @@ describe('luuCauHinhGiay', () => {
     expect([...bang.keys()]).toEqual(Object.values(KHOA_CAU_HINH_GIAY))
     // Chuỗi được cắt khoảng trắng và lưu dạng JSON để đọc lại đúng kiểu.
     expect(bang.get(KHOA_CAU_HINH_GIAY.tenDonVi)).toBe(JSON.stringify('Trung tâm Đào tạo'))
+    expect(bang.get(KHOA_CAU_HINH_GIAY.tenMuaHangDonVi)).toBe(JSON.stringify(''))
+    expect(bang.get(KHOA_CAU_HINH_GIAY.mstDonVi)).toBe(JSON.stringify(''))
+    expect(bang.get(KHOA_CAU_HINH_GIAY.diaChiDonVi)).toBe(JSON.stringify(''))
     expect(bang.get(KHOA_CAU_HINH_GIAY.diaDanh)).toBe(JSON.stringify('Hà Nội'))
     expect(bang.get(KHOA_CAU_HINH_GIAY.nguoiLayHdMacDinhId)).toBe(JSON.stringify(nguoiLayHd))
+    expect(bang.get(KHOA_CAU_HINH_GIAY.trangThaiTtPhiMacDinh)).toBe(JSON.stringify('Chưa thanh toán'))
     const ky = JSON.parse(bang.get(KHOA_CAU_HINH_GIAY.nguoiKyMacDinh)!)
     for (const vaiTro of VAI_TRO_KY) expect(ky[vaiTro.id]).toBe(canBo)
     expect(revalidatePath.mock.calls).toEqual([['/cai-dat'], ['/giao-dich']])
@@ -105,11 +110,42 @@ describe('luuCauHinhGiay', () => {
     expect(revalidatePath).not.toHaveBeenCalled()
   })
 
+  it('writes MST after stripping separators', async () => {
+    expect(await luuCauHinhGiay({}, form({ mst_don_vi: '010-010-0100' }))).toEqual({ thanhCong: 'Đã lưu thông tin giấy đề nghị.' })
+    expect(giaTriTheoKhoa().get(KHOA_CAU_HINH_GIAY.mstDonVi)).toBe(JSON.stringify('0100100100'))
+  })
+
+  it('stores buyer identity without changing the printed unit name', async () => {
+    const diaChi = 'Tầng 2, Khu nhà 3 tầng, số 169 phố Linh Đường, Phường Hoàng Liệt, TP Hà Nội, Việt Nam'
+    expect(await luuCauHinhGiay({}, form({
+      ten_don_vi: ' Trung tâm Đào tạo ',
+      ten_mua_hang_don_vi: ' Trung tâm Đào tạo Ngân hàng Chính sách xã hội ',
+      mst_don_vi: '0100695387-066',
+      dia_chi_don_vi: ` ${diaChi} `,
+    }))).toEqual({ thanhCong: 'Đã lưu thông tin giấy đề nghị.' })
+    const bang = giaTriTheoKhoa()
+    expect(bang.get(KHOA_CAU_HINH_GIAY.tenDonVi)).toBe(JSON.stringify('Trung tâm Đào tạo'))
+    expect(bang.get(KHOA_CAU_HINH_GIAY.tenMuaHangDonVi)).toBe(JSON.stringify('Trung tâm Đào tạo Ngân hàng Chính sách xã hội'))
+    expect(bang.get(KHOA_CAU_HINH_GIAY.mstDonVi)).toBe(JSON.stringify('0100695387066'))
+    expect(bang.get(KHOA_CAU_HINH_GIAY.diaChiDonVi)).toBe(JSON.stringify(diaChi))
+  })
+
+  it('rejects an MST that is not 10 or 13 digits', async () => {
+    expect(await luuCauHinhGiay({}, form({ mst_don_vi: '123' }))).toEqual({ loi: 'MST đơn vị phải gồm 10 hoặc 13 chữ số.' })
+    expect(query).not.toHaveBeenCalled()
+  })
+
   it('rejects a collector that is not a code before writing', async () => {
     expect(await luuCauHinhGiay({}, form({ nguoi_lay_hd_mac_dinh: 'khong-phai-ma' })))
       .toEqual({ loi: 'Người được chọn không hợp lệ.' })
     expect(query).not.toHaveBeenCalled()
     expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('rejects an unknown fee-payment status before writing', async () => {
+    expect(await luuCauHinhGiay({}, form({ trang_thai_tt_phi_mac_dinh: 'Lạ' })))
+      .toEqual({ loi: 'Trạng thái thanh toán phí không hợp lệ.' })
+    expect(query).not.toHaveBeenCalled()
   })
 
   it('returns a safe error on a database failure without logging or revalidating', async () => {
@@ -124,19 +160,23 @@ describe('luuCauHinhGiay', () => {
 describe('docDuLieuCauHinhGiay', () => {
   it('returns the normalized configuration the server will print with', async () => {
     docCauHinhGiay.mockResolvedValue({
-      tenDonVi: 'Trung tâm Đào tạo', diaDanh: 'Hà Nội',
+      tenDonVi: 'Trung tâm Đào tạo', tenMuaHangDonVi: 'Trung tâm Đào tạo Ngân hàng Chính sách xã hội',
+      mstDonVi: '0100100100', diaChiDonVi: '', diaDanh: 'Hà Nội',
       lyDoTamUng: 'Chi tiêu hành chính', thoiHanThanhToan: 'Sau khi hoàn thành công việc',
       nguoiDeNghiId: canBo, lanhDaoTiepKhachId: null, lanhDaoThanhToanId: canBo,
       truongPhongId: null, keToanKiemSoatId: canBo, nguoiLayHdMacDinhId: nguoiLayHd,
+      trangThaiTtPhiMacDinh: 'Chưa thanh toán',
     })
     expect(await docDuLieuCauHinhGiay()).toEqual({
-      tenDonVi: 'Trung tâm Đào tạo', diaDanh: 'Hà Nội',
+      tenDonVi: 'Trung tâm Đào tạo', tenMuaHangDonVi: 'Trung tâm Đào tạo Ngân hàng Chính sách xã hội',
+      mstDonVi: '0100100100', diaChiDonVi: '', diaDanh: 'Hà Nội',
       lyDoTamUng: 'Chi tiêu hành chính', thoiHanThanhToan: 'Sau khi hoàn thành công việc',
       nguoiKy: {
         nguoiDeNghiId: canBo, lanhDaoTiepKhachId: null, lanhDaoThanhToanId: canBo,
         truongPhongId: null, keToanKiemSoatId: canBo,
       },
       nguoiLayHdMacDinhId: nguoiLayHd,
+      trangThaiTtPhiMacDinh: 'Chưa thanh toán',
     })
   })
 
@@ -144,11 +184,28 @@ describe('docDuLieuCauHinhGiay', () => {
   // trống dù cấu hình có giá trị.
   it('exposes a key for every role printed on the papers', async () => {
     docCauHinhGiay.mockResolvedValue({
-      tenDonVi: 'A', diaDanh: 'B', lyDoTamUng: 'C', thoiHanThanhToan: 'D',
+      tenDonVi: 'A', tenMuaHangDonVi: '', mstDonVi: '', diaChiDonVi: '', diaDanh: 'B', lyDoTamUng: 'C', thoiHanThanhToan: 'D',
       nguoiDeNghiId: null, lanhDaoTiepKhachId: null, lanhDaoThanhToanId: null,
       truongPhongId: null, keToanKiemSoatId: null, nguoiLayHdMacDinhId: null,
+      trangThaiTtPhiMacDinh: 'Không phát sinh',
     })
     const duLieu = await docDuLieuCauHinhGiay()
     expect(Object.keys(duLieu.nguoiKy).sort()).toEqual(VAI_TRO_KY.map(v => v.id).sort())
+  })
+
+  it('hiện MST chi nhánh 13 số với gạch nối trên form cài đặt', async () => {
+    docCauHinhGiay.mockResolvedValue({
+      tenDonVi: 'Trung tâm Đào tạo',
+      tenMuaHangDonVi: 'Trung tâm Đào tạo Ngân hàng Chính sách xã hội',
+      mstDonVi: '0100695387066',
+      diaChiDonVi: 'Tầng 2, Khu nhà 3 tầng, số 169 phố Linh Đường, Phường Hoàng Liệt, TP Hà Nội, Việt Nam',
+      diaDanh: 'Hà Nội', lyDoTamUng: 'C', thoiHanThanhToan: 'D',
+      nguoiDeNghiId: null, lanhDaoTiepKhachId: null, lanhDaoThanhToanId: null,
+      truongPhongId: null, keToanKiemSoatId: null, nguoiLayHdMacDinhId: null,
+      trangThaiTtPhiMacDinh: 'Không phát sinh',
+    })
+    const duLieu = await docDuLieuCauHinhGiay()
+    expect(duLieu.mstDonVi).toBe('0100695387-066')
+    expect(duLieu.diaChiDonVi).toContain('169 phố Linh Đường')
   })
 })

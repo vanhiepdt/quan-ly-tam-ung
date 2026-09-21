@@ -18,7 +18,10 @@ describe('đọc cấu hình giấy từ bảng cau_hinh', () => {
       [KHOA_CAU_HINH_GIAY.thoiHanThanhToan]: 'Trong 30 ngày',
     }))
     expect(cauHinh.tenDonVi).toBe('Trung tâm Tin học')
+    expect(cauHinh.tenMuaHangDonVi).toBe(CAU_HINH_GIAY_MAC_DINH.tenMuaHangDonVi)
     expect(cauHinh.diaDanh).toBe('Đà Nẵng')
+    expect(cauHinh.mstDonVi).toBe(CAU_HINH_GIAY_MAC_DINH.mstDonVi)
+    expect(cauHinh.diaChiDonVi).toBe(CAU_HINH_GIAY_MAC_DINH.diaChiDonVi)
     expect(cauHinh.lyDoTamUng).toBe('Công tác phí')
     expect(cauHinh.thoiHanThanhToan).toBe('Trong 30 ngày')
   })
@@ -67,10 +70,44 @@ describe('đọc cấu hình giấy từ bảng cau_hinh', () => {
     expect(cauHinh.keToanKiemSoatId).toBeNull()
   })
 
+  it('đọc MST đơn vị, bỏ dấu chấm gạch, chuỗi rỗng thì để trống', () => {
+    expect(docCauHinhGiayTu(rows({ [KHOA_CAU_HINH_GIAY.mstDonVi]: '010-010-0100' })).mstDonVi).toBe('0100100100')
+    expect(docCauHinhGiayTu(rows({ [KHOA_CAU_HINH_GIAY.mstDonVi]: '0100695387-066' })).mstDonVi).toBe('0100695387066')
+    expect(docCauHinhGiayTu(rows({ [KHOA_CAU_HINH_GIAY.mstDonVi]: '   ' })).mstDonVi).toBe(CAU_HINH_GIAY_MAC_DINH.mstDonVi)
+    expect(docCauHinhGiayTu([]).mstDonVi).toBe(CAU_HINH_GIAY_MAC_DINH.mstDonVi)
+  })
+
+  it('đọc địa chỉ đơn vị để đối chiếu người mua trên hóa đơn', () => {
+    expect(docCauHinhGiayTu(rows({
+      [KHOA_CAU_HINH_GIAY.diaChiDonVi]: '  Tầng 2, Khu nhà 3 tầng, số 169 phố Linh Đường ',
+    })).diaChiDonVi).toBe('Tầng 2, Khu nhà 3 tầng, số 169 phố Linh Đường')
+    expect(docCauHinhGiayTu([]).diaChiDonVi).toBe(CAU_HINH_GIAY_MAC_DINH.diaChiDonVi)
+  })
+
+  it('tên người mua trên hóa đơn tách khỏi tên in giấy', () => {
+    const cauHinh = docCauHinhGiayTu(rows({
+      [KHOA_CAU_HINH_GIAY.tenDonVi]: 'Trung tâm Đào tạo',
+      [KHOA_CAU_HINH_GIAY.tenMuaHangDonVi]: ' Trung tâm Đào tạo Ngân hàng Chính sách xã hội ',
+    }))
+    expect(cauHinh.tenDonVi).toBe('Trung tâm Đào tạo')
+    expect(cauHinh.tenMuaHangDonVi).toBe('Trung tâm Đào tạo Ngân hàng Chính sách xã hội')
+    expect(docCauHinhGiayTu([]).tenMuaHangDonVi).toBe(CAU_HINH_GIAY_MAC_DINH.tenMuaHangDonVi)
+  })
+
   it('đọc người lấy hóa đơn mặc định để lấy tài khoản nhận tiền', () => {
     expect(docCauHinhGiayTu(rows({ [KHOA_CAU_HINH_GIAY.nguoiLayHdMacDinhId]: 'nl-a' })).nguoiLayHdMacDinhId).toBe('nl-a')
     expect(docCauHinhGiayTu(rows({ [KHOA_CAU_HINH_GIAY.nguoiLayHdMacDinhId]: '' })).nguoiLayHdMacDinhId).toBeNull()
     expect(docCauHinhGiayTu([]).nguoiLayHdMacDinhId).toBeNull()
+  })
+
+  it('đọc trạng thái thanh toán phí mặc định, sai giá trị thì rơi về Không phát sinh', () => {
+    expect(docCauHinhGiayTu(rows({
+      [KHOA_CAU_HINH_GIAY.trangThaiTtPhiMacDinh]: 'Chưa thanh toán',
+    })).trangThaiTtPhiMacDinh).toBe('Chưa thanh toán')
+    expect(docCauHinhGiayTu(rows({
+      [KHOA_CAU_HINH_GIAY.trangThaiTtPhiMacDinh]: 'không phải trạng thái',
+    })).trangThaiTtPhiMacDinh).toBe('Không phát sinh')
+    expect(docCauHinhGiayTu([]).trangThaiTtPhiMacDinh).toBe('Không phát sinh')
   })
 
   it('mỗi vai trò ký có mã riêng và không trùng nhau', () => {

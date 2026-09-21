@@ -24,14 +24,18 @@ export const cotNhatKy = [
   { id: 'tep', ten: 'Tệp', rong: 120, kieu: 'chuoi', congDon: false },
   // Cột Thao tác chứa tới bốn nút (Sửa, Giấy, Lịch sử, Xóa) nên rộng hơn các cột chữ khác;
   // hẹp quá thì flex-wrap đẩy nút xuống dòng và hàng nhật ký cao lên trông thấy.
-  { id: 'thaoTac', ten: 'Thao tác', rong: 260, kieu: 'chuoi', congDon: false },
+  { id: 'thaoTac', ten: 'Thao tác', rong: 320, kieu: 'chuoi', congDon: false },
 ] as const
 export type CotId = typeof cotNhatKy[number]['id']
 export type Cot = typeof cotNhatKy[number]
 export const rongMin = 90
 export const rongMax = 600
+export const SO_DONG_TRANG = [10, 20, 50, 100] as const
+export type SoDongTrang = typeof SO_DONG_TRANG[number]
+export const soDongTrangMacDinh: SoDongTrang = 20
 const cotId = z.enum(cotNhatKy.map(c => c.id) as [CotId, ...CotId[]])
 const thuTuMacDinh = cotNhatKy.map(c => c.id)
+const soDongTrangSchema = z.union([z.literal(10), z.literal(20), z.literal(50), z.literal(100)])
 
 export const tuyChonSchema = z.object({
   an: z.array(cotId).max(cotNhatKy.length).refine(ids => new Set(ids).size === ids.length),
@@ -39,9 +43,23 @@ export const tuyChonSchema = z.object({
   // Thứ tự chỉ cần là các mã cột hợp lệ và không trùng. Cột mới thêm sau này được
   // ghép vào cuối khi đọc, nên tùy chọn đã lưu từ trước vẫn dùng được.
   thuTu: z.array(cotId).optional().refine(ids => ids === undefined || new Set(ids).size === ids.length, 'Thứ tự cột không hợp lệ.'),
+  // Số dòng mỗi trang: tùy chọn cũ chưa có khóa này vẫn đọc được.
+  soDongTrang: soDongTrangSchema.optional(),
 }).strict().refine(value => cotNhatKy.some(c => c.id !== 'thaoTac' && !value.an.includes(c.id)), 'Phải hiển thị ít nhất một cột dữ liệu.')
 export type TuyChonCot = z.infer<typeof tuyChonSchema>
 export const cotMacDinh = (): TuyChonCot => ({ an: [], rong: {}, thuTu: [...thuTuMacDinh] })
+
+export function soDongTrangHopLe(value?: number): SoDongTrang {
+  return (SO_DONG_TRANG as readonly number[]).includes(value ?? 0) ? value as SoDongTrang : soDongTrangMacDinh
+}
+
+export function catTrangNhatKy<T>(dong: readonly T[], soDong: number, trang: number): { trang: number; tongTrang: number; dong: T[] } {
+  const so = Number.isInteger(soDong) && soDong > 0 ? soDong : soDongTrangMacDinh
+  const tongTrang = Math.max(1, Math.ceil(dong.length / so) || 1)
+  const trangHopLe = Math.min(Math.max(1, trang), tongTrang)
+  const dau = (trangHopLe - 1) * so
+  return { trang: trangHopLe, tongTrang, dong: dong.slice(dau, dau + so) as T[] }
+}
 
 export function thuTuCot(tuyChon: TuyChonCot): CotId[] {
   if (!tuyChon.thuTu) return [...thuTuMacDinh]

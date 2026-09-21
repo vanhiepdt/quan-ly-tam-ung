@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { canDonVi, hopLeHinhThucThanhToan } from '@/lib/tai-chinh/hinh-thuc'
+import { canDonVi, hopLeHinhThucThanhToan, noiDungTheoHinhThuc } from '@/lib/tai-chinh/hinh-thuc'
 
 const tien = z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER, 'Số tiền vượt giới hạn an toàn.')
 
@@ -19,8 +19,11 @@ const uuidOrNull = z.union([
 
 export const schemaGiaoDich = z.object({
   ngay: z.string().date(),
-  // Khi hình thức gắn đơn vị, nội dung do máy chủ sinh từ tên đơn vị nên có thể rỗng ở đây.
-  noi_dung: z.string().trim().max(1000),
+  // Form gửi chuỗi rỗng thành null. Ba hình thức nội bộ và hai hình thức có đơn vị
+  // đều để máy chủ điền nội dung, nên null / rỗng đều hợp lệ ở đây.
+  noi_dung: z.union([z.null(), z.undefined(), z.string()])
+    .transform(val => (typeof val === 'string' ? val.trim() : ''))
+    .pipe(z.string().max(1000)),
   don_vi_id: uuidOrNull,
   ky_hieu_hd: stringOrNull,
   so_hd: stringOrNull,
@@ -43,7 +46,7 @@ export const schemaGiaoDich = z.object({
 }).refine((d) => d.tien_ruou_bia <= d.tong_tien, {
   message: 'Tiền rượu bia không được vượt tổng tiền',
   path: ['tien_ruou_bia']
-}).refine((d) => canDonVi(d.hinh_thuc) || d.noi_dung.length > 0, {
+}).refine((d) => canDonVi(d.hinh_thuc) || Boolean(noiDungTheoHinhThuc(d.hinh_thuc)) || d.noi_dung.length > 0, {
   message: 'Nội dung không được để trống.',
   path: ['noi_dung']
 }).refine((d) => !canDonVi(d.hinh_thuc) || d.don_vi_id !== null, {

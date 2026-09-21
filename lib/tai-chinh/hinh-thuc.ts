@@ -14,6 +14,15 @@ export function noiDungTheoDonVi(tenDonVi: string): string {
   return `Tiếp ${tenDonVi}`.slice(0, 1000)
 }
 
+const HINH_THUC_NOI_DUNG_CO_DINH = new Set<string>([
+  HINH_THUC.TAM_UNG_THEM, HINH_THUC.GIAO_CHI_THUY, HINH_THUC.NOP_HOAN_CQ,
+])
+
+// Tạm ứng thêm / Giao tiền chị Thúy / Nộp hoàn CQ: nội dung = đúng tên hình thức, không điền tay.
+export function noiDungTheoHinhThuc(hinhThuc: string): string | undefined {
+  return HINH_THUC_NOI_DUNG_CO_DINH.has(hinhThuc) ? hinhThuc : undefined
+}
+
 // Hình thức thanh toán in trên giấy đề nghị: tiền mặt, chuyển khoản, hoặc hoàn tạm ứng.
 // Cả ba cùng nằm trong một trường, nhưng mỗi hình thức giao dịch chỉ được dùng một phần:
 //   - Tạm ứng thêm: giấy đề nghị tạm ứng có hai ô vuông Chuyển khoản / Tiền mặt.

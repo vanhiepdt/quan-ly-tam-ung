@@ -19,9 +19,13 @@ rem    luon rong, khien script tuong nham server dang chay la da tat.
 rem  - Dev server cua Next.js tu nap lai giao dien moi khi file thay doi, nen khi
 rem    server da chay thi chi mo trinh duyet chu khong khoi dong lai: khoi dong lai
 rem    phai bien dich lai tu dau, rat cham. Chi khi vua doi thu vien hoac file cau
-rem    hinh (package.json, next.config) moi that su can "moi".
+rem    hinh (package.json, next.config) moi that su can "moi". Neu lock cu hon
+rem    file cau hinh, script tu khoi dong lai de nap pdfjs / gioi han 12MB.
 
 set "PORT=3000"
+set "DEV_PROJECT_ROOT=%~dp0"
+echo Test hoa don PDF/AI (khong can Docker): TEST-HOA-DON.bat
+echo Muon test ca Word: dung MO-WEB-TEST.bat (kiem tra OnlyOffice va DB).
 if /i "%~1"=="moi" (set "KHOI_DONG_LAI=1") else (set "KHOI_DONG_LAI=")
 
 if not exist "package.json" (
@@ -60,6 +64,13 @@ if not exist ".env.local" (
 call :tim_dev_server
 if errorlevel 1 goto :khong_co_server
 if defined KHOI_DONG_LAI goto :dung_server_cu
+call :cau_hinh_moi_hon_lock
+if not errorlevel 1 (
+  echo [THONG BAO] next.config/package.json moi hon server dang chay.
+  echo             Dang khoi dong lai de nap pdfjs va gioi han tai hoa don 12MB.
+  echo.
+  goto :dung_server_cu
+)
 
 echo [THONG BAO] Dev server dang chay san:
 echo              http://localhost:%DEV_PORT%   [PID %DEV_PID%]
@@ -67,6 +78,7 @@ echo.
 echo              Next.js tu cap nhat giao dien ngay khi ban sua code, nen khong can
 echo              khoi dong lai. Neu vua doi thu vien hoac file cau hinh thi chay:
 echo              chay-dev.bat moi
+echo              Test hoa don/AI: TEST-HOA-DON.bat
 echo.
 call :mo_trinh_duyet %DEV_PORT%
 call :dung_man_hinh
@@ -81,11 +93,8 @@ ping -n 2 127.0.0.1 >nul
 if exist ".next\dev\lock" del /q ".next\dev\lock" >nul 2>&1
 
 :khong_co_server
-echo Dang giai phong cong %PORT% neu dang bi chiem...
-for /f "tokens=5" %%p in ('netstat -aon ^| findstr /c:"LISTENING" ^| findstr /c:":%PORT% "') do (
-  echo   - Dong process PID %%p dang giu cong %PORT%
-  taskkill /F /PID %%p >nul 2>&1
-)
+rem Khong tu dong giai phong cong: server cua du an da duoc xu ly o tren.
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr /c:"LISTENING" ^| findstr /c:":%PORT% "') do goto :cong_bi_chiem
 
 echo.
 echo Dang khoi dong Next.js dev server...
@@ -143,7 +152,7 @@ rem roi xuong :tim_qua_cong tim server qua cong 3000.
 ))
 if not defined DEV_PID goto :tim_qua_cong
 rem for o tren da chay xong nen %DEV_PID% co gia tri that o dong nay.
-tasklist /FI "PID eq %DEV_PID%" /FI "IMAGENAME eq node.exe" 2>nul | findstr /c:"%DEV_PID%" >nul
+call :la_node %DEV_PID%
 if not errorlevel 1 exit /b 0
 echo [THONG BAO] Don file lock con lai cua dev server da tat.
 del /q ".next\dev\lock" >nul 2>&1
@@ -162,6 +171,21 @@ for /f "tokens=5" %%p in ('netstat -aon ^| findstr /c:"LISTENING" ^| findstr /c:
 if defined DEV_PID exit /b 0
 exit /b 1
 
-:la_node
-tasklist /FI "PID eq %1" /FI "IMAGENAME eq node.exe" 2>nul | findstr /c:"%1" >nul
+:cau_hinh_moi_hon_lock
+rem 0 = next.config/package.json moi hon lock (can khoi dong lai). 1 = khong can.
+if not exist ".next\dev\lock" exit /b 1
+powershell -NoProfile -NonInteractive -Command "$lock=(Get-Item -LiteralPath (Join-Path $env:DEV_PROJECT_ROOT '.next\dev\lock')).LastWriteTimeUtc; foreach($f in @('next.config.ts','next.config.mjs','next.config.js','package.json','package-lock.json')){ $p=Join-Path $env:DEV_PROJECT_ROOT $f; if((Test-Path -LiteralPath $p) -and (Get-Item -LiteralPath $p).LastWriteTimeUtc -gt $lock){ exit 0 } }; exit 1"
 exit /b %errorlevel%
+
+:la_node
+rem Khong dua dong lenh cua tien trinh vao cmd; chi so sanh trong PowerShell.
+set "KIEM_TRA_PID=%~1"
+powershell -NoProfile -NonInteractive -Command "$p=Get-CimInstance Win32_Process -Filter ('ProcessId=' + [int]$env:KIEM_TRA_PID); $script=Join-Path $env:DEV_PROJECT_ROOT 'node_modules\next\dist\server\lib\start-server.js'; if($p.Name -eq 'node.exe' -and $p.CommandLine -and $p.CommandLine.IndexOf($script,[StringComparison]::OrdinalIgnoreCase) -ge 0){exit 0}; exit 1"
+exit /b %errorlevel%
+
+:cong_bi_chiem
+echo.
+echo [LOI] Khong khoi dong duoc vi cong %PORT% dang bi chiem boi tien trinh khac.
+echo       Hay dong ung dung do (hoac doi cong trong chay-dev.bat) roi chay lai.
+call :dung_man_hinh
+exit /b 1

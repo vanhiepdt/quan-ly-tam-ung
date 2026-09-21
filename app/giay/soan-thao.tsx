@@ -7,7 +7,7 @@ declare global {
   interface Window { DocsAPI?: { DocEditor: new (id: string, config: unknown) => Editor } }
 }
 let loading: Promise<void> | undefined
-function loadScript(src: string) {
+export function loadScript(src: string) {
   if (window.DocsAPI) return Promise.resolve()
   if (!loading) loading = new Promise<void>((resolve, reject) => {
     const script = document.createElement('script')

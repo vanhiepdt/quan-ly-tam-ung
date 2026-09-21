@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   canDonVi, canTaiKhoanNhan, DS_HINH_THUC_THANH_TOAN, dsHinhThucThanhToan, HINH_THUC_CAN_DON_VI,
   HINH_THUC_THANH_TOAN, hinhThucThanhToanMacDinh, hopLeHinhThucThanhToan, laHinhThucThanhToan,
-  NHAN_HINH_THUC_THANH_TOAN, noiDungTheoDonVi, oVuongTamUng,
+  NHAN_HINH_THUC_THANH_TOAN, noiDungTheoDonVi, noiDungTheoHinhThuc, oVuongTamUng,
 } from './hinh-thuc'
 import { HINH_THUC } from './kieu'
 
@@ -23,6 +23,14 @@ describe('hình thức gắn đơn vị tiếp khách', () => {
 describe('nội dung sinh từ tên đơn vị', () => {
   it('ghép tiền tố "Tiếp" với tên đơn vị', () => {
     expect(noiDungTheoDonVi('Phòng Kế hoạch')).toBe('Tiếp Phòng Kế hoạch')
+  })
+
+  it('ba hình thức nội bộ lấy đúng tên hình thức, không điền tay', () => {
+    expect(noiDungTheoHinhThuc(HINH_THUC.TAM_UNG_THEM)).toBe('Tạm ứng thêm')
+    expect(noiDungTheoHinhThuc(HINH_THUC.GIAO_CHI_THUY)).toBe('Giao tiền chị Thúy')
+    expect(noiDungTheoHinhThuc(HINH_THUC.NOP_HOAN_CQ)).toBe('Nộp hoàn CQ')
+    expect(noiDungTheoHinhThuc(HINH_THUC.HOAN_TAM_UNG)).toBeUndefined()
+    expect(noiDungTheoHinhThuc(HINH_THUC.CQ_TRA_THANG)).toBeUndefined()
   })
 
   it('cắt bớt tên đơn vị dài để không vượt giới hạn cột nội dung', () => {

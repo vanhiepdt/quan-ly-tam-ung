@@ -6,17 +6,19 @@ import { batBuocVaiTro } from '@/lib/xac-thuc/bao-ve'
 import { trongTransaction } from '@/lib/db/pool'
 import { schemaGiaoDich } from '@/lib/validation/giao-dich'
 
-import { canDonVi, hinhThucThanhToanMacDinh, hopLeHinhThucThanhToan, noiDungTheoDonVi } from '@/lib/tai-chinh/hinh-thuc'
+import { canDonVi, hinhThucThanhToanMacDinh, hopLeHinhThucThanhToan, noiDungTheoDonVi, noiDungTheoHinhThuc } from '@/lib/tai-chinh/hinh-thuc'
 import { chuanHoaGiaTri, apDungChoHinhThuc, timTruongSua } from '@/lib/tai-chinh/sua-giao-dich'
 import { khoaSoTaiChinh, kiemTraHoanTamUng, type CanhBaoHoanTamUng } from '@/lib/tai-chinh/xac-nhan-hoan-ung'
 
 import { giayChoHinhThuc } from '@/lib/tai-chinh/giay'
 import { giayCuaGiaoDich, timGiaoDichTinh, MAU_WORD } from '@/lib/tai-chinh/in-giay'
 import { boiCanhGiay } from '@/lib/tai-chinh/cau-hinh-giay'
+import { apDungNguoiKy } from '@/lib/tai-chinh/chon-nguoi-ky'
 import { taoHoacLayTaiLieu, docMau } from '@/lib/onlyoffice/tai-lieu'
 import { dienMauDocx } from '@/lib/van-ban/docx'
+import { ganTepVaoGiaoDich } from '@/lib/tep/gan'
 
-export type KetQua = { loi?: string; thanhCong?: string; canhBao?: CanhBaoHoanTamUng; giaoDichId?: string; loiGiay?: string; taiLieuIds?: string[] }
+export type KetQua = { loi?: string; thanhCong?: string; canhBao?: CanhBaoHoanTamUng; giaoDichId?: string; loiGiay?: string; loiTep?: string; taiLieuIds?: string[] }
 
 const schemaId = z.string().uuid()
 // Lỗi nội bộ để phân biệt "đơn vị không hợp lệ" với lỗi database chung.
@@ -44,7 +46,7 @@ function layDuLieu(formData: FormData) {
 // đơn vị cũ trên một dòng tiền nội bộ.
 async function chuanHoaDonVi(client: { query: (sql: string, params: unknown[]) => Promise<{ rows: Array<Record<string, unknown>> }> },
   hinhThuc: string, donViId: string | null, noiDung: string) {
-  if (!canDonVi(hinhThuc)) return { donViId: null, noiDung }
+  if (!canDonVi(hinhThuc)) return { donViId: null, noiDung: noiDungTheoHinhThuc(hinhThuc) ?? noiDung }
   if (!donViId) throw new LoiDonVi()
   const { rows } = await client.query('select ten from don_vi where id=$1 and dang_hoat_dong', [donViId])
   if (!rows.length) throw new LoiDonVi()
@@ -68,6 +70,10 @@ export async function themGiaoDich(_: KetQua, formData: FormData): Promise<KetQu
 
   const lapGiay = formData.get('lap_giay') === '1'
   if (lapGiay && !giayChoHinhThuc(d.hinh_thuc).length) return { loi: 'Hình thức này không lập giấy đề nghị.' }
+  const chonGiay = formData.getAll('loai_giay')
+  if (lapGiay && chonGiay.some(loai => typeof loai !== 'string' || !giayChoHinhThuc(d.hinh_thuc).some(g => g === loai))) {
+    return { loi: 'Loại giấy không phù hợp với giao dịch.' }
+  }
   let ketQua: KetQua
   try {
     ketQua = await trongTransaction(phien.id, async (client): Promise<KetQua> => {
@@ -98,9 +104,9 @@ export async function themGiaoDich(_: KetQua, formData: FormData): Promise<KetQu
         try {
           const gd = await timGiaoDichTinh(giaoDichId, client)
           if (!gd) throw new Error('Không tìm thấy giao dịch vừa thêm')
-          const giay = giayCuaGiaoDich(gd, await boiCanhGiay(phien))
+          const giay = giayCuaGiaoDich(gd, apDungNguoiKy(await boiCanhGiay(phien), formData))
           const ids: string[] = []
-          for (const g of giay) {
+          for (const g of giay.filter(g => !chonGiay.length || chonGiay.includes(g.loai))) {
             const t = await taoHoacLayTaiLieu(phien.id, giaoDichId, g.loai, null,
               async () => dienMauDocx(await docMau(MAU_WORD[g.loai], client), g.thayThe, g.thayCoDinh).duLieu, client)
             ids.push(t.id)
@@ -121,8 +127,15 @@ export async function themGiaoDich(_: KetQua, formData: FormData): Promise<KetQu
     console.error('Không thể thêm giao dịch.')
     return { loi: 'Không thể lưu giao dịch. Kiểm tra các trường bắt buộc và dữ liệu hóa đơn.' }
   }
+  const tepHoaDon = formData.get('tep_hoa_don')
+  if (tepHoaDon instanceof File && tepHoaDon.size > 0 && ketQua.giaoDichId) {
+    const loiTep = await ganTepVaoGiaoDich(phien.id, ketQua.giaoDichId, tepHoaDon, 'hoa_don')
+    if (loiTep) ketQua.loiTep = `Giao dịch đã lưu nhưng chưa giữ được file hóa đơn. ${loiTep}`
+  }
   revalidatePath('/giao-dich')
   revalidatePath('/dashboard')
+  revalidatePath('/tep')
+  if (ketQua.giaoDichId) revalidatePath(`/tep/${ketQua.giaoDichId}`)
   return { ...ketQua, thanhCong: 'Đã thêm giao dịch.' }
 }
 

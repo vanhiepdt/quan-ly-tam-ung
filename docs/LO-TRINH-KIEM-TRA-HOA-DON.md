@@ -1,6 +1,6 @@
 # Lộ trình tự động nhập liệu và kiểm tra hóa đơn
 
-Phần này **chưa làm** trong lần này. File này ghi lại những chỗ đã để sẵn, để khi làm tiếp chỉ việc cắm vào chứ không phải sửa lại bảng dữ liệu hay bộ tính.
+Nút **Đọc từ hóa đơn** trên form Thêm giao dịch đã chạy kiểm soát 2 lớp (QR khóa số liệu, AI đối chiếu và điền phần QR không có). Kết quả chỉ là đề xuất — không ghi thẳng vào database. Các bước còn lại (đọc XML, tra cứu GDT, kiểm tra trùng số HĐ sau khi lưu) vẫn chưa làm.
 
 Đọc [KE-HOACH.md](KE-HOACH.md) và [THIET-KE-DU-LIEU.md](THIET-KE-DU-LIEU.md) trước.
 
@@ -143,7 +143,26 @@ Ba điểm nối, không chỗ nào cần sửa bộ tính:
 
 **Nút "Kiểm tra hóa đơn"** trên trang chi tiết — chạy lại theo yêu cầu, cho trường hợp kiểm tra hỏng lần trước hoặc vừa sửa dữ liệu.
 
-**Nút "Đọc từ hóa đơn"** trên form nhập — tải file lên, đọc, điền sẵn vào các ô, người dùng soát rồi lưu. Đây chính là phần "tự động nhập liệu" bạn nói tới.
+**Nút "Đọc từ hóa đơn"** trên form nhập (đã làm) — tải PDF/ảnh, quét QR rồi nhờ AI đối chiếu, điền sẵn vào các ô. Người dùng soát rồi lưu. Không ghi thẳng kết quả đọc vào database.
+
+Hai lớp trên form:
+1. Quét QR hóa đơn điện tử. Hai khuôn: ống đứng `MST|ký hiệu|số|ngày|tổng tiền|mã CQT`, và TLV kiểu EMV (`000201` + mẫu 80–99: MST, loại, ký hiệu, số, ngày, tổng tiền — MISA meinvoice / QĐ TCT). QR thắng khi lệch với AI. Không nhận VietQR thanh toán.
+2. AI vision đọc người mua, người bán, dòng hàng; tiền rượu bia cộng từ dòng hàng (từ điển, không tin số AI nếu lệch). MST người mua so với `giay_mst_don_vi` trong Cài đặt.
+
+Nhà cung cấp AI chọn trong **Cài đặt → Cài đặt AI đọc hóa đơn** (OpenAI, Claude, Gemini, DeepSeek, Groq, Mistral, Grok, OpenRouter, Together, Fireworks, hoặc API ngoài tương thích OpenAI). Khóa lưu trong `cau_hinh.ai_hoa_don`; nếu trống thì dùng biến môi trường tương ứng. **Test API** và **Tìm model hiện có** gọi `GET /models` (Anthropic `/v1/models`, Gemini `/models`) trên bản nháp form, không lưu. Không có khóa hoặc tắt lớp AI thì vẫn điền được phần QR.
+
+PDF hóa đơn được dựng bằng pdfjs legacy trên luồng chính (fake worker), không tải `file://` worker trong Next. Nếu dựng trang thất bại, cảnh báo kèm nguyên nhân đã lọc đường dẫn/khóa.
+
+Tự thử trên máy (không cần Docker / OnlyOffice):
+
+1. `TEST-HOA-DON.bat` — luôn khởi động lại web (`chay-dev.bat moi`) rồi mở http://localhost:3000. Đăng nhập admin → **Cài đặt → Cài đặt AI**: Test API, Tìm model hiện có. **Giao dịch → Thêm giao dịch** (Hoàn tạm ứng hoặc Cơ quan trả thẳng) → Đọc từ hóa đơn, chọn PDF.
+2. `chay-test.bat nhanh` — TypeScript, vitest (dựng PDF/QR, Test API), kiểm tra giao diện Edge, build. Không mở web.
+3. `CHAY-KIEM-TRA-DU-AN.bat` — chạy bộ test rồi mở `TEST-HOA-DON.bat`.
+4. Test Word: `MO-WEB-TEST.bat` (cần Docker).
+
+Khóa AI gõ trên form hoặc điền vào `.env.local` (xem `.env.example`). Không có khóa vẫn thử được lớp QR. Kết quả đọc chỉ là đề xuất — không ghi sổ cho đến khi bấm Lưu. Server cũ giữ lỗi “Không dựng được ảnh trang hóa đơn”: phải `moi` sau khi đổi `next.config.ts`.
+
+Kiểm tra sau khi lưu (trùng số HĐ, tra cứu GDT, đọc XML) vẫn chạy nền như dự kiến dưới đây, chưa làm.
 
 Chạy OCR ở tiến trình nền trên chính VPS, không chạy trực tiếp trong request vì có thể vượt thời gian chờ. Server Action chỉ tạo bản ghi trong bảng hàng đợi `viec_can_lam`; worker Node riêng do systemd quản lý nhặt việc mỗi phút, khóa việc bằng transaction PostgreSQL rồi ghi kết quả. Bảng hàng đợi đơn giản hơn và dễ gỡ lỗi hơn.
 

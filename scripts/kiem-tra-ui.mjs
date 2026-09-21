@@ -15,6 +15,20 @@ export async function xoaMemGiaoDich() { throw Error('Deletion forbidden in harn
 export async function luuTuyChonCot(data) { window.preferenceCalls.push(data); const result = await answer(window.responses); if (result.ok && location.pathname === '/ledger') sessionStorage.setItem('fixture-ledger-preferences', JSON.stringify(data)); return result; }
 export async function layQrThanhToan(id) { window.qrCalls.push(id); return answer(window.responses); }
 export async function layLichSuGiaoDich(id) { window.historyCalls.push(id); return answer(window.historyResponses); }
+export async function xemGiayNhap() { return { loi: 'Harness' } }
+export async function taiNguoiKyGiay() { return { canBo: [], macDinh: { nguoiDeNghiId: '', lanhDaoTiepKhachId: '', lanhDaoThanhToanId: '', truongPhongId: '', keToanKiemSoatId: '' }, taiKhoanTheoNguoiLayHd: {} } }
+export async function docHoaDon() { return { loi: 'Harness' } }
+export async function tinhTrangAiHoaDon() { return { muc: 'ok', nha: '', moHinh: '', docAnh: false, thongDiep: 'Harness AI' } }
+export async function kiemTraTrungKyHieu(ky) {
+  window.kyHieuCalls = window.kyHieuCalls || []; window.kyHieuCalls.push(ky);
+  const r = window.kyHieuResponses && window.kyHieuResponses.length ? await answer(window.kyHieuResponses) : {};
+  return r;
+}
+export async function themDonViNhanh(ten) {
+  window.unitAdds = window.unitAdds || []; window.unitAdds.push(ten);
+  const r = window.unitResponses && window.unitResponses.length ? await answer(window.unitResponses) : {};
+  return r.id ? r : { id: 'fixture-unit-new', ten: String(ten).trim(), thanhCong: 'Đã thêm đơn vị.' };
+}
 `
 const entry = `
 import React from 'react'; import {createRoot} from 'react-dom/client';
@@ -45,12 +59,12 @@ window.fixturePaperRows = [
   dong({id:'p5', noiDung:'Nộp hoàn thử', hinhThuc:'Nộp hoàn CQ'}),
 ];
 const ledgerPreferences = JSON.parse(sessionStorage.getItem('fixture-ledger-preferences') || 'null') ?? {...cotMacDinh(), an: location.search.includes('hidden') ? ['chungTu','tongTien'] : []};
-createRoot(document.getElementById('root')).render(screen === '/settings' ? <TuyChonCot banDau={null} loiBanDau={null}/> : screen === '/ledger' ? <BangNhatKy rows={[]} coTheSua={false} banDau={ledgerPreferences} phuTro={phuTro}/> : screen === '/ledger-readonly' ? <BangNhatKy rows={window.fixtureRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-edit' ? <BangNhatKy rows={window.fixtureRows} coTheSua={true} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: location.search.includes('admin') ? 'admin' : 'nhap_lieu'}}/> : screen === '/ledger-paper' ? <BangNhatKy rows={window.fixturePaperRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/payment' ? <table><tbody><tr><td><ThanhToan id="fixture"/></td></tr></tbody></table> : <FormGiaoDich donVi={[{id:'fixture-unit',ten:'Đơn vị thử nghiệm'}]}/>);
+createRoot(document.getElementById('root')).render(screen === '/settings' ? <TuyChonCot banDau={null} loiBanDau={null}/> : screen === '/ledger' ? <BangNhatKy rows={[]} coTheSua={false} banDau={ledgerPreferences} phuTro={phuTro}/> : screen === '/ledger-readonly' ? <BangNhatKy rows={window.fixtureRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-edit' ? <BangNhatKy rows={window.fixtureRows} coTheSua={true} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: location.search.includes('admin') ? 'admin' : 'nhap_lieu'}}/> : screen === '/ledger-paper' ? <BangNhatKy rows={window.fixturePaperRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/payment' ? <table><tbody><tr><td><ThanhToan id="fixture"/></td></tr></tbody></table> : <FormGiaoDich collectors={[{id:'fixture-collector',ten:'Người lấy HĐ thử'}]} donVi={[{id:'fixture-unit-2',ten:'Đơn vị thử hai',so_lan:3,lan_cuoi:'01/01/2026'},{id:'fixture-unit',ten:'Đơn vị thử nghiệm'}]} nguoiLayHdMacDinhId="fixture-collector" trangThaiTtPhiMacDinh="Chưa thanh toán"/>);
 `
 // next/link kéo theo mã dùng chung của Next, thứ đọc process.env ở cấp module. Next tự thay
 // biến này khi đóng gói, còn esbuild thì không, nên phải khai báo để trang thử không vỡ.
 const bundle = await build({stdin:{contents:entry,resolveDir:root,loader:'tsx'},bundle:true,write:false,platform:'browser',jsx:'automatic',define:{'process.env.NODE_ENV':'"development"','process.env':'{}'},plugins:[{name:'isolated-actions',setup(b){
- b.onResolve({filter:/^\.\/(actions|tuy-chon-actions|thanh-toan-actions|lich-su-actions)$|^\.\.\/giao-dich\/tuy-chon-actions$/},()=>({path:'mock',namespace:'mock'}));
+ b.onResolve({filter:/^\.\/(actions|don-vi-actions|tuy-chon-actions|thanh-toan-actions|lich-su-actions|xem-giay-actions|doc-hoa-don-actions|trung-ky-hieu-actions)$|^\.\.\/giao-dich\/tuy-chon-actions$/},()=>({path:'mock',namespace:'mock'}));
  b.onLoad({filter:/.*/,namespace:'mock'},()=>({contents:mock,loader:'js'}));
  b.onResolve({filter:/^next\/navigation$/},()=>({path:path.join(root,'node_modules/next/dist/client/components/unstable-rethrow.browser.js')}));
  b.onResolve({filter:/^(pg|argon2|server-only)$|\/db\/|\/xac-thuc\//},args=>{throw Error('Server import forbidden: '+args.path)});
@@ -65,8 +79,9 @@ const errors=[]; page.on('pageerror',e=>errors.push(e.message))
 await context.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort())
 const queue = responses=>page.evaluate(r=>{window.responses=r},responses)
 const DON_VI_LABEL='Đơn vị tiếp khách *'
+const oDonVi = ()=>page.getByPlaceholder('Gõ tên đơn vị để tìm hoặc thêm mới')
 const chonHinhThuc = type=>page.getByLabel('Hình thức giao dịch *').selectOption(type)
-const openForm = async()=>{await page.goto(origin); await page.getByRole('button',{name:'+ Thêm giao dịch',exact:true}).click(); await page.getByLabel('Nội dung *').fill('Giao dịch thử nghiệm')}
+const openForm = async()=>{await page.goto(origin); await page.getByRole('button',{name:'+ Thêm giao dịch',exact:true}).click()}
 try {
  await page.clock.install({time:new Date('2026-09-15T18:00:00Z')})
  await openForm()
@@ -77,13 +92,20 @@ try {
   await chonHinhThuc(type)
   await expect(page.getByLabel('Loại chứng từ *')).toHaveValue(expected)
   const coDonVi = type === 'Hoàn tạm ứng' || type === 'Cơ quan trả thẳng'
+  if (coDonVi) await expect(page.getByLabel('Đọc từ hóa đơn')).toBeVisible()
+  else await expect(page.getByLabel('Đọc từ hóa đơn')).toHaveCount(0)
   if (coDonVi) {
-   await page.getByLabel(DON_VI_LABEL).selectOption('fixture-unit')
+   // Mặc định là đơn vị chưa tiếp / ít lần nhất; fixture chỉ có một đơn vị.
+   await expect(oDonVi()).toHaveValue('Đơn vị thử nghiệm')
+   await expect(page.locator('[name="don_vi_id"]')).toHaveValue('fixture-unit')
    await expect(page.getByLabel('Nội dung *')).toHaveValue('Tiếp Đơn vị thử nghiệm')
    await expect(page.getByLabel('Nội dung *')).toHaveAttribute('readonly','')
+   await expect(page.locator('[name="nguoi_lay_hd_id"]')).toHaveValue('fixture-collector')
+   await expect(page.getByLabel('Trạng thái thanh toán phí')).toHaveValue('Chưa thanh toán')
   } else {
    await expect(page.getByLabel(DON_VI_LABEL)).toHaveCount(0)
-   await page.getByLabel('Nội dung *').fill('Giao dịch thử nghiệm')
+   await expect(page.getByLabel('Nội dung *')).toHaveValue(type)
+   await expect(page.getByLabel('Nội dung *')).toHaveAttribute('readonly','')
   }
   // Hình thức thanh toán in trên giấy: ba giá trị, nhưng mỗi hình thức giao dịch chỉ dùng
   // một phần. Hoàn tạm ứng máy tự điền nên không có gì để chọn; cơ quan trả thẳng và tạm
@@ -114,12 +136,28 @@ try {
   await expect(page.getByRole('button',{name:'Lưu giao dịch',exact:true})).toBeEnabled()
   await expect(page.getByLabel('Hình thức giao dịch *')).toHaveValue(type)
   await expect(page.getByLabel('Loại chứng từ *')).toHaveValue(expected)
-  await expect(page.getByLabel('Nội dung *')).toHaveValue(coDonVi?'Tiếp Đơn vị thử nghiệm':'Giao dịch thử nghiệm')
-  if (coDonVi) await expect(page.getByLabel(DON_VI_LABEL)).toHaveValue('fixture-unit')
+  await expect(page.getByLabel('Nội dung *')).toHaveValue(coDonVi?'Tiếp Đơn vị thử nghiệm':type)
+  if (coDonVi) await expect(page.locator('[name="don_vi_id"]')).toHaveValue('fixture-unit')
  }
  console.log('PASS local date before 07:00 Vietnam, unit-only transaction types, locked derived description, actual submitted document types and the three printed payment methods')
  await chonHinhThuc('Hoàn tạm ứng')
- await page.getByLabel(DON_VI_LABEL).selectOption('fixture-unit')
+ await oDonVi().fill('thử')
+ await expect(page.getByRole('option',{name:/Đơn vị thử nghiệm/})).toBeVisible()
+ await oDonVi().fill('Đơn vị mới')
+ await page.getByRole('button',{name:'Thêm “Đơn vị mới” vào danh sách'}).click()
+ await expect(page.locator('[name="don_vi_id"]')).toHaveValue('fixture-unit-new')
+ await expect(page.getByLabel('Nội dung *')).toHaveValue('Tiếp Đơn vị mới')
+ await oDonVi().fill('Đơn vị thử nghiệm')
+ await page.getByRole('option',{name:/Đơn vị thử nghiệm/}).click()
+ await expect(page.locator('[name="don_vi_id"]')).toHaveValue('fixture-unit')
+ console.log('PASS unit combobox search and quick-add')
+ await page.evaluate(() => { window.kyHieuResponses = [{ canhBao: 'Ký hiệu HĐ 1C26MTT đã có trên giao dịch ngày 17/09/2026.' }] })
+ await page.getByPlaceholder('VD: 1C26MTT').fill('1C26MTT')
+ await page.getByPlaceholder('VD: 1C26MTT').blur()
+ await expect(page.getByText('Ký hiệu HĐ 1C26MTT đã có trên giao dịch ngày 17/09/2026.')).toBeVisible()
+ await expect.poll(() => page.evaluate(() => window.kyHieuCalls && window.kyHieuCalls.at(-1))).toBe('1C26MTT')
+ console.log('PASS duplicate invoice-series warning after typing')
+ await expect(page.locator('[name="don_vi_id"]')).toHaveValue('fixture-unit')
  await page.getByLabel('Tổng tiền (VND) *').fill('2000000')
  const warning = fingerprint=>({canhBao:{duLyThuyet:100,hoanTamUng:200,thieu:100,fingerprint}})
  await queue([warning('first')]); await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click()
@@ -130,7 +168,7 @@ try {
  await queue([warning('first'),warning('changed'),{thanhCong:'Đã thêm giao dịch.'}])
  await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click()
  await expect(page.getByRole('button',{name:'Tiếp tục lưu',exact:true})).toBeEnabled()
- await expect(page.getByLabel(DON_VI_LABEL)).toHaveValue('fixture-unit')
+ await expect(page.locator('[name="don_vi_id"]')).toHaveValue('fixture-unit')
  await expect(page.getByLabel('Hình thức giao dịch *')).toHaveValue('Hoàn tạm ứng')
  await expect(page.getByLabel('Loại chứng từ *')).toHaveValue('Hóa đơn Giá trị gia tăng')
  expect(await page.evaluate(()=>window.calls.at(-1).fingerprint_hoan_tam_ung)).toBeUndefined()
@@ -144,13 +182,13 @@ try {
  await expect(page.getByRole('dialog')).toHaveCount(0)
  await page.getByRole('button',{name:'+ Thêm giao dịch',exact:true}).click()
  await expect(page.getByLabel(DON_VI_LABEL)).toHaveCount(0)
- await expect(page.getByLabel('Nội dung *')).toHaveValue('')
+ await expect(page.getByLabel('Nội dung *')).toHaveValue('Tạm ứng thêm')
  await expect(page.getByLabel('Hình thức giao dịch *')).toHaveValue('Tạm ứng thêm')
  console.log('PASS warning cancel/edit/retry invalidates token; confirmation preserves original fields; stale fingerprint re-confirmation; success resets')
  await openForm(); await queue([{throw:true}]); await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click()
  await expect(page.getByRole('alert')).toContainText('Kiểm tra nhật ký')
  await expect(page.getByRole('button',{name:'Lưu giao dịch',exact:true})).toBeEnabled()
- await expect(page.getByLabel('Nội dung *')).toHaveValue('Giao dịch thử nghiệm')
+ await expect(page.getByLabel('Nội dung *')).toHaveValue('Tạm ứng thêm')
  await queue([warning('offline'),{throw:true}]); await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click(); await page.getByRole('button',{name:'Tiếp tục lưu',exact:true}).click()
  await expect(page.getByRole('dialog',{name:'Hoàn ứng vượt dư lý thuyết'})).toHaveCount(0)
  await expect(page.getByRole('alert')).toContainText('Kiểm tra nhật ký')

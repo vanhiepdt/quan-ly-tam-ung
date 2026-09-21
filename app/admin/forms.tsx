@@ -4,6 +4,7 @@ import { quanLyTaiKhoan, themNguoiLayHd, suaNguoiLayHd, voHieuHoaNguoiLayHd, kic
 import { themDonVi, suaDonVi, voHieuHoaDonVi, kichHoatDonVi } from './don-vi-actions'
 import { themCanBo, suaCanBo, voHieuHoaCanBo, kichHoatCanBo } from './can-bo-actions'
 import { GIOI_TINH } from '@/lib/validation/can-bo'
+import { TaiKhoanNganHang } from './tai-khoan-ngan-hang'
 
 const initial: KetQua = {}
 type LuaChon = { id: string; ten: string }
@@ -49,10 +50,7 @@ export function TaoNguoiLayHd({ canBo = [] }: { canBo?: LuaChon[] }) {
   return <form action={action} className="grid grid-cols-1 gap-5 py-4 sm:grid-cols-2">
     <label className="field">Tên người lấy hóa đơn *<input name="ten" required maxLength={200} placeholder="Họ và tên" /></label>
     <label className="field">Tỷ lệ phí (%)<input name="ty_le_phi" type="number" step="0.01" min="0" max="100" placeholder="Ví dụ: 15 cho 15%" /><small>Để trống nếu dùng tỷ lệ chung. Nhập % (VD: 15 = 15%)</small></label>
-    <label className="field">Tên ngân hàng<input name="ten_ngan_hang" maxLength={200} placeholder="VD: Ngân hàng Chính sách xã hội" /><small>Tên này in trên giấy thanh toán khi chuyển khoản.</small></label>
-    <label className="field">Số tài khoản<input name="so_tai_khoan" maxLength={50} placeholder="Số tài khoản ngân hàng" /><small>Tài khoản nhận tiền thanh toán và cũng để trả phí lấy hóa đơn.</small></label>
-    <label className="field">Tên chủ tài khoản<input name="ten_chu_tk" maxLength={200} placeholder="Tên chủ tài khoản" /></label>
-    <label className="field">BIN ngân hàng<input name="ngan_hang_bin" maxLength={10} placeholder="VD: 970415" /><small>Chỉ dùng khi chưa ghi tên ngân hàng ở trên.</small></label>
+    <TaiKhoanNganHang />
     <label className="field">Cán bộ trong cơ quan<select name="can_bo_id" defaultValue=""><option value="">-- Không gắn --</option>{canBo.map(cb => <option key={cb.id} value={cb.id}>{cb.ten}</option>)}</select><small>Người lấy hóa đơn cũng là cán bộ trong cơ quan.</small></label>
     <label className="field">Ghi chú<textarea name="ghi_chu" rows={2} placeholder="Thông tin bổ sung (tùy chọn)"></textarea></label>
     <div className="flex flex-wrap items-center gap-4 sm:col-span-2 [&_span]:text-xs [&_span]:text-slate-500"><button disabled={pending} className="btn btn-primary">{pending ? 'Đang thêm…' : 'Thêm người lấy HĐ'}</button></div>
@@ -60,17 +58,14 @@ export function TaoNguoiLayHd({ canBo = [] }: { canBo?: LuaChon[] }) {
   </form>
 }
 
-export function SuaNguoiLayHd({ nguoi, canBo = [] }: { nguoi: { id: string; ten: string; ty_le_phi: string | number | null; ngan_hang_bin: string | null; so_tai_khoan: string | null; ten_ngan_hang: string | null; ten_chu_tk: string | null; can_bo_id: string | null; ghi_chu: string | null }; canBo?: LuaChon[] }) {
+export function SuaNguoiLayHd({ nguoi, canBo = [] }: { nguoi: { id: string; ten: string; ty_le_phi: string | number | null; ngan_hang_bin: string | null; so_tai_khoan: string | null; ten_ngan_hang: string | null; ten_chu_tk: string | null; can_bo_id: string | null; chi_nhanh: string | null; ghi_chu: string | null }; canBo?: LuaChon[] }) {
   const [state, action, pending] = useActionState(suaNguoiLayHd, initial)
   const tyLePhi = nguoi.ty_le_phi != null ? (Number(nguoi.ty_le_phi) * 100).toFixed(2) : ''
   return <form action={action} className="grid grid-cols-1 gap-5 py-4 sm:grid-cols-2">
     <input type="hidden" name="id" value={nguoi.id} />
     <label className="field">Tên người lấy hóa đơn *<input name="ten" required maxLength={200} defaultValue={nguoi.ten} /></label>
     <label className="field">Tỷ lệ phí (%)<input name="ty_le_phi" type="number" step="0.01" min="0" max="100" defaultValue={tyLePhi} placeholder="Để trống nếu dùng tỷ lệ chung" /><small>Nhập % (VD: 15 = 15%)</small></label>
-    <label className="field">Tên ngân hàng<input name="ten_ngan_hang" maxLength={200} defaultValue={nguoi.ten_ngan_hang || ''} placeholder="VD: Ngân hàng Chính sách xã hội" /><small>Tên này in trên giấy thanh toán khi chuyển khoản.</small></label>
-    <label className="field">Số tài khoản<input name="so_tai_khoan" maxLength={50} defaultValue={nguoi.so_tai_khoan || ''} /></label>
-    <label className="field">Tên chủ tài khoản<input name="ten_chu_tk" maxLength={200} defaultValue={nguoi.ten_chu_tk || ''} /></label>
-    <label className="field">BIN ngân hàng<input name="ngan_hang_bin" maxLength={10} defaultValue={nguoi.ngan_hang_bin || ''} /><small>Chỉ dùng khi chưa ghi tên ngân hàng ở trên.</small></label>
+    <TaiKhoanNganHang nguoi={nguoi} />
     <label className="field">Cán bộ trong cơ quan<select name="can_bo_id" defaultValue={nguoi.can_bo_id || ''}><option value="">-- Không gắn --</option>{canBo.map(cb => <option key={cb.id} value={cb.id}>{cb.ten}</option>)}</select></label>
     <label className="field">Ghi chú<textarea name="ghi_chu" rows={2} defaultValue={nguoi.ghi_chu || ''}></textarea></label>
     <div className="flex flex-wrap items-center gap-4 sm:col-span-2 [&_span]:text-xs [&_span]:text-slate-500"><button disabled={pending} className="btn btn-primary">{pending ? 'Đang lưu…' : 'Lưu thay đổi'}</button></div>

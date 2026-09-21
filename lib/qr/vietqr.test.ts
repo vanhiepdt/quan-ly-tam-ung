@@ -13,6 +13,10 @@ function decode(value: string): Record<string, string> {
   return fields
 }
 describe('local VietQR encoding', () => {
+  it('matches the subiz/vietqr README reference payload byte for byte', () => {
+    expect(taoPayloadVietQR({ bin: '970415', soTaiKhoan: '0011001932418', soTien: 120000, noiDung: 'ủng hộ lũ lụt' }))
+      .toBe('00020101021238570010A00000072701270006970415011300110019324180208QRIBFTTA530370454061200005802VN62170813ung ho lu lut6304C15C')
+  })
   it('uses the standard CRC16 CCITT-FALSE vector', () => expect(crc16('123456789')).toBe('29B1'))
   it('encodes correct byte lengths, routing, amount, complete memo and CRC', () => {
     const memo = taoNoiDungThanhToan('0000123456', '2026-09-16')

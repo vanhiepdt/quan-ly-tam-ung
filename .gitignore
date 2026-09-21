@@ -14,5 +14,8 @@ tsconfig.tsbuildinfo
 uploads/
 *.xlsx
 *.exe
+# Hóa đơn mẫu / giấy đã lập trên máy dev — không đẩy lên git
+/*.pdf
+/Giấy đề nghị*.docx
 Code.gs.bak-layout-cu
 postgres/

@@ -5,27 +5,37 @@ import { z } from 'zod'
 import { db } from '@/lib/db/pool'
 import { batBuocVaiTro } from '@/lib/xac-thuc/bao-ve'
 import { docCauHinhGiay, KHOA_CAU_HINH_GIAY, VAI_TRO_KY, type VaiTroKyId } from '@/lib/tai-chinh/cau-hinh-giay'
+import { TRANG_THAI_PHI } from '@/lib/tai-chinh/danh-muc'
+import { hienThiMst } from '@/lib/kiem-tra/qr-hoa-don'
 
 export type KetQuaGiay = { loi?: string; thanhCong?: string }
 
 export type DuLieuCauHinhGiay = {
   tenDonVi: string
+  tenMuaHangDonVi: string
+  mstDonVi: string
+  diaChiDonVi: string
   diaDanh: string
   lyDoTamUng: string
   thoiHanThanhToan: string
   nguoiKy: Record<VaiTroKyId, string | null>
   nguoiLayHdMacDinhId: string | null
+  trangThaiTtPhiMacDinh: string
 }
 
 const maUuidHoacRong = z.string().uuid('Người được chọn không hợp lệ.').nullable()
 
 const schema = z.object({
   tenDonVi: z.string().trim().min(1, 'Tên đơn vị không được để trống').max(200),
+  tenMuaHangDonVi: z.string().trim().max(200),
+  mstDonVi: z.string().trim().max(20).regex(/^$|^\d{10}(\d{3})?$/, 'MST đơn vị phải gồm 10 hoặc 13 chữ số.'),
+  diaChiDonVi: z.string().trim().max(400),
   diaDanh: z.string().trim().min(1, 'Địa danh không được để trống').max(100),
   lyDoTamUng: z.string().trim().min(1, 'Lý do tạm ứng không được để trống').max(500),
   thoiHanThanhToan: z.string().trim().min(1, 'Thời hạn thanh toán không được để trống').max(500),
   nguoiKy: z.record(z.enum(VAI_TRO_KY.map(v => v.id) as [VaiTroKyId, ...VaiTroKyId[]]), maUuidHoacRong),
   nguoiLayHdMacDinhId: maUuidHoacRong,
+  trangThaiTtPhiMacDinh: z.enum(TRANG_THAI_PHI, { message: 'Trạng thái thanh toán phí không hợp lệ.' }),
 })
 
 // Ghi từng khoá cấu hình trong một lượt: nếu một khoá lỗi thì cả lượt không đổi gì, để
@@ -41,24 +51,34 @@ export async function luuCauHinhGiay(_: KetQuaGiay, formData: FormData): Promise
       nguoiKy[vaiTro.id] = typeof giaTri === 'string' && giaTri ? giaTri : null
     }
     const nguoiLayHd = formData.get('nguoi_lay_hd_mac_dinh')
+    const trangThaiPhi = formData.get('trang_thai_tt_phi_mac_dinh')
     const parsed = schema.safeParse({
       tenDonVi: formData.get('ten_don_vi'),
+      tenMuaHangDonVi: typeof formData.get('ten_mua_hang_don_vi') === 'string' ? formData.get('ten_mua_hang_don_vi') : '',
+      mstDonVi: typeof formData.get('mst_don_vi') === 'string'
+        ? String(formData.get('mst_don_vi')).replace(/[\s.\-]/g, '') : '',
+      diaChiDonVi: typeof formData.get('dia_chi_don_vi') === 'string' ? formData.get('dia_chi_don_vi') : '',
       diaDanh: formData.get('dia_danh'),
       lyDoTamUng: formData.get('ly_do_tam_ung'),
       thoiHanThanhToan: formData.get('thoi_han_thanh_toan'),
       nguoiKy,
       nguoiLayHdMacDinhId: typeof nguoiLayHd === 'string' && nguoiLayHd ? nguoiLayHd : null,
+      trangThaiTtPhiMacDinh: typeof trangThaiPhi === 'string' ? trangThaiPhi : '',
     })
     if (!parsed.success) return { loi: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ.' }
 
     const d = parsed.data
     const giaTriTheoKhoa: Array<[string, string]> = [
       [KHOA_CAU_HINH_GIAY.tenDonVi, JSON.stringify(d.tenDonVi)],
+      [KHOA_CAU_HINH_GIAY.tenMuaHangDonVi, JSON.stringify(d.tenMuaHangDonVi)],
+      [KHOA_CAU_HINH_GIAY.mstDonVi, JSON.stringify(d.mstDonVi)],
+      [KHOA_CAU_HINH_GIAY.diaChiDonVi, JSON.stringify(d.diaChiDonVi)],
       [KHOA_CAU_HINH_GIAY.diaDanh, JSON.stringify(d.diaDanh)],
       [KHOA_CAU_HINH_GIAY.lyDoTamUng, JSON.stringify(d.lyDoTamUng)],
       [KHOA_CAU_HINH_GIAY.thoiHanThanhToan, JSON.stringify(d.thoiHanThanhToan)],
       [KHOA_CAU_HINH_GIAY.nguoiKyMacDinh, JSON.stringify(d.nguoiKy)],
       [KHOA_CAU_HINH_GIAY.nguoiLayHdMacDinhId, JSON.stringify(d.nguoiLayHdMacDinhId ?? '')],
+      [KHOA_CAU_HINH_GIAY.trangThaiTtPhiMacDinh, JSON.stringify(d.trangThaiTtPhiMacDinh)],
     ]
     await db.query(
       `insert into cau_hinh (khoa, gia_tri)
@@ -79,7 +99,8 @@ export async function luuCauHinhGiay(_: KetQuaGiay, formData: FormData): Promise
 export async function docDuLieuCauHinhGiay(): Promise<DuLieuCauHinhGiay> {
   const cauHinh = await docCauHinhGiay()
   return {
-    tenDonVi: cauHinh.tenDonVi, diaDanh: cauHinh.diaDanh,
+    tenDonVi: cauHinh.tenDonVi, tenMuaHangDonVi: cauHinh.tenMuaHangDonVi,
+    mstDonVi: hienThiMst(cauHinh.mstDonVi), diaChiDonVi: cauHinh.diaChiDonVi, diaDanh: cauHinh.diaDanh,
     lyDoTamUng: cauHinh.lyDoTamUng, thoiHanThanhToan: cauHinh.thoiHanThanhToan,
     nguoiKy: {
       nguoiDeNghiId: cauHinh.nguoiDeNghiId,
@@ -89,5 +110,6 @@ export async function docDuLieuCauHinhGiay(): Promise<DuLieuCauHinhGiay> {
       keToanKiemSoatId: cauHinh.keToanKiemSoatId,
     },
     nguoiLayHdMacDinhId: cauHinh.nguoiLayHdMacDinhId,
+    trangThaiTtPhiMacDinh: cauHinh.trangThaiTtPhiMacDinh,
   }
 }

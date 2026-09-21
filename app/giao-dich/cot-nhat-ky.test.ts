@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cotMacDinh, cotNhatKy, thuTuCot, tuyChonSchema } from './cot-nhat-ky'
+import { catTrangNhatKy, cotMacDinh, cotNhatKy, soDongTrangHopLe, thuTuCot, tuyChonSchema } from './cot-nhat-ky'
 
 describe('column preference validation', () => {
   it('accepts defaults, legacy preferences and inclusive integer width boundaries', () => {
@@ -39,5 +39,16 @@ describe('column preference validation', () => {
   })
   it.each([null, [], {}, { an: [], rong: null }, { an: 'ngay', rong: {} }])('rejects malformed payload %#', value => {
     expect(tuyChonSchema.safeParse(value).success).toBe(false)
+  })
+  it('accepts optional rows-per-page and ignores unknown sizes', () => {
+    expect(tuyChonSchema.safeParse({ an: [], rong: {}, soDongTrang: 10 }).success).toBe(true)
+    expect(tuyChonSchema.safeParse({ an: [], rong: {}, soDongTrang: 15 }).success).toBe(false)
+    expect(soDongTrangHopLe(undefined)).toBe(20)
+    expect(soDongTrangHopLe(50)).toBe(50)
+    expect(soDongTrangHopLe(7)).toBe(20)
+    const cat = catTrangNhatKy([1, 2, 3, 4, 5], 2, 2)
+    expect(cat).toEqual({ trang: 2, tongTrang: 3, dong: [3, 4] })
+    expect(catTrangNhatKy([1, 2], 10, 9)).toEqual({ trang: 1, tongTrang: 1, dong: [1, 2] })
+    expect(catTrangNhatKy([], 20, 1)).toEqual({ trang: 1, tongTrang: 1, dong: [] })
   })
 })

@@ -45,7 +45,7 @@ try {
   // Keep the dependency junction on the same Windows drive (Next webpack cannot resolve cross-drive entries).
   folder = await mkdtemp(path.join(process.platform === 'win32' ? path.dirname(root) : tmpdir(), 'finance-e2e-'))
   // Explicit source allowlist; never copy personal files, uploads, .next or .env*.
-  for (const source of ['app', 'lib', 'types', 'db', 'Mau', 'proxy.ts', 'package.json', 'package-lock.json', 'tsconfig.json', 'next-env.d.ts', 'postcss.config.mjs']) {
+  for (const source of ['app', 'lib', 'types', 'db', 'Mau', 'proxy.ts', 'package.json', 'package-lock.json', 'tsconfig.json', 'next-env.d.ts', 'postcss.config.mjs', 'next.config.ts']) {
     await cp(path.join(root, source), path.join(folder, source), { recursive: true, filter: sourcePath => !path.basename(sourcePath).startsWith('.env') })
   }
   for (const source of ['chay-migration.mjs', 'tao-admin.mjs']) await cp(path.join(root, 'scripts', source), path.join(folder, 'scripts', source))
@@ -139,20 +139,28 @@ try {
   const unit = (await pool.query('select id from don_vi where ten=$1', ['E2E Synthetic Unit'])).rows[0].id
   const unit2 = (await pool.query('select id from don_vi where ten=$1', ['E2E Synthetic Unit Two'])).rows[0].id
   const payee = page.locator('form').filter({ has: page.getByRole('button', { name: 'Thêm người lấy HĐ', exact: true }) })
-  for (const [key, value] of Object.entries({ ten: 'E2E Synthetic Payee', ty_le_phi: '10', ngan_hang_bin: '970415', so_tai_khoan: '000000000001', ten_chu_tk: 'SYNTHETIC TEST ONLY' })) await payee.locator(`[name="${key}"]`).fill(value)
+  for (const [key, value] of Object.entries({ ten: 'E2E Synthetic Payee', ty_le_phi: '10', chi_nhanh: 'Chi nhánh E2E', so_tai_khoan: '000000000001', ten_chu_tk: 'SYNTHETIC TEST ONLY' })) await payee.locator(`[name="${key}"]`).fill(value)
+  await payee.locator('[name=ngan_hang_bin]').selectOption('970415')
+  const payeeCount = (await pool.query('select count(*)::int n from nguoi_lay_hd')).rows[0].n
+  await payee.getByRole('button', { name: 'Test QR', exact: true }).click()
+  await expect(payee.getByAltText('QR thử tài khoản người lấy hóa đơn')).toBeVisible()
+  assert.equal((await pool.query('select count(*)::int n from nguoi_lay_hd')).rows[0].n, payeeCount)
+  await payee.locator('[name=ngan_hang_bin]').selectOption('970436')
+  await expect(payee.getByAltText('QR thử tài khoản người lấy hóa đơn')).toHaveCount(0)
+  await payee.locator('[name=ngan_hang_bin]').selectOption('970415')
   await payee.getByRole('button', { name: 'Thêm người lấy HĐ', exact: true }).click()
   await expect(payee.getByRole('status')).toBeVisible()
   const collector = (await pool.query('select id,ty_le_phi from nguoi_lay_hd where ten=$1', ['E2E Synthetic Payee'])).rows[0]
   assert.equal(Number(collector.ty_le_phi), 0.1)
   // Người lấy HĐ thứ hai để kiểm tra việc tra tên khóa ngoại trong lịch sử sửa.
-  for (const [key, value] of Object.entries({ ten: 'E2E Synthetic Payee Two', ty_le_phi: '20', ngan_hang_bin: '970415', so_tai_khoan: '000000000002', ten_chu_tk: 'SYNTHETIC TEST ONLY' })) await payee.locator(`[name="${key}"]`).fill(value)
+  for (const [key, value] of Object.entries({ ten: 'E2E Synthetic Payee Two', ty_le_phi: '20', chi_nhanh: 'Chi nhánh E2E', so_tai_khoan: '000000000002', ten_chu_tk: 'SYNTHETIC TEST ONLY' })) await payee.locator(`[name="${key}"]`).fill(value)
   await payee.getByRole('button', { name: 'Thêm người lấy HĐ', exact: true }).click()
   await expect.poll(async () => (await pool.query('select count(*)::int n from nguoi_lay_hd where ten=$1', ['E2E Synthetic Payee Two'])).rows[0].n).toBe(1)
   const collector2 = (await pool.query('select id from nguoi_lay_hd where ten=$1', ['E2E Synthetic Payee Two'])).rows[0]
   ok('real unit/payee forms persist synthetic records and fee rate')
   await page.goto(origin + '/giao-dich')
   // Chỉ Hoàn tạm ứng và Cơ quan trả thẳng mới gắn đơn vị tiếp khách; khi đó Nội dung do
-  // máy chủ sinh từ tên đơn vị và bị khóa. Các hình thức nội bộ vẫn nhập nội dung tự do.
+  // máy chủ sinh từ tên đơn vị và bị khóa. Ba hình thức nội bộ khóa Nội dung = tên hình thức.
   const CO_DON_VI = ['Hoàn tạm ứng', 'Cơ quan trả thẳng']
   async function openForm(hinhThuc, content) {
     await page.getByRole('button', { name: '+ Thêm giao dịch', exact: true }).click()
@@ -160,13 +168,17 @@ try {
     await d.locator('[name="ngay"]').fill('2026-09-16')
     if (hinhThuc !== 'Tạm ứng thêm') await d.locator('[name="hinh_thuc"]').selectOption(hinhThuc)
     if (CO_DON_VI.includes(hinhThuc)) {
-      await d.locator('[name="don_vi_id"]').selectOption(unit)
+      const o = d.getByPlaceholder('Gõ tên đơn vị để tìm hoặc thêm mới')
+      await o.fill('E2E Synthetic Unit')
+      await expect(d.locator('[name="don_vi_id"]')).toHaveValue(unit)
       const noiDung = d.locator('[name="noi_dung"]')
       await expect(noiDung).toHaveValue('Tiếp E2E Synthetic Unit')
       await expect(noiDung).toHaveAttribute('readonly', '')
     } else {
       await expect(d.locator('[name="don_vi_id"]')).toHaveCount(0)
-      await d.locator('[name="noi_dung"]').fill(content)
+      await expect(d.locator('[name="noi_dung"]')).toHaveValue(hinhThuc)
+      await expect(d.locator('[name="noi_dung"]')).toHaveAttribute('readonly', '')
+      if (content) await d.locator('[name="ghi_chu"]').fill(content)
     }
     return d
   }
@@ -174,10 +186,11 @@ try {
   await dialog.getByLabel('Tạm ứng từ cơ quan (VND)').fill('100000')
   await dialog.getByRole('button', { name: 'Lưu giao dịch', exact: true }).click()
   await expect(dialog).toHaveCount(0)
-  const advance = (await pool.query('select * from giao_dich where noi_dung=$1', ['E2E advance'])).rows[0]
+  const advance = (await pool.query('select * from giao_dich where ghi_chu=$1', ['E2E advance'])).rows[0]
   assert.equal(advance.tam_ung_tu_cq, '100000'); assert.equal(advance.phi_lay_hd_ghi_de, null)
   assert.equal(advance.nguoi_lay_hd_id, null); assert.equal(advance.trang_thai_tt_phi, 'Không phát sinh'); assert.equal(advance.trang_thai_hd, 'Không có')
   assert.equal(advance.don_vi_id, null)
+  assert.equal(advance.noi_dung, 'Tạm ứng thêm')
   ok('advance form inserts successfully with null/hidden-field defaults and no unit attached')
   dialog = await openForm('Hoàn tạm ứng', 'E2E overbalance')
   await dialog.getByLabel('Tổng tiền (VND)', { exact: false }).fill('200000')
@@ -410,14 +423,18 @@ try {
   const formGiay = page.locator('form').filter({ has: page.getByRole('button', { name: 'Lưu thông tin giấy', exact: true }) })
   for (const [key, value] of Object.entries({ ten_don_vi: 'Trung tâm Tin học E2E', dia_danh: 'Đà Nẵng', ly_do_tam_ung: 'Công tác phí E2E', thoi_han_thanh_toan: 'Trong 30 ngày' })) await formGiay.locator(`[name="${key}"]`).fill(value)
   await formGiay.locator('[name="nguoi_lay_hd_mac_dinh"]').selectOption(collector.id)
+  await formGiay.locator('[name="trang_thai_tt_phi_mac_dinh"]').selectOption('Chưa thanh toán')
   await formGiay.getByRole('button', { name: 'Lưu thông tin giấy', exact: true }).click()
   await expect(formGiay.getByRole('status')).toBeVisible()
+  await expect(formGiay.locator('[name="nguoi_lay_hd_mac_dinh"]')).toHaveValue(collector.id)
+  await expect(formGiay.locator('[name="trang_thai_tt_phi_mac_dinh"]')).toHaveValue('Chưa thanh toán')
   const cauHinhGiay = Object.fromEntries((await pool.query("select khoa, gia_tri from cau_hinh where khoa like 'giay\\_%'")).rows.map(r => [r.khoa, r.gia_tri]))
   assert.equal(cauHinhGiay.giay_ten_don_vi, 'Trung tâm Tin học E2E')
   assert.equal(cauHinhGiay.giay_dia_danh, 'Đà Nẵng')
   assert.equal(cauHinhGiay.giay_ly_do_tam_ung, 'Công tác phí E2E')
   assert.equal(cauHinhGiay.giay_thoi_han_thanh_toan, 'Trong 30 ngày')
   assert.equal(cauHinhGiay.giay_nguoi_lay_hd_mac_dinh, collector.id)
+  assert.equal(cauHinhGiay.giay_trang_thai_tt_phi_mac_dinh, 'Chưa thanh toán')
   // Chưa chọn người ký nào nhưng khóa vẫn phải ghi đủ năm vai trò, nếu không thì lần lưu
   // sau sẽ làm rơi mất vai trò đã đặt trước đó.
   assert.deepEqual(Object.keys(cauHinhGiay.giay_nguoi_ky_mac_dinh).sort(), ['keToanKiemSoatId', 'lanhDaoThanhToanId', 'lanhDaoTiepKhachId', 'nguoiDeNghiId', 'truongPhongId'])
@@ -425,10 +442,17 @@ try {
   await page.reload()
   await expect(page.locator('[name="ten_don_vi"]')).toHaveValue('Trung tâm Tin học E2E')
   await expect(page.locator('[name="nguoi_lay_hd_mac_dinh"]')).toHaveValue(collector.id)
+  await expect(page.locator('[name="trang_thai_tt_phi_mac_dinh"]')).toHaveValue('Chưa thanh toán')
   ok('paper settings persist in PostgreSQL, survive reload and keep every configured value')
+  // Liên kết tài khoản nhận tiền với cán bộ đề nghị, không dùng người mặc định để đoán.
+  const adminId = (await pool.query("select id from nguoi_dung where ten_dang_nhap='e2e_admin'")).rows[0].id
+  const requesterId = (await pool.query("insert into can_bo (ho_ten,nguoi_dung_id) values ('Synthetic E2E Admin',$1) returning id", [adminId])).rows[0].id
+  await pool.query('update nguoi_lay_hd set can_bo_id=$1 where id=$2', [requesterId, collector.id])
   // Giao dịch cơ quan trả thẳng bằng chuyển khoản: giấy phải in kèm tài khoản nhận tiền.
   await page.goto(origin + '/giao-dich')
   const dialogTraThang = await openForm('Cơ quan trả thẳng', '')
+  await expect(dialogTraThang.locator('[name="nguoi_lay_hd_id"]')).toHaveValue(collector.id)
+  await expect(dialogTraThang.getByLabel('Trạng thái thanh toán phí')).toHaveValue('Chưa thanh toán')
   await dialogTraThang.getByLabel('Tổng tiền (VND)', { exact: false }).fill('1700000')
   await dialogTraThang.locator('[name="so_hd"]').fill('E2E02')
   await dialogTraThang.locator('[name="nguoi_lay_hd_id"]').selectOption(collector.id)
@@ -456,7 +480,7 @@ try {
   assert.ok(giayThanhToan.chu.includes('TRUNG TÂM TIN HỌC E2E'), 'giấy phải in tên đơn vị theo cấu hình')
   assert.ok(giayThanhToan.chu.includes('Đà Nẵng, ngày 16 tháng 9 năm 2026'), 'địa danh và ngày phải theo dữ liệu thật')
   assert.ok(giayThanhToan.chu.includes('2. Số tiền đề nghị thanh toán: 1.700.000 đồng'), 'số thanh toán phải bằng tổng tiền trừ rượu bia')
-  assert.ok(giayThanhToan.chu.includes('3. Hình thức thanh toán: Chuyển khoản – Số tài khoản: 000000000001 – Ngân hàng: 970415 – Chủ tài khoản: SYNTHETIC TEST ONLY.'), 'chuyển khoản phải in kèm tài khoản của người lấy hóa đơn')
+  assert.ok(giayThanhToan.chu.includes('3. Hình thức thanh toán: Chuyển khoản – Số tài khoản: 000000000001 – Ngân hàng: Ngân hàng TMCP Công thương Việt Nam – Chi nhánh: Chi nhánh E2E – Chủ tài khoản: Synthetic E2E Admin.'), 'chuyển khoản phải in kèm tài khoản của người lấy hóa đơn')
   assert.ok(giayThanhToan.chu.includes('số E2E02, ngày 16/9/2026'), 'phải in số và ngày hóa đơn thật')
   assert.ok(!giayThanhToan.chu.includes('[['), 'không được còn chỗ trống nào chưa điền')
   const giayTiepKhach = await taiGiay(traThang.id, 'tiep_khach')
@@ -506,7 +530,7 @@ try {
   await expect(page.getByRole('link', { name: 'Tải .docx — Giấy đề nghị tạm ứng', exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Tải .docx — Giấy đề nghị thanh toán', exact: true })).toHaveCount(0)
   ok('paper page downloads a nonempty valid DOCX through the browser and no longer offers HTML printing')
-  await lapGiayE2E({ page, pool, origin, folder, openForm, docZip, ok })
+  await lapGiayE2E({ page, pool, origin, folder, openForm, docZip, ok, realOffice })
   await office.run({ ctx, pool, origin, folder, id: advance.id, admin, ok, readerContext })
   assert.deepEqual(external, [])
   ok('no browser external network/payment calls attempted')

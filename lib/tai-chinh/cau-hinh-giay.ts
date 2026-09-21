@@ -1,6 +1,7 @@
 import { db } from '@/lib/db/pool'
 import type { BoiCanhGiay, CanBo, CauHinhGiay } from './giay'
 import { CAU_HINH_GIAY_MAC_DINH } from './giay'
+import { TRANG_THAI_PHI } from './danh-muc'
 import type { TaiKhoanNhan } from './kieu'
 import { taiKhoanTu } from './tai-khoan'
 
@@ -8,6 +9,9 @@ import { taiKhoanTu } from './tai-khoan'
 // thay bằng mặc định thay vì làm hỏng cả trang in.
 export const KHOA_CAU_HINH_GIAY = {
   tenDonVi: 'giay_ten_don_vi',
+  tenMuaHangDonVi: 'giay_ten_mua_hang_don_vi',
+  mstDonVi: 'giay_mst_don_vi',
+  diaChiDonVi: 'giay_dia_chi_don_vi',
   diaDanh: 'giay_dia_danh',
   lyDoTamUng: 'giay_ly_do_tam_ung',
   thoiHanThanhToan: 'giay_thoi_han_thanh_toan',
@@ -15,6 +19,7 @@ export const KHOA_CAU_HINH_GIAY = {
   // Người lấy hóa đơn mặc định: tài khoản nhận tiền của người này được in khi giao dịch
   // chưa gắn người lấy hóa đơn nào.
   nguoiLayHdMacDinhId: 'giay_nguoi_lay_hd_mac_dinh',
+  trangThaiTtPhiMacDinh: 'giay_trang_thai_tt_phi_mac_dinh',
 } as const
 
 // Năm vai trò ký trên giấy nằm trong vai-tro-ky.ts để biểu mẫu ở trình duyệt dùng chung
@@ -23,6 +28,9 @@ export { VAI_TRO_KY, type VaiTroKyId } from './vai-tro-ky'
 
 const CHUOI_MAC_DINH: Record<string, string> = {
   [KHOA_CAU_HINH_GIAY.tenDonVi]: CAU_HINH_GIAY_MAC_DINH.tenDonVi,
+  [KHOA_CAU_HINH_GIAY.tenMuaHangDonVi]: CAU_HINH_GIAY_MAC_DINH.tenMuaHangDonVi,
+  [KHOA_CAU_HINH_GIAY.mstDonVi]: CAU_HINH_GIAY_MAC_DINH.mstDonVi,
+  [KHOA_CAU_HINH_GIAY.diaChiDonVi]: CAU_HINH_GIAY_MAC_DINH.diaChiDonVi,
   [KHOA_CAU_HINH_GIAY.diaDanh]: CAU_HINH_GIAY_MAC_DINH.diaDanh,
   [KHOA_CAU_HINH_GIAY.lyDoTamUng]: CAU_HINH_GIAY_MAC_DINH.lyDoTamUng,
   [KHOA_CAU_HINH_GIAY.thoiHanThanhToan]: CAU_HINH_GIAY_MAC_DINH.thoiHanThanhToan,
@@ -35,6 +43,12 @@ function chuoi(giaTri: unknown, macDinh: string): string {
 // Mã cán bộ, hoặc null khi hàng cấu hình trống hay sai kiểu.
 function maHoacNull(giaTri: unknown): string | null {
   return typeof giaTri === 'string' && giaTri ? giaTri : null
+}
+
+function trangThaiPhi(giaTri: unknown): string {
+  return typeof giaTri === 'string' && (TRANG_THAI_PHI as readonly string[]).includes(giaTri)
+    ? giaTri
+    : CAU_HINH_GIAY_MAC_DINH.trangThaiTtPhiMacDinh
 }
 
 export function docCauHinhGiayTu(rows: readonly { khoa: string; gia_tri: unknown }[]): CauHinhGiay {
@@ -50,10 +64,14 @@ export function docCauHinhGiayTu(rows: readonly { khoa: string; gia_tri: unknown
     truongPhongId: maHoacNull(ky.truongPhongId),
     keToanKiemSoatId: maHoacNull(ky.keToanKiemSoatId),
     tenDonVi: chuoi(bang.get(KHOA_CAU_HINH_GIAY.tenDonVi), CAU_HINH_GIAY_MAC_DINH.tenDonVi),
+    tenMuaHangDonVi: chuoi(bang.get(KHOA_CAU_HINH_GIAY.tenMuaHangDonVi), CAU_HINH_GIAY_MAC_DINH.tenMuaHangDonVi),
+    mstDonVi: chuoi(bang.get(KHOA_CAU_HINH_GIAY.mstDonVi), CAU_HINH_GIAY_MAC_DINH.mstDonVi).replace(/[\s.\-]/g, ''),
+    diaChiDonVi: chuoi(bang.get(KHOA_CAU_HINH_GIAY.diaChiDonVi), CAU_HINH_GIAY_MAC_DINH.diaChiDonVi),
     diaDanh: chuoi(bang.get(KHOA_CAU_HINH_GIAY.diaDanh), CAU_HINH_GIAY_MAC_DINH.diaDanh),
     lyDoTamUng: chuoi(bang.get(KHOA_CAU_HINH_GIAY.lyDoTamUng), CAU_HINH_GIAY_MAC_DINH.lyDoTamUng),
     thoiHanThanhToan: chuoi(bang.get(KHOA_CAU_HINH_GIAY.thoiHanThanhToan), CAU_HINH_GIAY_MAC_DINH.thoiHanThanhToan),
     nguoiLayHdMacDinhId: maHoacNull(bang.get(KHOA_CAU_HINH_GIAY.nguoiLayHdMacDinhId)),
+    trangThaiTtPhiMacDinh: trangThaiPhi(bang.get(KHOA_CAU_HINH_GIAY.trangThaiTtPhiMacDinh)),
   }
 }
 
@@ -97,8 +115,8 @@ export async function canBoCuaTaiKhoan(nguoiDungId: string): Promise<CanBo | nul
 export async function docTaiKhoanNhan(): Promise<Record<string, TaiKhoanNhan>> {
   const { rows } = await db.query<{
     id: string; so_tai_khoan: string | null; ngan_hang_bin: string | null
-    ten_ngan_hang: string | null; ten_chu_tk: string | null
-  }>('select id, so_tai_khoan, ngan_hang_bin, ten_ngan_hang, ten_chu_tk from nguoi_lay_hd where dang_hoat_dong')
+    ten_ngan_hang: string | null; ten_chu_tk: string | null; chi_nhanh: string | null; can_bo_id: string | null
+  }>('select id, so_tai_khoan, ngan_hang_bin, ten_ngan_hang, ten_chu_tk, chi_nhanh, can_bo_id from nguoi_lay_hd where dang_hoat_dong')
   const bang: Record<string, TaiKhoanNhan> = {}
   for (const r of rows) {
     const tk = taiKhoanTu(r)

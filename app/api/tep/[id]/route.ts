@@ -15,8 +15,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id:string 
   const tep = rows[0]
   if (!tep) return NextResponse.json({ loi:'Không tìm thấy tệp' }, { status:404 })
   const goc = path.resolve(GOC_TEP) + path.sep
-  const duongDan = path.resolve(GOC_TEP, tep.duong_dan)
-  if (!duongDan.startsWith(goc)) return NextResponse.json({ loi:'Đường dẫn tệp không hợp lệ' }, { status:400 })
+  const duongDan = path.resolve(GOC_TEP, ...String(tep.duong_dan).split(/[/\\]/).filter(Boolean))
+  if (!duongDan.startsWith(goc) || duongDan === goc.slice(0, -1)) return NextResponse.json({ loi:'Đường dẫn tệp không hợp lệ' }, { status:400 })
   try {
     const info = await stat(duongDan)
     return new NextResponse(Readable.toWeb(createReadStream(duongDan)) as ReadableStream, { headers:{ 'Content-Type':tep.mime, 'Content-Length':String(info.size), 'Content-Disposition':`inline; filename="${tep.ten_goc.replaceAll('"','')}"`, 'X-Content-Type-Options':'nosniff' } })

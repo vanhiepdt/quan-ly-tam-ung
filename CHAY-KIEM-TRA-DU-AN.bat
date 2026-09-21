@@ -9,14 +9,16 @@ echo ================================================
 echo   KIEM TRA DU AN QUAN LY TAM UNG - HOA DON
 echo ================================================
 echo.
-echo Script nay kiem tra code moi nhat roi mo web:
+echo Script nay kiem tra code moi nhat roi mo web de tu thu hoa don:
 echo   - Cai thu vien (neu thieu)
-echo   - TypeScript, test don vi, kiem tra giao dien, build production
+echo   - TypeScript, test don vi (gom dung PDF/QR va Test API AI), giao dien, build
 echo   - Chay E2E that neu Docker Desktop dang mo
-echo   - Khoi dong web local tai http://localhost:3000
+echo   - Mo web (khong can Docker) de thu Doc tu hoa don va nut Test API
 echo.
 echo Chi muon kiem tra nhanh, khong chay E2E: chay-test.bat nhanh
 echo Chi muon chay E2E: chay-e2e.bat
+echo Chi muon mo web hoa don/AI: TEST-HOA-DON.bat
+echo Test Word / OnlyOffice: MO-WEB-TEST.bat
 echo.
 
 if not exist "package.json" (
@@ -53,9 +55,10 @@ echo ================================================
 echo   THANH CONG - Code moi nhat da dat het cac buoc kiem tra.
 echo ================================================
 echo.
-echo Nhan phim bat ky de khoi dong web local tai http://localhost:3000
+echo Nhan phim bat ky de mo web test hoa don PDF/AI tai http://localhost:3000
+echo (khong can Docker; muon test Word thi chay MO-WEB-TEST.bat)
 pause >nul
-call "%~dp0chay-dev.bat"
+call "%~dp0TEST-HOA-DON.bat"
 exit /b %errorlevel%
 
 :loi

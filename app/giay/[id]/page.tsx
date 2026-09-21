@@ -20,7 +20,10 @@ export default async function XemGiayPage({ params }: { params: Promise<{ id: st
           <p className="eyebrow text-xs font-bold tracking-widest text-indigo-700">GIẤY ĐỀ NGHỊ</p>
           <h1 className="text-lg font-bold text-slate-950">{gd.noiDung || 'Giao dịch'} · {gd.ngay}</h1>
         </div>
-        <Link className="btn btn-secondary" href="/giao-dich">← Nhật ký</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link className="btn btn-secondary" href={`/tep/${id}`}>Hồ sơ tệp</Link>
+          <Link className="btn btn-secondary" href="/giao-dich">← Nhật ký</Link>
+        </div>
       </div>
     </header>
     <main className="mx-auto max-w-5xl space-y-4 px-4 py-6 sm:px-6">

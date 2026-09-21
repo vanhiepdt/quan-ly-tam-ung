@@ -1,4 +1,5 @@
 'use server'
+import { nganHangTheoBin } from '@/lib/qr/ngan-hang'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { trongTransaction } from '@/lib/db/pool'
@@ -78,15 +79,16 @@ export async function themNguoiLayHd(_: KetQua, data: FormData): Promise<KetQua>
       ty_le_phi: data.get('ty_le_phi') ? Number(data.get('ty_le_phi')) / 100 : null,
       ngan_hang_bin: data.get('ngan_hang_bin') || null,
       so_tai_khoan: data.get('so_tai_khoan') || null,
-      ten_ngan_hang: data.get('ten_ngan_hang') || null,
+      ten_ngan_hang: nganHangTheoBin(String(data.get('ngan_hang_bin') || ''))?.name || null,
+      chi_nhanh: data.get('chi_nhanh') || null,
       ten_chu_tk: data.get('ten_chu_tk') || null,
       can_bo_id: data.get('can_bo_id') || null,
       ghi_chu: data.get('ghi_chu') || null,
     })
     await trongTransaction(phien.id, async client => {
       await client.query(
-        'insert into nguoi_lay_hd (ten, ty_le_phi, ngan_hang_bin, so_tai_khoan, ten_ngan_hang, ten_chu_tk, can_bo_id, ghi_chu) values ($1,$2,$3,$4,$5,$6,$7,$8)',
-        [input.ten, input.ty_le_phi, input.ngan_hang_bin, input.so_tai_khoan, input.ten_ngan_hang, input.ten_chu_tk, input.can_bo_id, input.ghi_chu]
+        'insert into nguoi_lay_hd (ten, ty_le_phi, ngan_hang_bin, so_tai_khoan, ten_ngan_hang, ten_chu_tk, can_bo_id, ghi_chu, chi_nhanh) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+        [input.ten, input.ty_le_phi, input.ngan_hang_bin, input.so_tai_khoan, input.ten_ngan_hang, input.ten_chu_tk, input.can_bo_id, input.ghi_chu, input.chi_nhanh]
       )
     })
     revalidatePath('/admin')
@@ -108,15 +110,16 @@ export async function suaNguoiLayHd(_: KetQua, data: FormData): Promise<KetQua> 
       ty_le_phi: data.get('ty_le_phi') ? Number(data.get('ty_le_phi')) / 100 : null,
       ngan_hang_bin: data.get('ngan_hang_bin') || null,
       so_tai_khoan: data.get('so_tai_khoan') || null,
-      ten_ngan_hang: data.get('ten_ngan_hang') || null,
+      ten_ngan_hang: nganHangTheoBin(String(data.get('ngan_hang_bin') || ''))?.name || null,
+      chi_nhanh: data.get('chi_nhanh') || null,
       ten_chu_tk: data.get('ten_chu_tk') || null,
       can_bo_id: data.get('can_bo_id') || null,
       ghi_chu: data.get('ghi_chu') || null,
     })
     await trongTransaction(phien.id, async client => {
       const result = await client.query(
-        'update nguoi_lay_hd set ten=$2, ty_le_phi=$3, ngan_hang_bin=$4, so_tai_khoan=$5, ten_ngan_hang=$6, ten_chu_tk=$7, can_bo_id=$8, ghi_chu=$9 where id=$1',
-        [id, input.ten, input.ty_le_phi, input.ngan_hang_bin, input.so_tai_khoan, input.ten_ngan_hang, input.ten_chu_tk, input.can_bo_id, input.ghi_chu]
+        'update nguoi_lay_hd set ten=$2, ty_le_phi=$3, ngan_hang_bin=$4, so_tai_khoan=$5, ten_ngan_hang=$6, ten_chu_tk=$7, can_bo_id=$8, ghi_chu=$9, chi_nhanh=$10 where id=$1',
+        [id, input.ten, input.ty_le_phi, input.ngan_hang_bin, input.so_tai_khoan, input.ten_ngan_hang, input.ten_chu_tk, input.can_bo_id, input.ghi_chu, input.chi_nhanh]
       )
       if (!result.rowCount) throw new Error('Không tìm thấy người lấy hóa đơn.')
     })

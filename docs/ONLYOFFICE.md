@@ -13,6 +13,19 @@
 
 Compose mặc định chỉ công bố editor trên loopback. Triển khai LAN/Internet cần reverse proxy HTTPS cho cả ứng dụng và DocumentServer, địa chỉ public thực tế thay localhost, cùng cấu hình Host gốc được giữ nguyên. Không công bố PostgreSQL hay khóa JWT. Cho phép private IP trong DocumentServer là để callback tới máy chủ ứng dụng nội bộ; không dùng máy chủ này làm dịch vụ chuyển đổi công khai.
 
+## Mở web để test thủ công trên máy này
+
+1. Mở Docker Desktop và đợi Docker sẵn sàng. PostgreSQL đã cấu hình phải đang chạy.
+2. Nháy đúp `MO-WEB-TEST.bat` trong thư mục dự án. Script bổ sung cấu hình OnlyOffice còn thiếu, khởi động DocumentServer riêng, kiểm tra healthcheck và truy vấn chỉ đọc để kiểm tra các bảng DB, rồi mở **http://localhost:3000**. Giữ cửa sổ server mở khi test.
+3. Đăng nhập bằng tài khoản hiện có → Giao dịch → mở giấy → **Mở trình soạn thảo**. Chờ thông báo **Đang mở phiên bản…** và nội dung Word trong iframe. Healthcheck thành công chưa đủ chứng minh editor hoạt động.
+4. Nếu vừa đổi `.env.local`, lưu và đóng các editor trước, rồi chạy `MO-WEB-TEST.bat moi` để khởi động lại server của dự án. Không khởi động lại khi còn bản sửa chưa lưu.
+
+`MO-WEB-TEST.bat kiem-tra` chỉ chuẩn bị OnlyOffice và kiểm tra môi trường, không mở web. Launcher không tự chạy migration, không tạo/reset tài khoản và không tự khởi động hay thay đổi PostgreSQL. Nếu thiếu bảng, cần sao lưu DB + uploads rồi nhờ quản trị xử lý migration. Nếu cổng 3000 do ứng dụng khác giữ, launcher báo lỗi, không tự tắt ứng dụng đó.
+
+**Dữ liệu nhập trên web này lưu vào DB đang cấu hình, không phải DB tạm.** Muốn kiểm thử tự động cách ly dữ liệu, dùng `npm run test:e2e` hoặc `npm run test:e2e -- --real-office`. File `CHAY-KIEM-TRA-DU-AN.bat` chạy bộ kiểm thử rồi gọi launcher mở web kèm OnlyOffice; không cần chạy toàn bộ bộ kiểm thử mỗi lần mở web.
+
+Cấu hình mặc định chỉ dùng trên chính máy này qua localhost; không dùng địa chỉ LAN để test với cấu hình public URL localhost. Khóa JWT không được in hoặc gửi cho người khác.
+
 ## Sử dụng
 
 Từ giấy đề nghị của giao dịch, chọn **Mở trình soạn thảo**. Tài liệu lần đầu được chụp từ dữ liệu tài chính và mẫu hiện tại. Các lần mở tiếp theo dùng bản đã lưu, không tự cập nhật theo nhật ký. Nút Lưu trong editor force-save; đóng editor kết thúc phiên và có thể cần vài giây để nhận bản cuối. Liên kết tải DOCX lấy bản đã commit, không phải các phím vừa gõ chưa lưu. Khi editor lỗi, không coi thông báo đóng cửa sổ là xác nhận lưu.
@@ -38,10 +51,14 @@ Chạy `npm run test:e2e -- --real-office` để kiểm thử DocumentServer `on
 
 Trước vận hành vẫn cần kiểm tra nhanh với HTTPS/reverse proxy và cấu hình triển khai thực tế. Không dùng số liệu thật để thử khi chưa sao lưu.
 
-Trong **Thêm giao dịch**, chọn **Tự lập giấy khi lưu giao dịch** để xem trước loại giấy, nội dung và số tiền (không phải bố cục Word). Checkbox mặc định tắt, chỉ hiện với hình thức có giấy. Sau khi lưu có liên kết **Mở giấy của giao dịch vừa lưu**; tại trang giấy chọn **Mở trình soạn thảo**.
+Trong **Thêm giao dịch**, bấm **Lập giấy đề nghị** để hiện **Thông tin giấy đề nghị** ngay trong form, không mở popup mới. Mục này chỉ có 5 ô: Người đề nghị, Lãnh đạo duyệt giấy tiếp khách, Lãnh đạo duyệt giấy thanh toán, Kế toán kiểm soát, Trưởng phòng. Các ô lấy mặc định đã cài đặt; trưởng phòng được chọn theo phòng của người đề nghị (ưu tiên mặc định cùng phòng, nếu không thì tìm đúng một cán bộ đang hoạt động có chức danh Trưởng phòng; không xác định được thì để người dùng chọn). Đổi người ký chỉ áp dụng lần lập giấy này, không đổi Cài đặt chung. Bấm **Xem** bên dưới mới mở popup DOCX thật bằng OnlyOffice chỉ đọc; **Đóng** trở lại form và giữ nguyên người ký, chưa lưu dữ liệu. Bấm **Lưu giao dịch** trên form để lưu và lập các giấy phù hợp với hình thức giao dịch, dùng đúng các người ký đang chọn. Xem dựng bản nháp bằng cùng mẫu hiện tại và logic điền Word như Lưu, không ghi giao dịch, tài liệu hay phiên bản vào DB. OnlyOffice phải đang chạy; nếu không kết nối được, popup báo lỗi và cho bấm Xem lại. URL bản nháp được ký, hết hạn sau 15 phút; tệp nháp nằm trong thư mục tạm hệ điều hành `finance-word-preview`, được dọn khi có yêu cầu xem tiếp theo sau khi hết hạn. Đóng viewer không xóa tức thì tệp/cache DocumentServer. Triển khai nhiều instance cần cùng kho tệp tạm hoặc định tuyến cố định tới instance đã tạo bản nháp. Nếu mẫu/cấu hình được người khác đổi giữa Xem và Lưu, bản lưu dùng cấu hình mới nhất. Sau khi lưu có liên kết **Mở giấy của giao dịch vừa lưu**; tại trang giấy chọn **Mở trình soạn thảo**. Lựa chọn loại giấy được kiểm tra lại ở máy chủ.
+
+Tên phòng ở đầu giấy mới được viết tắt: PHÒNG HCTC, PHÒNG KT, PHÒNG ĐT…; tên đầy đủ trong phần nội dung vẫn giữ nguyên. Hai phần nội dung từ Căn cứ trong mẫu tiếp khách/thanh toán dùng Times New Roman 14pt. Giấy đã lưu và mẫu tùy chỉnh đã lưu trong DB không bị ghi đè bởi thay đổi mẫu gốc.
 
 Các giấy được tạo trong cùng transaction với giao dịch, đọc giao dịch vừa thêm bằng chính client PostgreSQL. SAVEPOINT bao quanh toàn bộ phần lập giấy: nếu giấy thứ hai lỗi thì rollback cả bộ giấy, vẫn lưu giao dịch và báo rõ không thêm lại giao dịch. Tệp đã ghi trước rollback có thể còn mồ côi như quy tắc lưu trữ ở trên. Hai loại tiếp khách/thanh toán dùng chung tệp mẫu nhưng giữ tài liệu riêng theo từng loại như luồng mở giấy hiện có. Cấu hình người ký được đọc lúc lập giấy.
 
 E2E đã bổ sung checkbox, xem trước, kiểm tra DOCX và liên kết sau lưu; trigger lỗi trên DB tạm kiểm chứng rollback cả bộ giấy nhưng giữ đúng một giao dịch. Kiểm thử hồi quy xác nhận cả hai đường dẫn mẫu có tên mã hóa URL mở được và tên mẫu không tồn tại trả 404. Lượt mặc định dùng DocumentServer giả lập; lượt `--real-office` kiểm chứng editor thật như mô tả ở trên.
+
+Kiểm chứng thay đổi Xem Word trong popup: 494/494 unit test và 24/24 E2E mặc định đạt. Lượt `--real-office` đã build production thành công, mở bản nháp trong iframe tới sự kiện `onDocumentReady` và xác nhận Xem/Đóng không tăng số giao dịch/tài liệu/phiên bản. Tuy nhiên toàn bộ lượt thật chưa đạt: bước hồi quy đóng phiên soạn thảo sau đó hết thời gian chờ key trở về null (callback đóng phiên). Không dùng kết quả này để tuyên bố toàn bộ E2E OnlyOffice thật đã xanh.
 
 Không có tự phục hồi phiên khi DocumentServer mất cache; không đổi key thủ công lúc còn người đang sửa. Phiên kéo dài quá hạn capability cần đóng và mở lại. Không tuyên bố hoàn tất kiểm thử DocumentServer thật nếu chỉ chạy E2E giả lập.

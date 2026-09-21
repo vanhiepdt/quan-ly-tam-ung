@@ -11,7 +11,7 @@ import { ThanhToan } from './thanh-toan'
 import { NutXoa } from './xoa-nut'
 import { SuaGiaoDich } from './sua-giao-dich'
 import { LichSu } from './lich-su'
-import { cotNhatKy, rongMax, rongMin, thuTuCot, type CotId, type TuyChonCot } from './cot-nhat-ky'
+import { catTrangNhatKy, cotNhatKy, rongMax, rongMin, soDongTrangHopLe, SO_DONG_TRANG, thuTuCot, type CotId, type TuyChonCot } from './cot-nhat-ky'
 import { doiKhoaSapXep, huongSapXep, sapXepDong, tongCot, type KhoaSapXep } from './sap-xep-nhat-ky'
 import { batTatGiaTri, boLocCot, dangLocFacet, demDangLoc, facetCuaCot, locDong, nhanFacet, TRONG, tuyChonFacet, type BoLoc } from './loc-nhat-ky'
 import { luuTuyChonCot } from './tuy-chon-actions'
@@ -28,12 +28,15 @@ function giaTri(r: Dong, id: CotId, coTheSua: boolean, phuTro: PhuTro): ReactNod
     case 'chungTu': return r.kyHieuHd || r.soHd ? <>{r.kyHieuHd ?? TRONG}<br />{r.soHd ?? TRONG}</> : TRONG
     case 'trangThai': return <div className="flex flex-col items-start gap-2"><span className={`badge ${badge(r.trangThaiHd)}`}>{r.trangThaiHd}</span><span className={`badge ${badge(r.trangThaiTtPhi)}`}>{r.trangThaiTtPhi}</span>{coTheSua && r.trangThaiTtPhi === 'Chưa thanh toán' && <ThanhToan id={r.id} />}</div>
     case 'hinhThuc': return r.hinhThuc
-    case 'tep': return <>{r.coHoaDon ? '✓ HĐ' : TRONG}<br />{r.coChuyenKhoan ? '✓ CK' : TRONG}</>
+    case 'tep': return <Link href={`/tep/${r.id}`} prefetch={false} className="text-indigo-700 hover:underline">
+      {r.coHoaDon ? '✓ HĐ' : TRONG}<br />{r.coChuyenKhoan ? '✓ CK' : TRONG}
+    </Link>
     case 'thaoTac': return <div className="flex flex-wrap gap-2">
       {coTheSua && <SuaGiaoDich row={r} collectors={phuTro.collectors} donVi={phuTro.donVi} vaiTro={phuTro.vaiTro} />}
       {/* Giấy đề nghị là bản in của dữ liệu nên mọi vai trò đều mở được, kể cả chi_doc;
           chỉ những hình thức có lập giấy mới hiện nút. */}
       {giayChoHinhThuc(r.hinhThuc).length > 0 && <Link className="btn btn-secondary min-h-8 px-3 py-1" href={`/giay/${r.id}`} prefetch={false}>Giấy</Link>}
+      <Link className="btn btn-secondary min-h-8 px-3 py-1" href={`/tep/${r.id}`} prefetch={false}>Tệp</Link>
       {/* Lịch sử là dữ liệu chỉ đọc nên mọi vai trò đều xem được, kể cả chi_doc. */}
       <LichSu id={r.id} nhan={`${r.ngay} · ${r.noiDung}`} />
       {coTheSua && <NutXoa id={r.id} />}
@@ -141,6 +144,7 @@ export function BangNhatKy({ rows, coTheSua, banDau, loiBanDau, phuTro }: {
   const [khoaSapXep, setKhoaSapXep] = useState<KhoaSapXep[]>([])
   const [boLoc, setBoLoc] = useState<BoLoc>({})
   const [hopLoc, setHopLoc] = useState<{ cot: CotId; neo: HTMLElement } | null>(null)
+  const [trang, setTrang] = useState(1)
   // Tùy chọn mới nhất, để lệnh lưu tự động sau khi thả chuột luôn dùng đúng giá trị cuối.
   const tuyChonRef = useRef(tuyChon)
   tuyChonRef.current = tuyChon
@@ -157,12 +161,23 @@ export function BangNhatKy({ rows, coTheSua, banDau, loiBanDau, phuTro }: {
   const daDoi = JSON.stringify(tuyChon) !== JSON.stringify(daLuu)
   const doRong = (c: typeof cotNhatKy[number]) => tuyChon.rong[c.id] ?? c.rong
   const dongHienThi = sapXepDong(locDong(rows, boLoc), khoaSapXep)
+  const soDongTrang = soDongTrangHopLe(tuyChon.soDongTrang)
+  const phanTrang = catTrangNhatKy(dongHienThi, soDongTrang, trang)
+  const dongTrang = phanTrang.dong
   const cotDauTien = hienThi[0]?.id
   const soDangLoc = demDangLoc(boLoc)
   const nhieuKhoa = khoaSapXep.length > 1
 
   function doiSapXep(id: CotId, giuNhieu: boolean) {
     setKhoaSapXep(khoa => doiKhoaSapXep(khoa, id, giuNhieu))
+    setTrang(1)
+  }
+  function doiSoDongTrang(so: number) {
+    const value = { ...tuyChon, soDongTrang: soDongTrangHopLe(so) }
+    setTuyChon(value)
+    setTrang(1)
+    setThongBao('')
+    void luu(value)
   }
   function suaRong(id: CotId, value: number) {
     if (!Number.isFinite(value)) return
@@ -211,15 +226,24 @@ export function BangNhatKy({ rows, coTheSua, banDau, loiBanDau, phuTro }: {
   }
   function doiLoc(facetId: string, giaTri: string) {
     setBoLoc(truoc => batTatGiaTri(truoc, facetId, giaTri))
+    setTrang(1)
   }
   function xoaLocCot(cot: CotId) {
     setBoLoc(truoc => boLocCot(truoc, facetCuaCot(cot).map(f => f.id)))
+    setTrang(1)
   }
   const trangThaiLuu = thongBao || (dangLuu ? 'Đang lưu bố cục…' : daDoi ? 'Có thay đổi chưa lưu.' : '')
   const chipLoc = Object.entries(boLoc).flatMap(([facetId, giaTri]) => giaTri.map(v => ({ facetId, giaTri: v })))
 
   return <>
     <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <label className="flex items-center gap-2 text-sm text-slate-600">
+        Số dòng mỗi trang
+        <select aria-label="Số dòng mỗi trang" className="min-h-8 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm"
+          value={soDongTrang} onChange={event => doiSoDongTrang(Number(event.target.value))}>
+          {SO_DONG_TRANG.map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </label>
       <span className="badge neutral">{dongHienThi.length}/{rows.length} dòng</span>
       {khoaSapXep.map((k, i) => <button key={k.id} type="button" className="ledger-chip ledger-chip-sort"
         aria-label={`Bỏ sắp xếp ${cotNhatKy.find(c => c.id === k.id)?.ten}`}
@@ -231,7 +255,7 @@ export function BangNhatKy({ rows, coTheSua, banDau, loiBanDau, phuTro }: {
         className="ledger-chip" onClick={() => doiLoc(chip.facetId, chip.giaTri)}>
         <span className="text-slate-500">{nhanFacet(chip.facetId)}:</span> {chip.giaTri || TRONG}<span aria-hidden="true" className="text-slate-400">×</span>
       </button>)}
-      {soDangLoc > 0 && <button type="button" className="btn btn-secondary min-h-8 px-3 py-1" onClick={() => setBoLoc({})}>Bỏ tất cả lọc</button>}
+      {soDangLoc > 0 && <button type="button" className="btn btn-secondary min-h-8 px-3 py-1" onClick={() => { setBoLoc({}); setTrang(1) }}>Bỏ tất cả lọc</button>}
       <p role="status" aria-live="polite" className={`ml-auto text-xs ${thongBao ? 'text-amber-700' : 'text-slate-500'}`}>{trangThaiLuu}</p>
       {thongBao && daDoi && <button type="button" className="btn btn-secondary min-h-8 px-3 py-1" onClick={() => void luu(tuyChon)}>Thử lại lưu bố cục</button>}
     </div>
@@ -291,10 +315,10 @@ export function BangNhatKy({ rows, coTheSua, banDau, loiBanDau, phuTro }: {
               }}>↔</button>
           </th>
         })}</tr></thead>
-        <tbody>{dongHienThi.map(r => <tr key={r.id}>{hienThi.map(c => <td key={c.id} className={typeof r[c.id as keyof Dong] === 'number' ? 'money' : undefined} style={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{giaTri(r, c.id, coTheSua, phuTro)}</td>)}</tr>)}
+        <tbody>{dongTrang.map(r => <tr key={r.id}>{hienThi.map(c => <td key={c.id} className={typeof r[c.id as keyof Dong] === 'number' ? 'money' : undefined} style={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{giaTri(r, c.id, coTheSua, phuTro)}</td>)}</tr>)}
           {!dongHienThi.length && <tr><td colSpan={hienThi.length} className="px-6 py-14 text-center text-slate-500">
             {rows.length
-              ? <span className="flex flex-col items-center gap-3">Không có dòng nào khớp bộ lọc.<button type="button" className="btn btn-secondary min-h-8 px-3 py-1" onClick={() => setBoLoc({})}>Bỏ tất cả lọc</button></span>
+              ? <span className="flex flex-col items-center gap-3">Không có dòng nào khớp bộ lọc.<button type="button" className="btn btn-secondary min-h-8 px-3 py-1" onClick={() => { setBoLoc({}); setTrang(1) }}>Bỏ tất cả lọc</button></span>
               : 'Chưa có giao dịch nào.'}
           </td></tr>}
         </tbody>
@@ -305,6 +329,13 @@ export function BangNhatKy({ rows, coTheSua, banDau, loiBanDau, phuTro }: {
         })}</tr></tfoot>}
       </table>
     </section>
+    {phanTrang.tongTrang > 1 && <nav className="mt-3 flex flex-wrap items-center gap-1" aria-label="Trang nhật ký">
+      {Array.from({ length: phanTrang.tongTrang }, (_, i) => i + 1).map(so => (
+        <button key={so} type="button" aria-label={`Trang ${so}`} aria-current={so === phanTrang.trang ? 'page' : undefined}
+          className={`btn min-h-8 min-w-8 px-3 py-1 ${so === phanTrang.trang ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setTrang(so)}>{so}</button>
+      ))}
+    </nav>}
     {hopLoc && <HopLoc neo={hopLoc.neo} cotTen={cotNhatKy.find(c => c.id === hopLoc.cot)!.ten} cotId={hopLoc.cot}
       rows={rows} boLoc={boLoc} onBatTat={doiLoc} onXoaCot={() => xoaLocCot(hopLoc.cot)} onDong={() => setHopLoc(null)} />}
   </>

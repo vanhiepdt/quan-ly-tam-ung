@@ -4,7 +4,9 @@ import { layPhien } from '@/lib/xac-thuc/phien'
 import { docTuyChonCot } from '../giao-dich/tuy-chon-actions'
 import { TuyChonCot } from './tuy-chon-cot'
 import { ThongTinGiay } from './thong-tin-giay'
+import { CaiDatAi } from './cai-dat-ai'
 import { docDuLieuCauHinhGiay } from './giay-actions'
+import { docDuLieuCauHinhAi } from './ai-actions'
 import { docCanBo } from '@/lib/tai-chinh/cau-hinh-giay'
 import { db } from '@/lib/db/pool'
 import { dangXuat } from '@/app/dang-nhap/actions'
@@ -18,15 +20,18 @@ export default async function CaiDatPage() {
   // Cấu hình giấy đề nghị dùng chung cho cả cơ quan nên chỉ quản trị viên xem và sửa.
   const laAdmin = phien.vai_tro === 'admin'
   let giay = null
+  let ai = null
   let canBo: Array<{ id: string; ten: string }> = []
   let nguoiLayHd: Array<{ id: string; ten: string }> = []
   if (laAdmin) {
-    const [duLieu, dsCanBo, { rows: dsNguoiLayHd }] = await Promise.all([
+    const [duLieu, duLieuAi, dsCanBo, { rows: dsNguoiLayHd }] = await Promise.all([
       docDuLieuCauHinhGiay(),
+      docDuLieuCauHinhAi(),
       docCanBo(),
       db.query<{ id: string; ten: string }>('select id, ten from nguoi_lay_hd where dang_hoat_dong order by ten'),
     ])
     giay = duLieu
+    ai = duLieuAi
     canBo = dsCanBo.filter(cb => cb.dangHoatDong).map(cb => ({ id: cb.id, ten: cb.hoTen }))
     nguoiLayHd = dsNguoiLayHd
   }
@@ -40,6 +45,7 @@ export default async function CaiDatPage() {
       <aside className="sidebar flex gap-1 overflow-x-auto border-b border-slate-200 bg-white p-3 lg:block lg:min-h-[calc(100vh-64px)] lg:border-r lg:border-b-0 lg:p-4">
         <Link className="nav-link flex shrink-0 items-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-indigo-50 hover:text-indigo-700 lg:mb-1" href="/dashboard">▦ Tổng quan</Link>
         <Link className="nav-link flex shrink-0 items-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-indigo-50 hover:text-indigo-700 lg:mb-1" href="/giao-dich">≡ Nhật ký giao dịch</Link>
+        <Link className="nav-link flex shrink-0 items-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-indigo-50 hover:text-indigo-700 lg:mb-1" href="/tep">▤ Hồ sơ tệp</Link>
         {phien.vai_tro === 'admin' && <Link className="nav-link flex shrink-0 items-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-indigo-50 hover:text-indigo-700 lg:mb-1" href="/admin">⚙ Quản trị</Link>}
         <Link className="nav-link flex shrink-0 items-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-indigo-50 hover:text-indigo-700 lg:mb-1 active" href="/cai-dat">⚙ Cài đặt</Link>
       </aside>
@@ -48,7 +54,7 @@ export default async function CaiDatPage() {
           <div>
             <p className="eyebrow mb-2 text-xs font-bold tracking-widest text-indigo-700">CÀI ĐẶT</p>
             <h1>Tùy chỉnh hiển thị</h1>
-            <p>Điều chỉnh giao diện, cột nhật ký và thông tin in trên giấy đề nghị.</p>
+            <p>Điều chỉnh giao diện, cột nhật ký, thông tin in trên giấy đề nghị và lớp AI đọc hóa đơn.</p>
           </div>
           <form action={dangXuat}><button className="btn btn-secondary">Đăng xuất</button></form>
         </header>
@@ -66,6 +72,12 @@ export default async function CaiDatPage() {
           <h2 className="mb-2 text-lg font-semibold">Thông tin giấy đề nghị</h2>
           <p className="mb-5 text-slate-500">Những chữ in giống nhau ở mọi giấy đề nghị, và người ký mặc định cho từng vai trò.</p>
           <ThongTinGiay banDau={giay} canBo={canBo} nguoiLayHd={nguoiLayHd} />
+        </div>}
+
+        {ai && <div className="card mb-6 p-5 sm:p-6" data-panel="ai">
+          <h2 className="mb-2 text-lg font-semibold">Cài đặt AI đọc hóa đơn</h2>
+          <p className="mb-5 text-slate-500">Lớp 2 đối chiếu QR và điền người bán, người mua, dòng hàng. Chọn nhà cung cấp hoặc trỏ API ngoài tương thích OpenAI.</p>
+          <CaiDatAi banDau={ai} />
         </div>}
 
         {laAdmin && <section className="card mb-6 space-y-3 p-5 sm:p-6">

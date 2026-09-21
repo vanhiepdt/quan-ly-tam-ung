@@ -9,6 +9,8 @@ export type DongTaiKhoan = {
   ngan_hang_bin?: string | null
   ten_ngan_hang?: string | null
   ten_chu_tk?: string | null
+  chi_nhanh?: string | null
+  can_bo_id?: string | null
 }
 
 // Người lấy hóa đơn khi đưa vào ô chọn của form: kèm sẵn tài khoản nhận tiền để màn
@@ -29,6 +31,8 @@ export function taiKhoanTu(dong: DongTaiKhoan | null | undefined): TaiKhoanNhan 
     soTaiKhoan,
     nganHang: nganHang ? nganHang : null,
     tenChuTk: dong.ten_chu_tk?.trim() || null,
+    ...(dong.chi_nhanh !== undefined ? { chiNhanh: dong.chi_nhanh?.trim() || null } : {}),
+    ...(dong.can_bo_id !== undefined ? { canBoId: dong.can_bo_id } : {}),
   }
 }
 
@@ -38,6 +42,7 @@ export function dongTaiKhoan(tk: TaiKhoanNhan): string {
   return [
     `Số tài khoản: ${tk.soTaiKhoan}`,
     tk.nganHang ? `Ngân hàng: ${tk.nganHang}` : null,
+    tk.chiNhanh ? `Chi nhánh: ${tk.chiNhanh}` : null,
     tk.tenChuTk ? `Chủ tài khoản: ${tk.tenChuTk}` : null,
   ].filter(Boolean).join(' – ')
 }

@@ -11,6 +11,8 @@ export type TaiKhoanNhan = {
   soTaiKhoan: string
   nganHang: string | null
   tenChuTk: string | null
+  chiNhanh?: string | null
+  canBoId?: string | null
 }
 
 export type GiaoDichTho = {

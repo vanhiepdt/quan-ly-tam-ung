@@ -6,6 +6,7 @@ vi.mock('@/lib/xac-thuc/bao-ve', () => ({ batBuocVaiTro: mocks.role }))
 vi.mock('@/lib/db/pool', () => ({ db: {}, trongTransaction: mocks.transaction }))
 vi.mock('@/lib/validation/giao-dich', async () => import('../validation/giao-dich'))
 vi.mock('@/lib/tai-chinh/xac-nhan-hoan-ung', async () => import('./xac-nhan-hoan-ung'))
+vi.mock('@/lib/tep/gan', () => ({ ganTepVaoGiaoDich: vi.fn() }))
 import { themGiaoDich, xoaMemGiaoDich } from '../../app/giao-dich/actions'
 
 const actor = '11111111-1111-4111-8111-111111111111'
@@ -128,7 +129,7 @@ describe('server reimbursement confirmation', () => {
   it('preserves null/default fields and drops the unit on internal cash rows', async () => {
     await themGiaoDich({}, form({ hinh_thuc: 'Tạm ứng thêm', trang_thai_hd: '', don_vi_id: '', noi_dung: 'Tạm ứng tháng 1' }))
     const values = inserts()[0][1]
-    expect(values[2]).toBe('Tạm ứng tháng 1')
+    expect(values[2]).toBe('Tạm ứng thêm')
     expect(values[3]).toBeNull()
     expect(values[4]).toBeNull()
     expect(values[7]).toBe('Không có')

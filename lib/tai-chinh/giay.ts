@@ -27,19 +27,30 @@ export type CauHinhGiay = {
   truongPhongId: string | null
   keToanKiemSoatId: string | null
   tenDonVi: string
+  // Tên / MST / địa chỉ người mua trên hóa đơn. Không in lên giấy đề nghị.
+  tenMuaHangDonVi: string
+  mstDonVi: string
+  diaChiDonVi: string
   diaDanh: string
   lyDoTamUng: string
   thoiHanThanhToan: string
   // Người lấy hóa đơn dùng khi giao dịch chưa gắn người nào: tài khoản nhận tiền của họ
   // được in kèm khi thanh toán bằng chuyển khoản.
   nguoiLayHdMacDinhId: string | null
+  // Trạng thái thanh toán phí lấy hóa đơn khi thêm giao dịch có hóa đơn.
+  trangThaiTtPhiMacDinh: string
 }
 
 export const CAU_HINH_GIAY_MAC_DINH: CauHinhGiay = {
   nguoiDeNghiId: null, lanhDaoTiepKhachId: null, lanhDaoThanhToanId: null, truongPhongId: null, keToanKiemSoatId: null,
-  tenDonVi: 'Trung tâm Đào tạo', diaDanh: 'Hà Nội',
+  tenDonVi: 'Trung tâm Đào tạo',
+  tenMuaHangDonVi: 'Trung tâm Đào tạo Ngân hàng Chính sách xã hội',
+  mstDonVi: '0100695387066',
+  diaChiDonVi: 'Tầng 2, Khu nhà 3 tầng, số 169 phố Linh Đường, Phường Hoàng Liệt, TP Hà Nội, Việt Nam',
+  diaDanh: 'Hà Nội',
   lyDoTamUng: 'Chi tiêu hành chính', thoiHanThanhToan: 'Sau khi hoàn thành công việc',
   nguoiLayHdMacDinhId: null,
+  trangThaiTtPhiMacDinh: 'Không phát sinh',
 }
 
 // Hình thức "Giao tiền chị Thúy" và "Nộp hoàn CQ" là dòng tiền nội bộ, không có giấy.
@@ -132,26 +143,35 @@ export type BoiCanhGiay = {
   nguoiDeNghi: CanBo
   canBo: readonly CanBo[]
   cauHinh: CauHinhGiay
-  // Tài khoản nhận tiền tra theo mã người lấy hóa đơn. Chuyển khoản thì giấy in kèm
-  // tài khoản của người lấy hóa đơn gắn với giao dịch, không có thì lấy người mặc định.
+  // Tài khoản người lấy hóa đơn đang hoạt động, kèm liên kết cán bộ.
+  // Giấy chỉ dùng tài khoản liên kết đúng người đề nghị đã chọn.
   taiKhoanTheoNguoiLayHd: Record<string, TaiKhoanNhan>
 }
 
-// Tài khoản nhận tiền in trên giấy: ưu tiên người lấy hóa đơn của chính giao dịch, sau
-// đó tới người lấy hóa đơn mặc định trong cấu hình. Không có cả hai thì giấy chỉ in
-// chữ "Chuyển khoản" mà không kèm số tài khoản.
-export function taiKhoanNhan(gd: GiaoDichTinh, ctx: BoiCanhGiay): TaiKhoanNhan | null {
-  const cuaGiaoDich = gd.nguoiLayHdId ? ctx.taiKhoanTheoNguoiLayHd[gd.nguoiLayHdId] : undefined
-  const macDinh = ctx.cauHinh.nguoiLayHdMacDinhId ? ctx.taiKhoanTheoNguoiLayHd[ctx.cauHinh.nguoiLayHdMacDinhId] : undefined
-  return cuaGiaoDich ?? macDinh ?? null
+// Thiếu liên kết hoặc có nhiều tài khoản cùng cán bộ thì không tự đoán tài khoản nhận.
+export type DuLieuGiay = Pick<GiaoDichTinh, 'ngay' | 'hinhThuc' | 'hinhThucThanhToan' | 'tamUngTuCq' | 'tongTien' | 'tienRuouBia' | 'donViTen' | 'nguoiLayHdId' | 'kyHieuHd' | 'soHd'>
+
+export function taiKhoanNhan(gd: DuLieuGiay, ctx: BoiCanhGiay): TaiKhoanNhan | null {
+  const ds = Object.values(ctx.taiKhoanTheoNguoiLayHd).filter(tk => tk.canBoId === ctx.nguoiDeNghi.id)
+  // Không tự lấy tài khoản của người khác hoặc đoán khi một cán bộ gắn nhiều tài khoản.
+  return ds.length === 1 ? { ...ds[0], tenChuTk: ctx.nguoiDeNghi.hoTen } : null
 }
 
-export function dungGiay(loai: LoaiGiay, gd: GiaoDichTinh, ctx: BoiCanhGiay): GiayDeNghi {
+// Giữ mã đã viết tắt; tên đầy đủ lấy chữ cái đầu từng từ.
+export function vietTatPhong(ten: string): string {
+  const goc = ten.normalize('NFC').trim().replace(/^(?:phòng\s+|p\.\s*)/iu, '')
+  const tu = goc.match(/[\p{L}\p{N}]+/gu) ?? []
+  if (!tu.length) return ''
+  const ma = tu.length === 1 ? tu[0] : tu.map(t => t[0]).join('')
+  return `PHÒNG ${ma.toLocaleUpperCase('vi')}`
+}
+
+export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): GiayDeNghi {
   const { cauHinh } = ctx
   const { ngay, thang, nam } = phanNgay(gd.ngay)
   const tenDonVi = cauHinh.tenDonVi
   const phong = ctx.nguoiDeNghi.phong ?? ''
-  const phongHoa = phong.toLocaleUpperCase('vi')
+  const phongHoa = vietTatPhong(phong)
 
   const lanhDaoTk = goiCanBo(ctx.canBo, cauHinh.lanhDaoTiepKhachId)
   const lanhDaoTt = goiCanBo(ctx.canBo, cauHinh.lanhDaoThanhToanId)
@@ -205,7 +225,7 @@ export function dungGiay(loai: LoaiGiay, gd: GiaoDichTinh, ctx: BoiCanhGiay): Gi
 
   // Giấy đề nghị tạm ứng in đủ ba dòng đầu trang; hai giấy còn lại chỉ in tên phòng,
   // đúng như mẫu Word.
-  const dauTrangTamUng = ['NGÂN HÀNG CHÍNH SÁCH XÃ HỘI', tenDonVi.toLocaleUpperCase('vi'), `P. ${phongHoa || tenDonVi.toLocaleUpperCase('vi')}`]
+  const dauTrangTamUng = ['NGÂN HÀNG CHÍNH SÁCH XÃ HỘI', tenDonVi.toLocaleUpperCase('vi'), phongHoa || tenDonVi.toLocaleUpperCase('vi')]
   const dauTrangPhong = [phongHoa || tenDonVi.toLocaleUpperCase('vi')]
   const dongNgay = `${cauHinh.diaDanh}, ngày ${ngay} tháng ${thang} năm ${nam}`
 
@@ -307,7 +327,7 @@ function thayCoDinh(c: {
 }): ThayTheCoDinh[] {
   const ds: ThayTheCoDinh[] = [
     { mau: mauChuoi('Độc lập - Tự do - Tự do'), thay: 'Độc lập - Tự do - Hạnh phúc' },
-    { mau: mauChuoi('P. HÀNH CHÍNH TỔ CHỨC'), thay: `P. ${(c.phong || c.tenDonVi).toLocaleUpperCase('vi')}` },
+    { mau: mauChuoi('P. HÀNH CHÍNH TỔ CHỨC'), thay: vietTatPhong(c.phong) || c.tenDonVi.toLocaleUpperCase('vi') },
     { mau: mauChuoi('Phòng HCTC'), thay: c.phong || c.tenDonVi },
     // Tên đơn vị in ở đầu trang và trong dòng "Kính gửi" đều gõ cứng, phải theo cấu hình.
     { mau: mauChuoi('TRUNG TÂM ĐÀO TẠO'), thay: c.tenDonVi.toLocaleUpperCase('vi') },
