@@ -7,22 +7,26 @@ const dong = (phan: Partial<GiaoDichTinh>): GiaoDichTinh => ({
   id: 'g', ngay: '2026-01-01', soThuTu: 1, taoLuc: '2026-01-01T00:00:00.000Z', noiDung: '',
   kyHieuHd: null, soHd: null, loaiHd: null, trangThaiHd: TRANG_THAI.HOP_LE, hinhThuc: HINH_THUC.HOAN_TAM_UNG,
   tongTien: 0, tienRuouBia: 0, tamUngTuCq: 0, giaoTienChiThuy: 0, hoanUngTienMat: 0,
-  nguoiLayHdId: null, nguoiLayHdTen: null, phiLayHdGhiDe: null, trangThaiTtPhi: 'Không phát sinh',
-  ghiChu: null, donViId: null, donViTen: null, hinhThucThanhToan: null, taiKhoanNhan: null, coHoaDon: false, coChuyenKhoan: false,
-  hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0,
+  nguoiDeNghiId: null, nguoiDeNghiTen: null, nguoiLayHdId: null, nguoiLayHdTen: null, phiLayHdGhiDe: null, trangThaiTtPhi: 'Không phát sinh',
+  ghiChu: null, donViId: null, donViTen: null, hinhThucThanhToan: null, taiKhoanNhan: null, coHoaDon: false, coChuyenKhoan: false, coTinhPhi: false,
+  duaTienCqTraThangChoChiThuy: 0, hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0,
+  duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0,
   ...phan,
 })
 
 const rows = [
-  dong({ id: 'a', donViTen: 'Phòng A', trangThaiHd: 'Hợp lệ', trangThaiTtPhi: 'Đã thanh toán', soHd: '0001' }),
-  dong({ id: 'b', donViTen: 'Phòng B', trangThaiHd: 'Chờ HĐ', trangThaiTtPhi: 'Đã thanh toán', coHoaDon: true }),
+  dong({ id: 'a', donViTen: 'Phòng A', nguoiDeNghiTen: 'Nguyễn Văn A', nguoiLayHdTen: 'Trần Thị T', trangThaiHd: 'Hợp lệ', trangThaiTtPhi: 'Đã thanh toán', soHd: '0001' }),
+  dong({ id: 'b', donViTen: 'Phòng B', trangThaiHd: 'Chờ HĐ', trangThaiTtPhi: 'Đã thanh toán', coHoaDon: true, chiThucTe: true }),
   dong({ id: 'c', donViTen: 'Phòng A', trangThaiHd: 'Hợp lệ', trangThaiTtPhi: 'Chưa thanh toán' }),
 ]
 
 describe('nhóm lọc của cột', () => {
-  it('tách cột ghép nhiều trường thành nhiều nhóm lọc riêng', () => {
+  it('khai báo đúng các nhóm lọc cho từng cột', () => {
     expect(facetCuaCot('chungTu').map(f => f.id)).toEqual(['kyHieuHd', 'soHd', 'loaiHd'])
-    expect(facetCuaCot('trangThai').map(f => f.id)).toEqual(['trangThaiHd', 'trangThaiTtPhi'])
+    expect(facetCuaCot('nguoiDeNghi').map(f => f.id)).toEqual(['nguoiDeNghi'])
+    expect(facetCuaCot('nguoiLayHd').map(f => f.id)).toEqual(['nguoiLayHd'])
+    expect(facetCuaCot('trangThaiHd').map(f => f.id)).toEqual(['trangThaiHd', 'chiThucTe'])
+    expect(facetCuaCot('trangThaiTtPhi').map(f => f.id)).toEqual(['trangThaiTtPhi'])
     expect(facetCuaCot('tep').map(f => f.id)).toEqual(['coHoaDon', 'coChuyenKhoan'])
     expect(facetCuaCot('donVi').map(f => f.id)).toEqual(['donVi'])
   })
@@ -38,6 +42,7 @@ describe('nhóm lọc của cột', () => {
     expect(new Set(ids).size).toBe(ids.length)
     expect(FACET_THEO_ID.size).toBe(ids.length)
     for (const id of ids) expect(nhanFacet(id)).not.toBe(id)
+    expect(nhanFacet('chiThucTe')).toBe('Chi thực tế')
     expect(nhanFacet('khongCo')).toBe('khongCo')
   })
 })
@@ -58,6 +63,16 @@ describe('lọc dòng', () => {
     expect(locDong(rows, { trangThaiHd: ['Hợp lệ'], trangThaiTtPhi: ['Chưa thanh toán'] }).map(r => r.id)).toEqual(['c'])
   })
 
+  it('lọc được theo trạng thái chi thực tế', () => {
+    expect(locDong(rows, { chiThucTe: ['Chi thực tế'] }).map(r => r.id)).toEqual(['b'])
+    expect(locDong(rows, { chiThucTe: ['Không chi thực tế'] }).map(r => r.id)).toEqual(['a', 'c'])
+  })
+
+  it('lọc được theo người đề nghị và người lấy hóa đơn', () => {
+    expect(locDong(rows, { nguoiDeNghi: ['Nguyễn Văn A'] }).map(r => r.id)).toEqual(['a'])
+    expect(locDong(rows, { nguoiLayHd: ['Trần Thị T'] }).map(r => r.id)).toEqual(['a'])
+  })
+
   it('lọc được theo giá trị rỗng và theo cột tệp', () => {
     // Hai dòng chưa có số hóa đơn, một dòng đã có.
     expect(locDong(rows, { soHd: [''] }).map(r => r.id)).toEqual(['b', 'c'])
@@ -71,6 +86,12 @@ describe('lọc dòng', () => {
 
 describe('danh sách giá trị để tick', () => {
   it('đếm số dòng và xếp giá trị rỗng xuống cuối', () => {
+    const facetChiThucTe = facetCuaCot('trangThaiHd').find(f => f.id === 'chiThucTe')!
+    expect(tuyChonFacet(rows, facetChiThucTe)).toEqual([
+      { giaTri: 'Chi thực tế', soLuong: 1 },
+      { giaTri: 'Không chi thực tế', soLuong: 2 },
+    ])
+
     const facet = facetCuaCot('chungTu').find(f => f.id === 'soHd')!
     expect(tuyChonFacet(rows, facet)).toEqual([{ giaTri: '0001', soLuong: 1 }, { giaTri: '', soLuong: 2 }])
   })
@@ -118,7 +139,7 @@ describe('bật tắt giá trị lọc', () => {
 
 describe('lọc kết hợp với cột đang hiển thị', () => {
   it('mọi mã cột trong bảng đều được khai báo tường minh', () => {
-    const coFacet = (Object.keys({ ngay: 1, noiDung: 1, donVi: 1, chungTu: 1, trangThai: 1, hinhThuc: 1, tep: 1 }) as CotId[])
+    const coFacet = (Object.keys({ ngay: 1, noiDung: 1, donVi: 1, nguoiDeNghi: 1, nguoiLayHd: 1, chungTu: 1, trangThaiHd: 1, trangThaiTtPhi: 1, hinhThuc: 1, tep: 1 }) as CotId[])
     for (const id of coFacet) expect(facetCuaCot(id).length).toBeGreaterThan(0)
   })
 })

@@ -169,9 +169,9 @@ File nằm tại `/var/lib/tam-ung/tep`, **ngoài web root**, thuộc user Linux
 - Tệp chỉ được xem qua `app/api/tep/[id]/route.ts`: route kiểm tra session, quyền xem và stream byte; không trả đường dẫn filesystem.
 - Xóa file vật lý và bản ghi database trong cùng quy trình có khả năng phục hồi khi lỗi; trigger vẫn ghi audit cho bản ghi database.
 
-Ảnh có thể nén trước ở trình duyệt (cạnh dài nhất 2000 px, JPEG 0.82) để tiết kiệm ổ đĩa, nhưng phải cân nhắc giữ bản gốc nếu OCR sau này cần độ nét cao. Cả database và `/var/lib/tam-ung/tep` đều nằm trong backup hằng ngày.
+PDF/XML gốc được giữ trong hồ sơ giao dịch để có thể đối chiếu lại khi hai AI đọc lệch. Với PDF, server chỉ dựng trang đầu thành ảnh tạm để gửi tới model có khả năng đọc ảnh; ảnh tạm không thay thế file gốc. Cả database và `/var/lib/tam-ung/tep` đều nằm trong backup hằng ngày.
 
-XML hóa đơn sau này phải được parse với external entity tắt để tránh XXE; chi tiết ở [LO-TRINH-KIEM-TRA-HOA-DON.md](LO-TRINH-KIEM-TRA-HOA-DON.md).
+XML hóa đơn được parse với external entity tắt để tránh XXE; `DOCTYPE` và `ENTITY` bị từ chối. Chi tiết ở [LO-TRINH-KIEM-TRA-HOA-DON.md](LO-TRINH-KIEM-TRA-HOA-DON.md).
 
 ## 6. QR chuyển tiền
 

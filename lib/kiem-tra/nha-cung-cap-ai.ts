@@ -14,7 +14,7 @@ export type NhaCungCapAi = {
   moHinhMacDinh: string
   moHinhGoiY: readonly string[]
   moTa: string
-  /** false = không gửi ảnh; lớp AI chỉ đối chiếu chữ OCR. */
+  /** false = không hỗ trợ đầu vào hình ảnh; vẫn có thể đọc XML. */
   docAnh?: boolean
 }
 
@@ -48,7 +48,7 @@ export const NHA_CUNG_CAP_AI: readonly NhaCungCapAi[] = [
     moHinhMacDinh: 'deepseek-chat',
     moHinhGoiY: ['deepseek-chat', 'deepseek-reasoner'],
     docAnh: false,
-    moTa: 'Kết nối được nhưng không đọc ảnh hóa đơn. Lớp AI chỉ đối chiếu chữ OCR trên PDF. Ảnh scan thì chọn Claude, Gemini hoặc GPT-4o.',
+    moTa: 'Đọc được XML nhưng không hỗ trợ đầu vào hình ảnh PDF. Với PDF, chọn model có khả năng đọc ảnh.',
   },
   {
     id: 'groq', ten: 'Groq', giaoThuc: 'openai',

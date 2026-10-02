@@ -188,7 +188,9 @@ function congThucDong_(r, dongDau, tyLePhi) {
        C.hinhThuc + r + '="' + CH.HT_HOAN_TAM_UNG + '")~' + tienChiHoan + '~0)',
     L: '=IF(AND($' + C.trangThaiHD + r + '="' + CH.HD_HOP_LE + '"~$' +
        C.hinhThuc + r + '="' + CH.HT_CQ_TRA_THANG + '")~' + tienChiHoan + '~0)',
-    M: '=ROUND(SUM($' + C.hoanTU + r + ')*' + tyLePhi + '~0)',
+    // Phí lấy HĐ tính theo toàn bộ cột Tổng tiền (I), không theo cột Hoàn tạm ứng
+    // vì cột này đã loại phần rượu bia và có thể đã được làm tròn.
+    M: '=ROUND(SUM($' + C.tienBill + r + ')*' + tyLePhi + '~0)',
 
     // Lũy kế bằng SUM neo dòng đầu -> chèn/xóa dòng giữa bảng không đứt chuỗi
     S: '=SUM($' + C.tuCQ + '$' + d + ':$' + C.tuCQ + r + ')' +

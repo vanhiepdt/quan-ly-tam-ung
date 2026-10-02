@@ -26,7 +26,7 @@ export function TaiTep({ giaoDichId, loaiMacDinh = 'hoa_don' }: { giaoDichId: st
   }}>
     <label className="field min-w-48 flex-1">Tệp
       <input name="tep" type="file" required disabled={dangTai}
-        accept={chiPdf ? '.pdf,application/pdf' : '.pdf,.xml,.jpg,.jpeg,.png,.webp'} />
+        accept={chiPdf ? '.pdf,application/pdf' : loai === 'hoa_don' ? '.pdf,.xml,application/pdf,application/xml,text/xml' : '.jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf'} />
     </label>
     <label className="field min-w-56">Loại
       <select name="loai" value={loai} disabled={dangTai} onChange={e => setLoai(e.target.value as LoaiTep)}>

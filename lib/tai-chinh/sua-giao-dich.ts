@@ -1,6 +1,7 @@
 import { LOAI_HD, TRANG_THAI_HD, TRANG_THAI_PHI } from './danh-muc'
 import { DS_HINH_THUC_THANH_TOAN, dsHinhThucThanhToan } from './hinh-thuc'
-import { HINH_THUC, type GiaoDichTinh } from './kieu'
+import { DS_HINH_THUC, HINH_THUC, type GiaoDichTinh } from './kieu'
+import { soTienThanhToan } from './tien-thanh-toan'
 
 // Sửa giao dịch chỉ cho đổi MỘT trường mỗi lần lưu. Lý do: mỗi nhóm trường dưới đây
 // đều đổ vào cùng một chuỗi tính toán (phí -> dư thực tế -> đang cầm). Đổi nhiều
@@ -8,9 +9,10 @@ import { HINH_THUC, type GiaoDichTinh } from './kieu'
 // Tên cột nằm trong danh sách trắng này, không bao giờ lấy từ client.
 export const NHOM_SUA = [
   { id: 'ngayPhatSinh', ten: 'Ngày phát sinh', moTa: 'Ngày quyết định vị trí của giao dịch trong chuỗi số dư, nên đổi ngày sẽ tính lại số dư của các dòng liên quan.' },
+  { id: 'hinhThuc', ten: 'Hình thức giao dịch', moTa: 'Đổi loại giao dịch sẽ tự làm sạch các trường không còn phù hợp; số tiền và đơn vị có thể cần kiểm tra lại.' },
   { id: 'chungTu', ten: 'Chứng từ', moTa: 'Trạng thái hóa đơn quyết định khoản tiền có được tính hay không.' },
-  { id: 'tienHd', ten: 'Tiền hóa đơn & phí', moTa: 'Phí mặc định bằng tổng tiền nhân tỷ lệ của người lấy HĐ, nên các trường này phụ thuộc nhau.' },
-  { id: 'dongTien', ten: 'Dòng tiền', moTa: 'Mỗi khoản chỉ thuộc một hình thức; cả ba cùng cộng vào một số dư.' },
+  { id: 'tienHd', ten: 'Tiền hóa đơn & phí', moTa: 'Tiền được hoàn/thanh toán là nguồn cho cột tính toán và hai giấy; phí mặc định dựa trên số tiền đó.' },
+  { id: 'dongTien', ten: 'Dòng tiền', moTa: 'Mỗi khoản chỉ thuộc một hình thức và được tính vào đúng số dư của nguồn tiền đó.' },
   { id: 'giay', ten: 'Giấy đề nghị', moTa: 'Chữ in thêm trên giấy đề nghị; không ảnh hưởng tới số dư.' },
   { id: 'donVi', ten: 'Đơn vị tiếp khách', moTa: 'Nội dung được sinh tự động từ tên đơn vị.' },
   { id: 'ghiChu', ten: 'Ghi chú', moTa: 'Không ảnh hưởng tới số dư.' },
@@ -41,6 +43,7 @@ export type TruongSua = {
   max?: number
   choPhepRong?: boolean
   goiY?: string
+  nhanLuaChon?: Readonly<Record<string, string>>
   // Trường khóa ngoại: kiểm tra dạng UUID ngay tại đây để giá trị giả không đi tới
   // câu lệnh SQL (PostgreSQL sẽ báo lỗi khó hiểu nếu so sánh uuid với chuỗi lạ).
   dinhDang?: 'uuid'
@@ -50,6 +53,11 @@ export const TRUONG_SUA: readonly TruongSua[] = [
   // Ngày nằm cùng nhóm với người nhập dữ liệu vì form thêm giao dịch cũng do vai trò
   // này chọn ngày; sửa lại ngày gõ nhầm là việc sửa sai sót, không phải đổi số tiền.
   { id: 'ngay', ten: 'Ngày phát sinh', nhom: 'ngayPhatSinh', vaiTro: 'nhap_lieu', kieu: 'ngay', goiY: 'Giao dịch được xếp vào cuối ngày mới, nên số dư của các dòng liên quan được tính lại.' },
+  { id: 'ngay_de_nghi', ten: 'Ngày đề nghị', nhom: 'ngayPhatSinh', vaiTro: 'nhap_lieu', kieu: 'ngay', hinhThuc: HD_CO_DON_VI, goiY: 'Ngày in trên giấy đề nghị tiếp khách; khác với ngày hóa đơn và mặc định lùi về thứ sáu nếu ngày hóa đơn là cuối tuần.' },
+
+  { id: 'hinh_thuc', ten: 'Hình thức giao dịch', nhom: 'hinhThuc', vaiTro: 'admin', kieu: 'lua-chon', luaChon: DS_HINH_THUC, goiY: 'Chỉ quản trị viên được đổi. Máy sẽ cập nhật nội dung, đơn vị, chứng từ và phí theo hình thức mới.' },
+
+  { id: 'chi_thuc_te', ten: 'Chi thực tế', nhom: 'hinhThuc', vaiTro: 'admin', kieu: 'lua-chon', luaChon: ['1', '0'], hinhThuc: HD_CO_DON_VI, nhanLuaChon: { '1': 'Có chi thực tế', '0': 'Không chi thực tế' }, goiY: 'Khi bật Chi thực tế, mặc định tắt tính phí hóa đơn. Có thể bật lại phí bằng trường Tính phí hóa đơn.' },
 
   { id: 'ky_hieu_hd', ten: 'Ký hiệu hóa đơn', nhom: 'chungTu', vaiTro: 'nhap_lieu', kieu: 'chuoi', max: 50, choPhepRong: true },
   { id: 'so_hd', ten: 'Số hóa đơn', nhom: 'chungTu', vaiTro: 'nhap_lieu', kieu: 'chuoi', max: 50, choPhepRong: true },
@@ -57,13 +65,17 @@ export const TRUONG_SUA: readonly TruongSua[] = [
   { id: 'trang_thai_hd', ten: 'Trạng thái hóa đơn', nhom: 'chungTu', vaiTro: 'nhap_lieu', kieu: 'lua-chon', luaChon: TRANG_THAI_HD },
 
   { id: 'tong_tien', ten: 'Tổng tiền', nhom: 'tienHd', vaiTro: 'admin', kieu: 'tien', hinhThuc: HD_CO_DON_VI },
-  { id: 'tien_ruou_bia', ten: 'Tiền rượu bia loại trừ', nhom: 'tienHd', vaiTro: 'admin', kieu: 'tien', hinhThuc: HD_CO_DON_VI },
+  { id: 'tien_ruou_bia', ten: 'Tiền không được thanh toán', nhom: 'tienHd', vaiTro: 'admin', kieu: 'tien', hinhThuc: HD_CO_DON_VI },
+  { id: 'tien_duoc_thanh_toan', ten: 'Tiền được hoàn/thanh toán', nhom: 'tienHd', vaiTro: 'admin', kieu: 'tien', hinhThuc: HD_CO_DON_VI, goiY: 'Đây là số hiện ở cột Hoàn ứng/CQ trả thẳng và trên cả hai giấy.' },
+  { id: 'lam_tron_xuong_hang_nghin', ten: 'Làm tròn xuống hàng nghìn', nhom: 'tienHd', vaiTro: 'admin', kieu: 'lua-chon', luaChon: ['1', '0'], hinhThuc: HD_CO_DON_VI, nhanLuaChon: { '1': 'Có làm tròn', '0': 'Không làm tròn' } },
   { id: 'nguoi_lay_hd_id', ten: 'Người lấy hóa đơn', nhom: 'tienHd', vaiTro: 'admin', kieu: 'lua-chon', choPhepRong: true, hinhThuc: HD_CO_DON_VI, dinhDang: 'uuid' },
+  { id: 'co_tinh_phi_lay_hd', ten: 'Tính phí hóa đơn', nhom: 'tienHd', vaiTro: 'admin', kieu: 'lua-chon', luaChon: ['1', '0'], hinhThuc: HD_CO_DON_VI, goiY: 'Chọn Không để phí hóa đơn bằng 0 và trạng thái thanh toán trở về Không phát sinh.', nhanLuaChon: { '1': 'Có tính phí', '0': 'Không tính phí' } },
   { id: 'phi_lay_hd_ghi_de', ten: 'Phí ghi đè', nhom: 'tienHd', vaiTro: 'admin', kieu: 'tien', choPhepRong: true, hinhThuc: HD_CO_DON_VI, goiY: 'Để trống nghĩa là dùng tỷ lệ phí của người lấy HĐ.' },
   { id: 'trang_thai_tt_phi', ten: 'Trạng thái thanh toán phí', nhom: 'tienHd', vaiTro: 'admin', kieu: 'lua-chon', luaChon: TRANG_THAI_PHI, hinhThuc: HD_CO_DON_VI },
 
   { id: 'tam_ung_tu_cq', ten: 'Tạm ứng từ cơ quan', nhom: 'dongTien', vaiTro: 'admin', kieu: 'tien', hinhThuc: [HINH_THUC.TAM_UNG_THEM] },
-  { id: 'giao_tien_chi_thuy', ten: 'Giao tiền chị Thúy', nhom: 'dongTien', vaiTro: 'admin', kieu: 'tien', hinhThuc: [HINH_THUC.GIAO_CHI_THUY] },
+  { id: 'giao_tien_chi_thuy', ten: 'Giao tiền TƯ cho Chị Thúy', nhom: 'dongTien', vaiTro: 'admin', kieu: 'tien', hinhThuc: [HINH_THUC.GIAO_CHI_THUY] },
+  { id: 'dua_tien_cq_tra_thang_cho_chi_thuy', ten: 'Đưa tiền CQ trả thẳng cho Chị Thúy', nhom: 'dongTien', vaiTro: 'admin', kieu: 'tien', hinhThuc: [HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY] },
   { id: 'hoan_ung_tien_mat', ten: 'Nộp lại tiền mặt', nhom: 'dongTien', vaiTro: 'admin', kieu: 'tien', hinhThuc: [HINH_THUC.NOP_HOAN_CQ] },
 
   { id: 'don_vi_id', ten: 'Đơn vị tiếp khách', nhom: 'donVi', vaiTro: 'nhap_lieu', kieu: 'lua-chon', hinhThuc: HD_CO_DON_VI, dinhDang: 'uuid', goiY: 'Lưu đơn vị sẽ cập nhật luôn Nội dung cho khớp.' },
@@ -93,17 +105,24 @@ export function timTruongSua(id: unknown): TruongSua | undefined {
 export function giaTriHienTai(row: GiaoDichTinh, id: string): string {
   switch (id) {
     case 'ngay': return row.ngay
+    case 'ngay_de_nghi': return row.ngayDeNghi ?? ''
     case 'ky_hieu_hd': return row.kyHieuHd ?? ''
     case 'so_hd': return row.soHd ?? ''
     case 'loai_hd': return row.loaiHd ?? ''
     case 'trang_thai_hd': return row.trangThaiHd
+    case 'hinh_thuc': return row.hinhThuc
+    case 'chi_thuc_te': return row.chiThucTe ? '1' : '0'
     case 'tong_tien': return String(row.tongTien)
     case 'tien_ruou_bia': return String(row.tienRuouBia)
+    case 'tien_duoc_thanh_toan': return String(soTienThanhToan(row))
+    case 'lam_tron_xuong_hang_nghin': return row.lamTronXuongHangNghin ? '1' : '0'
     case 'nguoi_lay_hd_id': return row.nguoiLayHdId ?? ''
+    case 'co_tinh_phi_lay_hd': return row.coTinhPhi === false ? '0' : '1'
     case 'phi_lay_hd_ghi_de': return row.phiLayHdGhiDe === null ? '' : String(row.phiLayHdGhiDe)
     case 'trang_thai_tt_phi': return row.trangThaiTtPhi
     case 'tam_ung_tu_cq': return String(row.tamUngTuCq)
     case 'giao_tien_chi_thuy': return String(row.giaoTienChiThuy)
+    case 'dua_tien_cq_tra_thang_cho_chi_thuy': return String(row.duaTienCqTraThangChoChiThuy)
     case 'hoan_ung_tien_mat': return String(row.hoanUngTienMat)
     case 'don_vi_id': return row.donViId ?? ''
     case 'hinh_thuc_thanh_toan': return row.hinhThucThanhToan ?? ''

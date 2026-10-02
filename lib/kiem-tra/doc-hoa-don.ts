@@ -1,12 +1,14 @@
+import type { CauHinhAi } from './cau-hinh-ai'
+import { docCauHinhAi, layCauHinhAi2 } from './cau-hinh-ai'
+import { goiAiTheoCauHinh, type DauVaoAi } from './ai-hoa-don'
+import { veTrangChoAi } from './doc-anh'
 import type { DonViDoiChieu, KetQuaDocHoaDon, PhatHien } from './giao-dien'
-import { docHoaDonBangAi } from './ai-hoa-don'
-import { docQrTuTep, thuNhoPng } from './doc-anh'
-import { doiChieuNguoiMua, ganTrangThai, hopNhatBaLop } from './hop-nhat'
-import { gopDongChu, phanTichChuHoaDon } from './ocr-hoa-don'
+import { doiChieuNguoiMua, ganTrangThai, hopNhatHaiAi } from './hop-nhat'
+import { docHoaDonXml } from './xml-hoa-don'
 
 export type { DonViDoiChieu }
 
-export function thongDiepLoiVe(error: unknown): string {
+function thongDiepAnToan(error: unknown): string {
   const raw = error instanceof Error ? error.message : ''
   const gon = raw
     .replace(/\b(?:file:\/\/|https?:\/\/)\S+/gi, '')
@@ -15,77 +17,73 @@ export function thongDiepLoiVe(error: unknown): string {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 160)
-  const them = gon && !/sk-|api[_-]?key|bearer/i.test(gon) ? ` ${gon}` : ''
-  return `Không dựng được ảnh trang hóa đơn để quét QR.${them}`
+  return gon ? `Không đọc được tệp hóa đơn. ${gon}` : 'Không đọc được tệp hóa đơn.'
 }
 
-function jsonNguon(doc: object | null): string | undefined {
-  if (!doc) return
-  try {
-    return JSON.stringify(doc)
-  } catch {
-    return
+function nhatKyCauHinh(cauHinh: CauHinhAi): string {
+  const ai2 = layCauHinhAi2(cauHinh)
+  return `AI 1=${cauHinh.nhaCungCap}/${cauHinh.moHinh || '(trống)'} · AI 2=${ai2.nhaCungCap}/${ai2.moHinh || '(trống)'}`
+}
+
+function ketQuaLoiKyThuat(phatHien: PhatHien[], nhatKy: string[]): KetQuaDocHoaDon {
+  return {
+    trangThai: 'loi_ky_thuat', deXuat: {}, ai1: null, ai2: null, xml: null,
+    phatHien: [...phatHien, { muc: 'loi', ma: 'khong_doc_duoc', thongDiep: 'Không đọc được dữ liệu hóa đơn. Hãy kiểm tra lại tệp PDF/XML hoặc nhập tay.' }],
+    nhatKy,
   }
 }
 
-function jsonChuChoAi(ocr: object | null, dongChu: string[]): string | undefined {
-  if (ocr) return jsonNguon(ocr)
-  if (!dongChu.length) return
-  return jsonNguon({ dongChu: dongChu.slice(0, 80) })
-}
+export async function docHoaDonHaiAi(bytes: Uint8Array, mime: string, donVi: DonViDoiChieu): Promise<KetQuaDocHoaDon> {
+  if (mime !== 'application/pdf' && mime !== 'application/xml' && mime !== 'text/xml') {
+    return ketQuaLoiKyThuat([{ muc: 'loi', ma: 'loai_tap_khong_ho_tro', thongDiep: 'Chỉ nhận hóa đơn PDF hoặc XML.' }], [`tệp ${mime}`])
+  }
 
-// Ba lớp: QR khóa số in trên mã, OCR đọc chữ trang, AI đối chiếu. Cần ít nhất hai nguồn.
-export async function docHoaDonHaiLop(
-  bytes: Uint8Array,
-  mime: string,
-  donVi: DonViDoiChieu,
-): Promise<KetQuaDocHoaDon> {
-  let qr = null
-  let ocr = null
-  let pngAi: Buffer | null = null
-  let dongChu: string[] = []
   const phatSinh: PhatHien[] = []
-  try {
-    const kq = await docQrTuTep(bytes, mime)
-    qr = kq.qr
-    pngAi = await thuNhoPng(kq.anh.png, 1280)
-    dongChu = kq.chu?.length ? gopDongChu(kq.chu) : []
-    ocr = dongChu.length ? phanTichChuHoaDon(dongChu) : null
-  } catch (error) {
-    phatSinh.push({
-      muc: 'canh_bao', ma: 'qr_loi_ve',
-      thongDiep: thongDiepLoiVe(error),
-    })
-  }
+  const nhatKy = [`tệp ${mime} · kích thước=${bytes.byteLength}B`]
+  let input: DauVaoAi
+  let xml: ReturnType<typeof docHoaDonXml> | null = null
 
-  let ai = null
-  let nhatKy: string[] = [
-    `tệp ${mime} · QR=${qr ? 'có' : 'không'} · OCR=${ocr ? 'có' : 'không'} (${dongChu.length} dòng) · PNG=${pngAi?.length ?? 0}B`,
-  ]
-  if (pngAi) {
-    const kqAi = await docHoaDonBangAi(pngAi, jsonNguon(qr), jsonChuChoAi(ocr, dongChu))
-    if (kqAi.nhatKy?.length) nhatKy = [...nhatKy, ...kqAi.nhatKy]
-    if ('duLieu' in kqAi) ai = kqAi.duLieu
-    else phatSinh.push({ muc: 'canh_bao', ma: 'ai_loi', thongDiep: kqAi.loi })
+  if (mime === 'application/pdf') {
+    try {
+      const anh = await veTrangChoAi(bytes, mime)
+      input = { loai: 'anh', duLieu: anh.png }
+      nhatKy.push(`PDF đã dựng trang đầu thành PNG ${anh.width}x${anh.height} · ${anh.png.length}B`)
+    } catch (error) {
+      phatSinh.push({ muc: 'loi', ma: 'pdf_loi', thongDiep: thongDiepAnToan(error) })
+      return ketQuaLoiKyThuat(phatSinh, nhatKy)
+    }
   } else {
-    nhatKy.push('Không có ảnh PNG nên không gọi AI.')
-  }
-
-  if (!qr && !ocr && !ai) {
-    return {
-      trangThai: 'loi_ky_thuat', deXuat: {}, qr: null, ocr: null, ai: null, nhatKy,
-      phatHien: [
-        ...phatSinh,
-        { muc: 'loi', ma: 'khong_doc_duoc', thongDiep: 'Không đọc được QR, OCR lẫn AI. Hãy chụp rõ hơn hoặc nhập tay.' },
-      ],
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+    input = { loai: 'xml', duLieu: text }
+    nhatKy.push(`XML đã nhận ${text.length} ký tự`)
+    try {
+      xml = docHoaDonXml(text)
+      nhatKy.push(`XML trích được ${xml.dongHang?.length ?? 0} dòng hàng`)
+    } catch (error) {
+      phatSinh.push({ muc: 'canh_bao', ma: 'xml_loi', thongDiep: thongDiepAnToan(error) })
     }
   }
 
-  const gop = hopNhatBaLop(qr, ocr, ai)
-  const phat = gop.phatHien.map(p => {
-    const aiLoi = phatSinh.find(t => t.ma === 'ai_loi')
-    return p.ma === 'ai_khong_chay' && aiLoi ? aiLoi : p
-  })
-  const conLai = phatSinh.filter(p => p.ma !== 'ai_loi' || !phat.some(q => q.ma === 'ai_loi'))
-  return ganTrangThai({ ...gop, phatHien: phat, nhatKy }, [...conLai, ...doiChieuNguoiMua(gop.deXuat, donVi)])
+  const cauHinh = await docCauHinhAi()
+  nhatKy.push(nhatKyCauHinh(cauHinh))
+  const [kqAi1, kqAi2] = await Promise.all([
+    goiAiTheoCauHinh(input, cauHinh),
+    goiAiTheoCauHinh(input, { ...layCauHinhAi2(cauHinh), dangHoatDong: cauHinh.dangHoatDong }),
+  ])
+  const ai1 = 'duLieu' in kqAi1 ? kqAi1.duLieu : null
+  const ai2 = 'duLieu' in kqAi2 ? kqAi2.duLieu : null
+  if (!ai1) phatSinh.push({ muc: 'canh_bao', ma: 'ai1_loi', thongDiep: 'AI 1 không trả được kết quả.' })
+  if (!ai2) phatSinh.push({ muc: 'canh_bao', ma: 'ai2_loi', thongDiep: 'AI 2 không trả được kết quả.' })
+  if ('nhatKy' in kqAi1 && kqAi1.nhatKy?.length) nhatKy.push(...kqAi1.nhatKy.map(d => `AI 1: ${d}`))
+  if ('nhatKy' in kqAi2 && kqAi2.nhatKy?.length) nhatKy.push(...kqAi2.nhatKy.map(d => `AI 2: ${d}`))
+  if ('loi' in kqAi1) nhatKy.push(`AI 1 lỗi: ${kqAi1.loi}`)
+  if ('loi' in kqAi2) nhatKy.push(`AI 2 lỗi: ${kqAi2.loi}`)
+
+  const gop = hopNhatHaiAi(ai1, ai2, xml)
+  const phatHien = [...gop.phatHien, ...phatSinh.filter(p => !gop.phatHien.some(q => q.ma === p.ma && q.thongDiep === p.thongDiep))]
+  if (!ai1 && !ai2 && !xml) return ketQuaLoiKyThuat(phatHien, nhatKy)
+  return ganTrangThai({ ...gop, phatHien, nhatKy }, doiChieuNguoiMua(gop.deXuat, donVi))
 }
+
+/** Tên cũ giữ lại cho các tích hợp bên ngoài; luồng thực thi dùng hai AI. */
+export const docHoaDonHaiLop = docHoaDonHaiAi

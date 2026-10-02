@@ -4,10 +4,10 @@ import { themGiaoDich, type KetQua } from './actions'
 import { unstable_rethrow } from 'next/navigation'
 import { LOAI_HD, LOAI_HD_HOA_DON, TRANG_THAI_HD, TRANG_THAI_PHI } from '@/lib/tai-chinh/danh-muc'
 import { HINH_THUC } from '@/lib/tai-chinh/kieu'
-import { canDonVi, dsHinhThucThanhToan, HINH_THUC_THANH_TOAN, hinhThucThanhToanMacDinh, NHAN_HINH_THUC_THANH_TOAN, noiDungTheoDonVi, noiDungTheoHinhThuc } from '@/lib/tai-chinh/hinh-thuc'
+import { canDonVi, coTinhPhiMacDinh, dsHinhThucThanhToan, HINH_THUC_THANH_TOAN, hinhThucThanhToanMacDinh, lamTronXuongHangNghinMacDinh, NHAN_HINH_THUC_THANH_TOAN, noiDungTheoDonVi, noiDungTheoHinhThuc } from '@/lib/tai-chinh/hinh-thuc'
 import { donViMacDinh, type DonViTiepKhach } from '@/lib/tai-chinh/don-vi'
 import type { NguoiLayHdChon } from '@/lib/tai-chinh/tai-khoan'
-import { dongTaiKhoan } from '@/lib/tai-chinh/tai-khoan'
+import { dongTaiKhoan, taiKhoanTuNhap } from '@/lib/tai-chinh/tai-khoan'
 import Link from 'next/link'
 import { giayChoHinhThuc } from '@/lib/tai-chinh/giay'
 import { VAI_TRO_KY } from '@/lib/tai-chinh/vai-tro-ky'
@@ -17,6 +17,9 @@ import { xemGiayNhap, taiNguoiKyGiay } from './xem-giay-actions'
 import { DocHoaDon } from './doc-hoa-don'
 import { ChonDonVi } from './chon-don-vi'
 import { kiemTraTrungKyHieu } from './trung-ky-hieu-actions'
+import { chuoiTienHopLe } from '@/lib/kiem-tra/tien'
+import { lamTronXuongHangNghin, tienTheoHoaDon } from '@/lib/tai-chinh/tien-thanh-toan'
+import { ngayDeNghiMacDinh } from '@/lib/tai-chinh/ngay'
 
 type BanXem = { script: string; config: Record<string, unknown> }
 type TrinhDocEditor = { DocEditor: new (el: string, cfg: Record<string, unknown>) => { destroyEditor: () => void } }
@@ -69,12 +72,15 @@ function defaultValues(mac?: {
   const ngay = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const phi = mac?.trangThaiTtPhiMacDinh
   return {
-    ngay, noi_dung: HINH_THUC.TAM_UNG_THEM, don_vi_id: '', hinh_thuc: HINH_THUC.TAM_UNG_THEM,
+    ngay, ngay_de_nghi: ngayDeNghiMacDinh(ngay), noi_dung: HINH_THUC.TAM_UNG_THEM, don_vi_id: '', hinh_thuc: HINH_THUC.TAM_UNG_THEM,
     trang_thai_hd: 'Hợp lệ', loai_hd: 'Phiếu chi CQ', ky_hieu_hd: '', so_hd: '',
     trang_thai_tt_phi: phi && (TRANG_THAI_PHI as readonly string[]).includes(phi) ? phi : 'Không phát sinh',
-    tong_tien: '0', tien_ruou_bia: '0', tam_ung_tu_cq: '0', giao_tien_chi_thuy: '0',
-    hoan_ung_tien_mat: '0', phi_lay_hd_ghi_de: '',
+    tong_tien: '0', tien_ruou_bia: '0', tien_duoc_thanh_toan: '0', tien_duoc_thanh_toan_goc: '0', lam_tron_xuong_hang_nghin: '0',
+    tam_ung_tu_cq: '0', giao_tien_chi_thuy: '0', dua_tien_cq_tra_thang_cho_chi_thuy: '0',
+    hoan_ung_tien_mat: '0', phi_lay_hd_ghi_de: '', co_tinh_phi_lay_hd: '0', chi_thuc_te: '0',
     nguoi_lay_hd_id: idNguoiLayHdHopLe(mac?.collectors ?? [], mac?.nguoiLayHdMacDinhId),
+    dung_tai_khoan_mac_dinh: '1', tai_khoan_nhan_so: '', tai_khoan_nhan_ngan_hang: '',
+    tai_khoan_nhan_chi_nhanh: '', tai_khoan_nhan_ten_chu_tk: '',
     ghi_chu: '',
     // Hoàn tạm ứng chỉ có một hình thức thanh toán nên máy tự điền; hai hình thức còn
     // lại lấy Tiền mặt làm mặc định, người dùng đổi sang chuyển khoản nếu cần.
@@ -86,6 +92,7 @@ function defaultValues(mac?: {
 function getAutoLoaiHd(hinhThuc: string): string {
   if (hinhThuc === HINH_THUC.TAM_UNG_THEM) return 'Phiếu chi CQ'
   if (hinhThuc === HINH_THUC.GIAO_CHI_THUY) return 'Giấy biên nhận'
+  if (hinhThuc === HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY) return 'Giấy biên nhận'
   if (hinhThuc === HINH_THUC.NOP_HOAN_CQ) return 'Giấy nộp tiền'
   return ''
 }
@@ -98,6 +105,32 @@ function formatMoney(value: string): string {
 
 function parseMoney(formatted: string): string {
   return formatted.replace(/\./g, '')
+}
+
+function soTienNguyen(value: string): number {
+  const so = Number(value)
+  return Number.isSafeInteger(so) && so >= 0 ? so : 0
+}
+
+function tienNguonTheoHoaDonTrenForm(values: Record<string, string>): number {
+  return tienTheoHoaDon({
+    tongTien: soTienNguyen(values.tong_tien),
+    tienRuouBia: soTienNguyen(values.tien_ruou_bia),
+  })
+}
+
+function tienHienThiTheoNguonTrenForm(
+  values: Record<string, string>,
+  nguon: number,
+  lamTron = values.lam_tron_xuong_hang_nghin === '1',
+): string {
+  return String(lamTron ? lamTronXuongHangNghin(nguon) : nguon)
+}
+
+function capNhatTienTheoHoaDonTrenForm(values: Record<string, string>): void {
+  const nguon = tienNguonTheoHoaDonTrenForm(values)
+  values.tien_duoc_thanh_toan_goc = String(nguon)
+  values.tien_duoc_thanh_toan = tienHienThiTheoNguonTrenForm(values, nguon)
 }
 
 export function FormGiaoDich({
@@ -180,21 +213,69 @@ export function FormGiaoDich({
       if (name === 'ky_hieu_hd') setCanhBaoKyHieu('')
       setValues((current) => {
         const updated = { ...current, [name]: newValue }
+        // Ngày đề nghị mặc định bám theo ngày hóa đơn cho tới khi người dùng tự
+        // sửa nó. Khi dữ liệu hóa đơn hoặc người dùng đổi ngày hóa đơn, không ghi đè ngày đã
+        // được chọn riêng.
+        if (name === 'ngay' && canDonVi(updated.hinh_thuc)) {
+          const ngayMacDinhCu = ngayDeNghiMacDinh(current.ngay)
+          if (!current.ngay_de_nghi || current.ngay_de_nghi === ngayMacDinhCu) {
+            updated.ngay_de_nghi = ngayDeNghiMacDinh(newValue)
+          }
+        }
         // Tự động điền loại chứng từ khi đổi hình thức giao dịch
         if (name === 'hinh_thuc') {
           updated.loai_hd = getAutoLoaiHd(newValue) || loaiHdInvoiceOnly[0]
           // Rời khỏi hình thức có đơn vị thì bỏ đơn vị cũ, tránh gắn nhầm vào dòng tiền nội bộ.
-          if (!canDonVi(newValue)) updated.don_vi_id = ''
-          else if (!updated.don_vi_id) updated.don_vi_id = donViMacDinh(dsDonVi)?.id ?? ''
+          if (!canDonVi(newValue)) {
+            updated.chi_thuc_te = '0'
+            updated.don_vi_id = ''
+            updated.ngay_de_nghi = ''
+          } else {
+            if (!updated.don_vi_id) updated.don_vi_id = donViMacDinh(dsDonVi)?.id ?? ''
+            if (!canDonVi(current.hinh_thuc) || !current.ngay_de_nghi) {
+              updated.ngay_de_nghi = ngayDeNghiMacDinh(updated.ngay)
+            }
+          }
           const noiDungCoDinh = noiDungTheoHinhThuc(newValue)
           if (noiDungCoDinh) updated.noi_dung = noiDungCoDinh
+          // Khi quay từ dòng tiền nội bộ vào nhóm có hóa đơn, nạp lại mặc định phí
+          // trong Cài đặt. Khi chỉ đổi giữa Hoàn tạm ứng / Cơ quan trả thẳng thì
+          // giữ nguyên lựa chọn mà người dùng đã chọn trên form.
+          if (canDonVi(newValue) && !canDonVi(current.hinh_thuc)) {
+            updated.trang_thai_tt_phi = trangThaiTtPhiMacDinh && (TRANG_THAI_PHI as readonly string[]).includes(trangThaiTtPhiMacDinh)
+              ? trangThaiTtPhiMacDinh
+              : 'Không phát sinh'
+          }
           // Hình thức thanh toán hợp lệ đổi theo hình thức giao dịch: hoàn tạm ứng chỉ có
           // một lựa chọn, cơ quan trả thẳng và tạm ứng thêm có tiền mặt / chuyển khoản.
           updated.hinh_thuc_thanh_toan = hinhThucThanhToanMacDinh(newValue) ?? ''
+          const lamTron = lamTronXuongHangNghinMacDinh(newValue, updated.hinh_thuc_thanh_toan)
+          updated.lam_tron_xuong_hang_nghin = lamTron ? '1' : '0'
+          updated.tien_duoc_thanh_toan = tienHienThiTheoNguonTrenForm(updated, soTienNguyen(updated.tien_duoc_thanh_toan_goc))
+          if (updated.hinh_thuc_thanh_toan !== HINH_THUC_THANH_TOAN.CHUYEN_KHOAN) {
+            updated.dung_tai_khoan_mac_dinh = '1'
+            updated.tai_khoan_nhan_so = ''
+            updated.tai_khoan_nhan_ngan_hang = ''
+            updated.tai_khoan_nhan_chi_nhanh = ''
+            updated.tai_khoan_nhan_ten_chu_tk = ''
+          }
+          updated.co_tinh_phi_lay_hd = coTinhPhiMacDinh(newValue, updated.trang_thai_tt_phi, updated.chi_thuc_te === '1') ? '1' : '0'
+          if (updated.co_tinh_phi_lay_hd === '0') {
+            updated.phi_lay_hd_ghi_de = ''
+            updated.trang_thai_tt_phi = 'Không phát sinh'
+          }
           if ((newValue === HINH_THUC.HOAN_TAM_UNG || newValue === HINH_THUC.CQ_TRA_THANG)
             && !updated.nguoi_lay_hd_id) {
             updated.nguoi_lay_hd_id = idNguoiLayHdHopLe(collectors, nguoiLayHdMacDinhId)
           }
+        }
+        if (name === 'hinh_thuc_thanh_toan' && canDonVi(current.hinh_thuc)) {
+          const lamTron = lamTronXuongHangNghinMacDinh(current.hinh_thuc, newValue)
+          updated.lam_tron_xuong_hang_nghin = lamTron ? '1' : '0'
+          updated.tien_duoc_thanh_toan = tienHienThiTheoNguonTrenForm(updated, soTienNguyen(updated.tien_duoc_thanh_toan_goc))
+        }
+        if ((name === 'tong_tien' || name === 'tien_ruou_bia') && canDonVi(updated.hinh_thuc)) {
+          capNhatTienTheoHoaDonTrenForm(updated)
         }
         return updated
       })
@@ -207,13 +288,33 @@ export function FormGiaoDich({
       value: displayValue,
       onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
         const raw = parseMoney(event.target.value)
-        setValues((current) => ({ ...current, [name]: raw }))
+        setValues((current) => {
+          const updated: Record<string, string> = name === 'tien_duoc_thanh_toan'
+            ? { ...current, [name]: raw, tien_duoc_thanh_toan_goc: raw }
+            : { ...current, [name]: raw }
+          // Tổng tiền và phần rượu bia đều là ô tiền định dạng riêng, không đi qua
+          // bind(). Cập nhật ngay số đề nghị để giao diện luôn bằng tổng trừ loại trừ.
+          if ((name === 'tong_tien' || name === 'tien_ruou_bia') && canDonVi(updated.hinh_thuc)) {
+            capNhatTienTheoHoaDonTrenForm(updated)
+          }
+          return updated
+        })
+      },
+      onBlur: () => {
+        if (name !== 'tien_duoc_thanh_toan' || values.lam_tron_xuong_hang_nghin !== '1') return
+        setValues(current => ({
+          ...current,
+          tien_duoc_thanh_toan: String(lamTronXuongHangNghin(soTienNguyen(current.tien_duoc_thanh_toan_goc))),
+        }))
       },
     }
   }
 
   const hinhThuc = values.hinh_thuc as string
   const needsInvoice = hinhThuc === HINH_THUC.HOAN_TAM_UNG || hinhThuc === HINH_THUC.CQ_TRA_THANG
+  const chiThucTe = needsInvoice && values.chi_thuc_te === '1'
+  const coTinhPhi = values.co_tinh_phi_lay_hd === '1'
+  const dangLamTronXuongHangNghin = values.lam_tron_xuong_hang_nghin === '1'
   const canChonDonVi = canDonVi(hinhThuc)
   const donViDaChon = dsDonVi.find(dv => dv.id === values.don_vi_id)
   const noiDungCoDinh = noiDungTheoHinhThuc(hinhThuc)
@@ -229,11 +330,36 @@ export function FormGiaoDich({
   // quyết định: rỗng là hình thức không lập giấy, một lựa chọn là máy tự điền, hai lựa
   // chọn thì người dùng chọn tiền mặt hay chuyển khoản.
   const dsThanhToan = dsHinhThucThanhToan(hinhThuc)
+  const coGiay = giayChoHinhThuc(hinhThuc).length > 0
   const thanhToan = values.hinh_thuc_thanh_toan || hinhThucThanhToanMacDinh(hinhThuc) || ''
   const laChuyenKhoan = thanhToan === HINH_THUC_THANH_TOAN.CHUYEN_KHOAN
   const nguoiDeNghiIn = canBoGiay?.canBo.find(c => c.id === nguoiKy?.nguoiDeNghiId)
   const dsTaiKhoanIn = nguoiDeNghiIn ? Object.values(canBoGiay?.taiKhoanTheoNguoiLayHd ?? {}).filter(tk => tk.canBoId === nguoiDeNghiIn.id) : []
-  const taiKhoanIn = laChuyenKhoan && dsTaiKhoanIn.length === 1 ? { ...dsTaiKhoanIn[0], tenChuTk: nguoiDeNghiIn!.hoTen } : null
+  const taiKhoanMacDinh = dsTaiKhoanIn.length === 1 ? { ...dsTaiKhoanIn[0], tenChuTk: nguoiDeNghiIn!.hoTen } : null
+  const dungTaiKhoanMacDinh = values.dung_tai_khoan_mac_dinh !== '0'
+  const taiKhoanNhap = taiKhoanTuNhap({
+    soTaiKhoan: values.tai_khoan_nhan_so,
+    nganHang: values.tai_khoan_nhan_ngan_hang,
+    chiNhanh: values.tai_khoan_nhan_chi_nhanh,
+    tenChuTk: values.tai_khoan_nhan_ten_chu_tk,
+  })
+  const taiKhoanIn = laChuyenKhoan ? (dungTaiKhoanMacDinh ? taiKhoanMacDinh : taiKhoanNhap) : null
+
+  function chonTaiKhoanMacDinh(dung: boolean) {
+    setValues(current => {
+      if (dung) return { ...current, dung_tai_khoan_mac_dinh: '1' }
+      return {
+        ...current,
+        dung_tai_khoan_mac_dinh: '0',
+        // Có sẵn tài khoản mặc định thì điền làm điểm bắt đầu để người dùng sửa;
+        // nếu chưa tải thông tin giấy, các ô vẫn để trống cho nhập tay.
+        tai_khoan_nhan_so: current.tai_khoan_nhan_so || taiKhoanMacDinh?.soTaiKhoan || '',
+        tai_khoan_nhan_ngan_hang: current.tai_khoan_nhan_ngan_hang || taiKhoanMacDinh?.nganHang || '',
+        tai_khoan_nhan_chi_nhanh: current.tai_khoan_nhan_chi_nhanh || taiKhoanMacDinh?.chiNhanh || '',
+        tai_khoan_nhan_ten_chu_tk: current.tai_khoan_nhan_ten_chu_tk || taiKhoanMacDinh?.tenChuTk || '',
+      }
+    })
+  }
 
   async function xemWord() {
     if (!formRef.current || pending || dangXem || !formRef.current.reportValidity()) return
@@ -264,14 +390,25 @@ export function FormGiaoDich({
   }
 
   function dienTuHoaDon(deXuat: { ngay?: string; kyHieuHd?: string; soHd?: string; tongTien?: number; tienRuouBia?: number }) {
-    setValues(hien => ({
-      ...hien,
-      ngay: deXuat.ngay || hien.ngay,
+    setValues(hien => {
+      const ngayMoi = deXuat.ngay || hien.ngay
+      const updated: Record<string, string> = {
+        ...hien,
+      ngay: ngayMoi,
       ky_hieu_hd: deXuat.kyHieuHd ?? hien.ky_hieu_hd,
       so_hd: deXuat.soHd ?? hien.so_hd,
-      tong_tien: deXuat.tongTien !== undefined ? String(deXuat.tongTien) : hien.tong_tien,
-      tien_ruou_bia: deXuat.tienRuouBia !== undefined ? String(deXuat.tienRuouBia) : hien.tien_ruou_bia,
-    }))
+      tong_tien: chuoiTienHopLe(deXuat.tongTien, hien.tong_tien),
+      tien_ruou_bia: chuoiTienHopLe(deXuat.tienRuouBia, hien.tien_ruou_bia),
+      }
+      if (canDonVi(updated.hinh_thuc)) {
+        const ngayMacDinhCu = ngayDeNghiMacDinh(hien.ngay)
+        if (!hien.ngay_de_nghi || hien.ngay_de_nghi === ngayMacDinhCu) {
+          updated.ngay_de_nghi = ngayDeNghiMacDinh(ngayMoi)
+        }
+        capNhatTienTheoHoaDonTrenForm(updated)
+      }
+      return updated
+    })
     if (deXuat.kyHieuHd) kiemKyHieu(deXuat.kyHieuHd)
   }
 
@@ -288,10 +425,12 @@ export function FormGiaoDich({
   return <>
     <button type="button" className="btn btn-primary" onClick={() => {
       setValues(hien => {
-        if (!canDonVi(hien.hinh_thuc) || hien.don_vi_id) return hien
+        const moi: Record<string, string> = { ...hien, chi_thuc_te: '0' }
+        if (!canDonVi(moi.hinh_thuc) || moi.don_vi_id) return moi
         const macDinh = donViMacDinh(dsDonVi)
-        return macDinh ? { ...hien, don_vi_id: macDinh.id } : hien
+        return macDinh ? { ...moi, don_vi_id: macDinh.id } : moi
       })
+      setCanhBao(undefined)
       setShowDialog(true)
     }}>+ Thêm giao dịch</button>
 
@@ -329,16 +468,32 @@ export function FormGiaoDich({
               <h3>Thông tin chung</h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label className="field">Ngày *<input type="date" required {...bind('ngay')} /></label>
-                <label className="field">
-                  Hình thức giao dịch *
-                  <select required {...bind('hinh_thuc')}>
-                    <option value={HINH_THUC.TAM_UNG_THEM}>Tạm ứng thêm</option>
-                    <option value={HINH_THUC.GIAO_CHI_THUY}>Giao tiền chị Thúy</option>
-                    <option value={HINH_THUC.HOAN_TAM_UNG}>Hoàn tạm ứng</option>
-                    <option value={HINH_THUC.CQ_TRA_THANG}>Cơ quan trả thẳng</option>
-                    <option value={HINH_THUC.NOP_HOAN_CQ}>Nộp hoàn CQ</option>
-                  </select>
-                </label>
+                {needsInvoice && <label className="field">Ngày đề nghị *<input type="date" required {...bind('ngay_de_nghi')} /><span className="text-xs font-normal text-slate-500">Ngày in trên Giấy đề nghị tiếp khách; mặc định lùi về thứ sáu nếu ngày hóa đơn là cuối tuần.</span></label>}
+                <div className="flex flex-wrap items-end gap-3 sm:col-span-2">
+                  <label className="field min-w-0 flex-1">
+                    Hình thức giao dịch *
+                    <select required {...bind('hinh_thuc')}>
+                      <option value={HINH_THUC.TAM_UNG_THEM}>Tạm ứng thêm</option>
+                      <option value={HINH_THUC.GIAO_CHI_THUY}>Giao tiền chị Thúy</option>
+                      <option value={HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY}>Đưa tiền CQ trả thẳng cho Chị Thúy</option>
+                      <option value={HINH_THUC.HOAN_TAM_UNG}>Hoàn tạm ứng</option>
+                      <option value={HINH_THUC.CQ_TRA_THANG}>Cơ quan trả thẳng</option>
+                      <option value={HINH_THUC.NOP_HOAN_CQ}>Nộp hoàn CQ</option>
+                    </select>
+                  </label>
+                  {needsInvoice && <label className="flex min-h-11 shrink-0 items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                    <input type="checkbox" className="size-4 accent-indigo-600" checked={chiThucTe} aria-label="Chi thực tế" onChange={event => {
+                      const bat = event.target.checked
+                      setValues(current => ({
+                        ...current,
+                        chi_thuc_te: bat ? '1' : '0',
+                        ...(bat ? { co_tinh_phi_lay_hd: '0', phi_lay_hd_ghi_de: '', trang_thai_tt_phi: 'Không phát sinh' } : {}),
+                      }))
+                    }} />
+                    <span>Chi thực tế</span>
+                  </label>}
+                  <input type="hidden" name="chi_thuc_te" value={chiThucTe ? '1' : '0'} />
+                </div>
 
                 {canChonDonVi && (
                   <label className="field sm:col-span-2">
@@ -382,8 +537,15 @@ export function FormGiaoDich({
 
                 {hinhThuc === HINH_THUC.GIAO_CHI_THUY && (
                   <>
-                    <label className="field">Giao tiền chị Thúy (VND) *<input type="text" required {...bindMoney('giao_tien_chi_thuy')} inputMode="numeric" placeholder="0" /></label>
+                    <label className="field">Giao tiền TƯ cho Chị Thúy (VND) *<input type="text" required {...bindMoney('giao_tien_chi_thuy')} inputMode="numeric" placeholder="0" /></label>
                     <input type="hidden" name="giao_tien_chi_thuy" value={values.giao_tien_chi_thuy} />
+                  </>
+                )}
+
+                {hinhThuc === HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY && (
+                  <>
+                    <label className="field">Đưa tiền CQ trả thẳng cho Chị Thúy (VND) *<input type="text" required {...bindMoney('dua_tien_cq_tra_thang_cho_chi_thuy')} inputMode="numeric" placeholder="0" /></label>
+                    <input type="hidden" name="dua_tien_cq_tra_thang_cho_chi_thuy" value={values.dua_tien_cq_tra_thang_cho_chi_thuy} />
                   </>
                 )}
 
@@ -391,8 +553,30 @@ export function FormGiaoDich({
                   <>
                     <label className="field">Tổng tiền (VND) *<input type="text" required {...bindMoney('tong_tien')} inputMode="numeric" placeholder="0" /></label>
                     <input type="hidden" name="tong_tien" value={values.tong_tien} />
-                    <label className="field">Tiền rượu bia loại trừ (VND)<input type="text" {...bindMoney('tien_ruou_bia')} inputMode="numeric" placeholder="0" /></label>
+                    <label className="field">Tiền không được thanh toán (VND)<input type="text" {...bindMoney('tien_ruou_bia')} inputMode="numeric" placeholder="0" /></label>
                     <input type="hidden" name="tien_ruou_bia" value={values.tien_ruou_bia} />
+                    <label className="field">Tiền được hoàn/thanh toán (VND) *<input type="text" required {...bindMoney('tien_duoc_thanh_toan')} inputMode="numeric" placeholder="0" /></label>
+                    <input type="hidden" name="tien_duoc_thanh_toan" value={values.tien_duoc_thanh_toan} />
+                    <input type="hidden" name="tien_duoc_thanh_toan_goc" value={values.tien_duoc_thanh_toan_goc} />
+                    <div className="field">
+                      <span>Làm tròn</span>
+                      <label className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal">
+                        <input type="checkbox" className="size-4 accent-indigo-600" checked={dangLamTronXuongHangNghin} aria-label="Làm tròn xuống hàng nghìn" onChange={event => {
+                          const bat = event.target.checked
+                          setValues(current => ({
+                            ...current,
+                            lam_tron_xuong_hang_nghin: bat ? '1' : '0',
+                            tien_duoc_thanh_toan: tienHienThiTheoNguonTrenForm(
+                              current,
+                              soTienNguyen(current.tien_duoc_thanh_toan_goc),
+                              bat,
+                            ),
+                          }))
+                        }} />
+                        <span>Làm tròn xuống hàng nghìn</span>
+                      </label>
+                      <input type="hidden" name="lam_tron_xuong_hang_nghin" value={dangLamTronXuongHangNghin ? '1' : '0'} />
+                    </div>
                   </>
                 )}
 
@@ -417,9 +601,21 @@ export function FormGiaoDich({
                   <label className="field">Số HĐ<input placeholder="Số hóa đơn" {...bind('so_hd')} /></label>
                   <label className="field">Trạng thái HĐ<select {...bind('trang_thai_hd')}>{trangThaiHd.map(s => <option key={s} value={s}>{s}</option>)}</select></label>
                   <label className="field">Người lấy HĐ<select {...bind('nguoi_lay_hd_id')}><option value="">-- Không có --</option>{collectors.map(c => <option key={c.id} value={c.id}>{c.ten}</option>)}</select></label>
-                  <label className="field">Phí ghi đè (VND)<input type="text" {...bindMoney('phi_lay_hd_ghi_de')} inputMode="numeric" placeholder="Để trống nếu dùng tỷ lệ" /></label>
+                  <div className="field">
+                    <span>Phí hóa đơn</span>
+                    <label className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal">
+                      <input type="checkbox" className="size-4 accent-indigo-600" checked={coTinhPhi} aria-label="Tính phí hóa đơn" onChange={event => {
+                        const bat = event.target.checked
+                        setValues(current => ({ ...current, co_tinh_phi_lay_hd: bat ? '1' : '0', ...(bat ? {} : { phi_lay_hd_ghi_de: '', trang_thai_tt_phi: 'Không phát sinh' }) }))
+                      }} />
+                      <span>{coTinhPhi ? 'Tính phí lấy hóa đơn' : 'Không tính phí lấy hóa đơn'}</span>
+                    </label>
+                    <input type="hidden" name="co_tinh_phi_lay_hd" value={coTinhPhi ? '1' : '0'} />
+                    <span className="text-xs font-normal text-slate-500">Bật để tính theo tỷ lệ hoặc phí ghi đè; có thể dùng cho cả Cơ quan trả thẳng.</span>
+                  </div>
+                  <label className={`field${coTinhPhi ? '' : ' opacity-60'}`}>Phí ghi đè (VND)<input type="text" {...bindMoney('phi_lay_hd_ghi_de')} disabled={!coTinhPhi} inputMode="numeric" placeholder="Để trống nếu dùng tỷ lệ" /></label>
                   <input type="hidden" name="phi_lay_hd_ghi_de" value={values.phi_lay_hd_ghi_de || ''} />
-                  <label className="field">Trạng thái thanh toán phí<select {...bind('trang_thai_tt_phi')}>{trangThaiPhi.map(s => <option key={s} value={s}>{s}</option>)}</select></label>
+                  <label className={`field${coTinhPhi ? '' : ' opacity-60'}`}>Trạng thái thanh toán phí<select {...bind('trang_thai_tt_phi')} disabled={!coTinhPhi}>{trangThaiPhi.map(s => <option key={s} value={s}>{s}</option>)}</select>{!coTinhPhi && <input type="hidden" name="trang_thai_tt_phi" value="Không phát sinh" />}</label>
                   <label className="field">Loại chứng từ *<select required {...bind('loai_hd')}>{loaiHdOptions.map(s => <option key={s} value={s}>{s}</option>)}</select></label>
                 </div>
               </section>
@@ -436,7 +632,7 @@ export function FormGiaoDich({
 
             {dsThanhToan.length > 0 && (
               <section className="form-section">
-                <h3>Hình thức thanh toán</h3>
+                <h3>{coGiay ? 'Hình thức thanh toán' : 'Phương thức đưa tiền'}</h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {dsThanhToan.length === 1 ? (
                     // Hoàn tạm ứng chỉ có một hình thức nên không có gì để chọn; giá trị
@@ -449,19 +645,55 @@ export function FormGiaoDich({
                     </div>
                   ) : (
                     <label className="field sm:col-span-2">
-                      In trên giấy đề nghị *
+                      {coGiay ? 'In trên giấy đề nghị' : 'Phương thức đưa tiền'} *
                       <select required {...bind('hinh_thuc_thanh_toan')}>
                         {dsThanhToan.map(v => <option key={v} value={v}>{NHAN_HINH_THUC_THANH_TOAN[v]}</option>)}
                       </select>
                     </label>
                   )}
                 </div>
-                {laChuyenKhoan && (
-                  <p className="mt-3 text-xs text-slate-500">
-                    {taiKhoanIn
-                      ? <>Giấy in kèm tài khoản nhận tiền: <b className="font-semibold text-slate-700">{dongTaiKhoan(taiKhoanIn)}</b></>
-                      : <>Chưa có số tài khoản nhận tiền. Bấm Lập giấy đề nghị để chọn người đề nghị. Trong Quản trị, cấu hình ngân hàng, chi nhánh và liên kết đúng cán bộ cho người lấy hóa đơn; mỗi cán bộ chỉ nên có một tài khoản đang hoạt động.</>}
-                  </p>
+                {laChuyenKhoan && coGiay && (
+                  <div className="mt-3 space-y-3 sm:col-span-2">
+                    <input type="hidden" name="dung_tai_khoan_mac_dinh" value={dungTaiKhoanMacDinh ? '1' : '0'} />
+                    <label className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal">
+                      <input
+                        type="checkbox"
+                        className="size-4 accent-indigo-600"
+                        checked={dungTaiKhoanMacDinh}
+                        onChange={event => chonTaiKhoanMacDinh(event.target.checked)}
+                      />
+                      <span>Dùng tài khoản mặc định đã lưu</span>
+                    </label>
+                    {!dungTaiKhoanMacDinh && <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+                      <label className="field">Số tài khoản *
+                        <input
+                          name="tai_khoan_nhan_so"
+                          required
+                          inputMode="numeric"
+                          maxLength={19}
+                          value={values.tai_khoan_nhan_so}
+                          onChange={event => setValues(current => ({ ...current, tai_khoan_nhan_so: event.target.value.replace(/\D/g, '').slice(0, 19) }))}
+                          placeholder="Nhập số tài khoản"
+                        />
+                      </label>
+                      <label className="field">Ngân hàng
+                        <input name="tai_khoan_nhan_ngan_hang" maxLength={200} value={values.tai_khoan_nhan_ngan_hang} onChange={event => setValues(current => ({ ...current, tai_khoan_nhan_ngan_hang: event.target.value }))} placeholder="Tên ngân hàng" />
+                      </label>
+                      <label className="field">Chi nhánh
+                        <input name="tai_khoan_nhan_chi_nhanh" maxLength={200} value={values.tai_khoan_nhan_chi_nhanh} onChange={event => setValues(current => ({ ...current, tai_khoan_nhan_chi_nhanh: event.target.value }))} placeholder="Chi nhánh mở tài khoản" />
+                      </label>
+                      <label className="field">Chủ tài khoản
+                        <input name="tai_khoan_nhan_ten_chu_tk" maxLength={200} value={values.tai_khoan_nhan_ten_chu_tk} onChange={event => setValues(current => ({ ...current, tai_khoan_nhan_ten_chu_tk: event.target.value }))} placeholder="Tên chủ tài khoản" />
+                      </label>
+                    </div>}
+                    <p className="text-xs text-slate-500">
+                      {taiKhoanIn
+                        ? <>Giấy in kèm tài khoản nhận tiền: <b className="font-semibold text-slate-700">{dongTaiKhoan(taiKhoanIn)}</b></>
+                        : dungTaiKhoanMacDinh
+                          ? <>Chưa có số tài khoản nhận tiền. Bấm Lập giấy đề nghị để chọn người đề nghị. Trong Quản trị, cấu hình ngân hàng, chi nhánh và liên kết đúng cán bộ cho người lấy hóa đơn; mỗi cán bộ chỉ nên có một tài khoản đang hoạt động.</>
+                          : <>Tài khoản nhập ở đây sẽ được lưu riêng cho giao dịch và in trên giấy đề nghị.</>}
+                    </p>
+                  </div>
                 )}
               </section>
             )}
@@ -524,10 +756,10 @@ export function FormGiaoDich({
       </div>
     </dialog>}
     {showDialog && canhBao && <dialog ref={warningRef} aria-labelledby={`${id}-warning-title`} aria-describedby={`${id}-warning-description`} onCancel={event => { if (pending) event.preventDefault(); else setCanhBao(undefined) }} className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border-0 bg-white p-6 text-slate-800 shadow-2xl backdrop:bg-slate-950/50">
-      <h2 id={`${id}-warning-title`} className="text-xl font-semibold text-amber-900">Hoàn ứng vượt dư lý thuyết</h2>
+      <h2 id={`${id}-warning-title`} className="text-xl font-semibold text-amber-900">Hoàn ứng vượt dư TƯ lý thuyết</h2>
       <p id={`${id}-warning-description`} className="mt-3 text-sm text-slate-600">Giao dịch chưa được lưu. Khoản hoàn ứng lớn hơn số dư tại thời điểm ghi nhận giao dịch. Bạn có muốn tiếp tục không?</p>
       <dl className="my-5 space-y-3 rounded-xl bg-amber-50 p-4 text-sm">
-        <div className="flex flex-wrap justify-between gap-2"><dt>Dư lý thuyết trước giao dịch</dt><dd className="font-semibold tabular-nums">{vnd.format(canhBao.duLyThuyet)}</dd></div>
+        <div className="flex flex-wrap justify-between gap-2"><dt>Dư TƯ lý thuyết trước giao dịch</dt><dd className="font-semibold tabular-nums">{vnd.format(canhBao.duLyThuyet)}</dd></div>
         <div className="flex flex-wrap justify-between gap-2"><dt>Số tiền hoàn ứng</dt><dd className="font-semibold tabular-nums">{vnd.format(canhBao.hoanTamUng)}</dd></div>
         <div className="flex flex-wrap justify-between gap-2 border-t border-amber-200 pt-3"><dt>Số tiền vượt dư</dt><dd className="font-semibold tabular-nums text-red-700">{vnd.format(canhBao.thieu)}</dd></div>
       </dl>

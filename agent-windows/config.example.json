@@ -1,0 +1,12 @@
+{
+  "url": "https://hc.ttdt.site/api/intake/scan",
+  "token": "DAN_TOKEN_AGENT_MOT_LAN_DUOC_HIEN_TRONG_CAI_DAT",
+  "scanDir": "C:\\DuLieu\\ScanHoaDon",
+  "sentDir": "C:\\DuLieu\\ScanHoaDon\\DaGui",
+  "errorDir": "C:\\DuLieu\\ScanHoaDon\\Loi",
+  "extensions": [".pdf", ".xml"],
+  "stableSeconds": 5,
+  "pollSeconds": 2,
+  "pingSeconds": 60,
+  "maxFileBytes": 10485760
+}

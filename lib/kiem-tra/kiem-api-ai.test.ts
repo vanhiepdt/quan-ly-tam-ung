@@ -84,7 +84,7 @@ describe('gọi API danh sách / test', () => {
     expect('nhatKy' in kq && kq.nhatKy?.some(d => d.includes('HTTP 200'))).toBe(true)
   })
 
-  it('DeepSeek Test API thành công kèm cảnh báo không đọc ảnh', async () => {
+  it('DeepSeek Test API thành công kèm cảnh báo chỉ đọc XML', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true, json: async () => ({ data: [{ id: 'deepseek-chat' }, { id: 'deepseek-reasoner' }] }),
@@ -94,7 +94,7 @@ describe('gọi API danh sách / test', () => {
       })
     const kq = await kiemThuApi(cauHinh({ nhaCungCap: 'deepseek', moHinh: 'deepseek-chat' }))
     expect(kq).toMatchObject({
-      thanhCong: 'Kết nối DeepSeek thành công. Có 2 model. Chat trả “ok”. Nhà này không đọc ảnh hóa đơn — lớp AI chỉ đối chiếu chữ OCR trên PDF.',
+      thanhCong: 'Kết nối DeepSeek thành công. Có 2 model. Chat trả “ok”. Nhà này đọc được XML nhưng không hỗ trợ ảnh PDF.',
       moHinh: ['deepseek-chat', 'deepseek-reasoner'],
     })
     expect(JSON.stringify(kq)).not.toContain('sk-test')

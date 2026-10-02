@@ -57,6 +57,7 @@ async function traTen(rows: ReadonlyArray<DongLichSu>): Promise<BoCanh> {
   await Promise.all([
     tra('don_vi', 'ten', ma.donVi, boCanh.donVi),
     tra('nguoi_lay_hd', 'ten', ma.nguoiLayHd, boCanh.nguoiLayHd),
+    tra('can_bo', 'ho_ten', ma.canBo, boCanh.canBo ?? {}),
     tra('nguoi_dung', 'ho_ten', ma.nguoiDung, boCanh.nguoiDung),
   ])
   return boCanh

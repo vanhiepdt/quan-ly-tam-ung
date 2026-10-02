@@ -23,10 +23,10 @@ const gd: GiaoDichTinh = {
   id: '11111111-1111-4111-8111-111111111111', ngay: '2026-09-20', soThuTu: 1, taoLuc: '2026-09-20T00:00:00.000Z',
   noiDung: 'Giao dịch thử', kyHieuHd: null, soHd: null, loaiHd: 'Phiếu chi CQ', trangThaiHd: 'Hợp lệ',
   hinhThuc: HINH_THUC.TAM_UNG_THEM, tongTien: 0, tienRuouBia: 0, tamUngTuCq: 1500000,
-  giaoTienChiThuy: 0, hoanUngTienMat: 0, nguoiLayHdId: null, nguoiLayHdTen: null, phiLayHdGhiDe: null,
+  giaoTienChiThuy: 0, duaTienCqTraThangChoChiThuy: 0, hoanUngTienMat: 0, nguoiDeNghiId: null, nguoiDeNghiTen: null, nguoiLayHdId: null, nguoiLayHdTen: null, phiLayHdGhiDe: null,
   trangThaiTtPhi: 'Không phát sinh', ghiChu: null, donViId: null, donViTen: null,
-  hinhThucThanhToan: 'tien_mat', taiKhoanNhan: null, coHoaDon: false, coChuyenKhoan: false,
-  hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0,
+  hinhThucThanhToan: 'tien_mat', taiKhoanNhan: null, coHoaDon: false, coChuyenKhoan: false, coTinhPhi: false,
+  hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0,
 }
 const mau = readFileSync(path.join(process.cwd(), 'Mau', 'Tam ung tien.docx'))
 const goi = (loai = 'tam_ung') => GET(new Request('http://localhost/giay'), { params: Promise.resolve({ id: gd.id, loai }) })
@@ -50,6 +50,7 @@ describe('route tải giấy DOCX', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('wordprocessingml.document')
     expect(res.headers.get('content-disposition')).toMatch(/^attachment;/)
+    expect(res.headers.get('cache-control')).toBe('private, no-store, max-age=0')
     const buffer = Buffer.from(await res.arrayBuffer())
     expect(buffer.length).toBeGreaterThan(0)
     const entries = docZip(buffer)

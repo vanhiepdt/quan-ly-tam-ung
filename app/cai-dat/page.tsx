@@ -11,6 +11,8 @@ import { docCanBo } from '@/lib/tai-chinh/cau-hinh-giay'
 import { db } from '@/lib/db/pool'
 import { dangXuat } from '@/app/dang-nhap/actions'
 import { MAU_WORD } from '@/lib/tai-chinh/in-giay'
+import { CaiDatIntake } from './cai-dat-intake'
+import { docDuLieuCauHinhIntake } from './intake-actions'
 
 export default async function CaiDatPage() {
   const phien = await layPhien()
@@ -21,17 +23,20 @@ export default async function CaiDatPage() {
   const laAdmin = phien.vai_tro === 'admin'
   let giay = null
   let ai = null
+  let intake = null
   let canBo: Array<{ id: string; ten: string }> = []
   let nguoiLayHd: Array<{ id: string; ten: string }> = []
   if (laAdmin) {
-    const [duLieu, duLieuAi, dsCanBo, { rows: dsNguoiLayHd }] = await Promise.all([
+    const [duLieu, duLieuAi, dsCanBo, { rows: dsNguoiLayHd }, duLieuIntake] = await Promise.all([
       docDuLieuCauHinhGiay(),
       docDuLieuCauHinhAi(),
       docCanBo(),
       db.query<{ id: string; ten: string }>('select id, ten from nguoi_lay_hd where dang_hoat_dong order by ten'),
+      docDuLieuCauHinhIntake(),
     ])
     giay = duLieu
     ai = duLieuAi
+    intake = duLieuIntake
     canBo = dsCanBo.filter(cb => cb.dangHoatDong).map(cb => ({ id: cb.id, ten: cb.hoTen }))
     nguoiLayHd = dsNguoiLayHd
   }
@@ -76,8 +81,14 @@ export default async function CaiDatPage() {
 
         {ai && <div className="card mb-6 p-5 sm:p-6" data-panel="ai">
           <h2 className="mb-2 text-lg font-semibold">Cài đặt AI đọc hóa đơn</h2>
-          <p className="mb-5 text-slate-500">Lớp 2 đối chiếu QR và điền người bán, người mua, dòng hàng. Chọn nhà cung cấp hoặc trỏ API ngoài tương thích OpenAI.</p>
+          <p className="mb-5 text-slate-500">Hai cấu hình AI đọc độc lập hóa đơn PDF/XML và đối chiếu người bán, người mua, dòng hàng. Chọn nhà cung cấp hoặc trỏ API ngoài tương thích OpenAI.</p>
           <CaiDatAi banDau={ai} />
+        </div>}
+
+        {intake && <div className="card mb-6 p-5 sm:p-6" data-panel="intake">
+          <h2 className="mb-2 text-lg font-semibold">Nhập hóa đơn qua Telegram và máy scan</h2>
+          <p className="mb-5 text-slate-500">Tạo bot mới qua BotFather, dán token vào đây, rồi dùng Windows Service để đẩy file scan lên máy chủ.</p>
+          <CaiDatIntake banDau={intake} />
         </div>}
 
         {laAdmin && <section className="card mb-6 space-y-3 p-5 sm:p-6">

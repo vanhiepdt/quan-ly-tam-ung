@@ -15,10 +15,11 @@ export function noiDungTheoDonVi(tenDonVi: string): string {
 }
 
 const HINH_THUC_NOI_DUNG_CO_DINH = new Set<string>([
-  HINH_THUC.TAM_UNG_THEM, HINH_THUC.GIAO_CHI_THUY, HINH_THUC.NOP_HOAN_CQ,
+  HINH_THUC.TAM_UNG_THEM, HINH_THUC.GIAO_CHI_THUY,
+  HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY, HINH_THUC.NOP_HOAN_CQ,
 ])
 
-// Tạm ứng thêm / Giao tiền chị Thúy / Nộp hoàn CQ: nội dung = đúng tên hình thức, không điền tay.
+// Các dòng tiền nội bộ luôn lấy đúng tên hình thức, không cho client ghi đè nội dung.
 export function noiDungTheoHinhThuc(hinhThuc: string): string | undefined {
   return HINH_THUC_NOI_DUNG_CO_DINH.has(hinhThuc) ? hinhThuc : undefined
 }
@@ -28,7 +29,8 @@ export function noiDungTheoHinhThuc(hinhThuc: string): string | undefined {
 //   - Tạm ứng thêm: giấy đề nghị tạm ứng có hai ô vuông Chuyển khoản / Tiền mặt.
 //   - Hoàn tạm ứng: máy tự điền "Hoàn tạm ứng", người dùng không chọn gì.
 //   - Cơ quan trả thẳng: người dùng chọn Tiền mặt hoặc Chuyển khoản.
-// Hai hình thức còn lại là dòng tiền nội bộ, không lập giấy nên không có hình thức thanh toán.
+// "Đưa tiền CQ trả thẳng cho Chị Thúy" cũng là dòng tiền nội bộ nhưng phải ghi
+// nhận tiền mặt hoặc chuyển khoản để đối chiếu khoản đã đưa.
 export const HINH_THUC_THANH_TOAN = {
   TIEN_MAT: 'tien_mat', CHUYEN_KHOAN: 'chuyen_khoan', HOAN_TAM_UNG: 'hoan_tam_ung',
 } as const
@@ -54,6 +56,7 @@ const LUA_CHON_THEO_HINH_THUC: Record<string, readonly HinhThucThanhToan[]> = {
   [HINH_THUC.TAM_UNG_THEM]: [HINH_THUC_THANH_TOAN.TIEN_MAT, HINH_THUC_THANH_TOAN.CHUYEN_KHOAN],
   [HINH_THUC.HOAN_TAM_UNG]: [HINH_THUC_THANH_TOAN.HOAN_TAM_UNG],
   [HINH_THUC.CQ_TRA_THANG]: [HINH_THUC_THANH_TOAN.TIEN_MAT, HINH_THUC_THANH_TOAN.CHUYEN_KHOAN],
+  [HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY]: [HINH_THUC_THANH_TOAN.TIEN_MAT, HINH_THUC_THANH_TOAN.CHUYEN_KHOAN],
 }
 
 export function dsHinhThucThanhToan(hinhThuc: string): readonly HinhThucThanhToan[] {
@@ -66,6 +69,13 @@ export function hinhThucThanhToanMacDinh(hinhThuc: string): HinhThucThanhToan | 
   return dsHinhThucThanhToan(hinhThuc)[0] ?? null
 }
 
+// Hoàn tạm ứng luôn giữ nguyên số lẻ. Cơ quan trả thẳng bằng tiền mặt mặc định
+// làm tròn xuống hàng nghìn, còn chuyển khoản giữ nguyên số tiền nguồn.
+export function lamTronXuongHangNghinMacDinh(hinhThuc: string, hinhThucThanhToan: string | null | undefined): boolean {
+  return hinhThuc === HINH_THUC.CQ_TRA_THANG
+    && hinhThucThanhToan === HINH_THUC_THANH_TOAN.TIEN_MAT
+}
+
 // Giá trị có hợp với hình thức giao dịch không. Bỏ trống luôn hợp lệ vì máy tự điền mặc
 // định của hình thức; chỉ giá trị người dùng gửi lên mới phải nằm trong danh sách cho phép.
 // Hình thức không lập giấy không có danh sách nên mọi giá trị đều bị từ chối.
@@ -74,18 +84,31 @@ export function hopLeHinhThucThanhToan(hinhThuc: string, giaTri: unknown): boole
   return dsHinhThucThanhToan(hinhThuc).includes(giaTri as HinhThucThanhToan)
 }
 
+// Dùng khi đọc dữ liệu cũ hoặc một nguồn nhập chưa biết cờ mới. Trạng thái phí
+// khác "Không phát sinh" là dấu hiệu rõ ràng rằng người dùng đã muốn tính phí.
+export function coTinhPhiMacDinh(hinhThuc: string, trangThaiTtPhi: string | null | undefined, chiThucTe = false): boolean {
+  if (chiThucTe) return false
+  return hinhThuc === HINH_THUC.HOAN_TAM_UNG
+    || (hinhThuc === HINH_THUC.CQ_TRA_THANG && trangThaiTtPhi !== 'Không phát sinh')
+}
+
 // Chuyển khoản thì giấy phải in kèm số tài khoản nhận tiền.
 export function canTaiKhoanNhan(hinhThucThanhToan: string | null): boolean {
   return hinhThucThanhToan === HINH_THUC_THANH_TOAN.CHUYEN_KHOAN
 }
 
-// Ô vuông in trên giấy đề nghị tạm ứng. Giấy này chỉ có hai ô Chuyển khoản / Tiền mặt;
-// mọi giá trị khác — kể cả để trống — đều in ra ô Tiền mặt. Mẫu Word chỉ có hai chỗ
-// trống [[CK]] và [[TM]] đứng sát nhau nên nhãn phải nằm trong chính giá trị thay vào.
-export function oVuongTamUng(hinhThucThanhToan: string | null): { CK: string; TM: string } {
+// Mẫu giấy đề nghị tạm ứng có hai chỗ trống [[CK]] và [[TM]], nhưng chỉ in phương thức
+// đã chọn. Chuyển khoản có thêm dòng tài khoản đã lưu; các giá trị khác (kể cả để trống)
+// dùng tiền mặt là mặc định an toàn của giấy tạm ứng.
+export function noiDungHinhThucTamUng(
+  hinhThucThanhToan: string | null | undefined,
+  dongTaiKhoanNhan: string | null | undefined,
+): { CK: string; TM: string; noiDung: string } {
   const chuyenKhoan = hinhThucThanhToan === HINH_THUC_THANH_TOAN.CHUYEN_KHOAN
-  return {
-    CK: `${chuyenKhoan ? '☒' : '☐'} Chuyển khoản`,
-    TM: `${chuyenKhoan ? '☐' : '☒'} Tiền mặt`,
-  }
+  const noiDung = chuyenKhoan
+    ? (dongTaiKhoanNhan ? `Chuyển khoản – ${dongTaiKhoanNhan}` : 'Chuyển khoản')
+    : 'Tiền mặt'
+  return chuyenKhoan
+    ? { CK: noiDung, TM: '', noiDung }
+    : { CK: '', TM: noiDung, noiDung }
 }

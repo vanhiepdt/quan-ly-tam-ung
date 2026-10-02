@@ -1,5 +1,6 @@
 import type { CotTienHang, DongHang, LoaiHoaDon } from './giao-dien'
 import { tienDongSauThue } from './loai-hoa-don'
+import { laSoTienHopLe } from './tien'
 
 // Từ điển đồ uống có cồn trên hóa đơn nhà hàng. Không gồm nước ngọt, nước suối, bia không cồn.
 const TU_DAI = [
@@ -46,7 +47,7 @@ function chuanTen(ten: string): string {
   return boDau(ten).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
-// AI gắn cờ rượu bia lên dòng OCR cùng tên. Dòng AI không cờ thì giữ nguyên để từ điển điền sau.
+// AI có thể gắn cờ rượu bia cho từng dòng; dòng không cờ vẫn được đối chiếu với từ điển.
 export function ganCoRuouBiaTuAi(dong: readonly DongHang[], aiDong: readonly DongHang[]): DongHang[] {
   return dong.map(d => {
     const ten = chuanTen(d.ten)
@@ -60,17 +61,17 @@ export function ganCoRuouBiaTuAi(dong: readonly DongHang[], aiDong: readonly Don
   })
 }
 
-// Số rượu bia của một lớp: khóa JSON nếu có; không thì cộng dòng rượu/bia lớp đó đã đọc.
-// Không trả 0 khi không có dòng rượu bia — để bảng hiện “không đọc được”, không bịa số.
+// Khi đã có bảng dòng hàng, tổng bia/rượu luôn được tính lại từ từng dòng sau thuế.
+// Tổng riêng do nguồn đọc trả về chỉ dùng khi nguồn không có dòng hàng.
 export function tienRuouBiaCuaLop(
   doc: { tienRuouBia?: number; dongHang?: readonly DongHang[] } | null | undefined,
   loaiHd?: LoaiHoaDon,
   cotTienHang?: CotTienHang,
 ): number | undefined {
   if (!doc) return
-  if (doc.tienRuouBia !== undefined) return doc.tienRuouBia
-  if (!doc.dongHang?.length) return
-  const { tien, dong } = congTienRuouBia(doc.dongHang, loaiHd, cotTienHang)
-  if (!dong.some(d => d.laRuouBia)) return
-  return tien
+  if (doc.dongHang?.length) {
+    const { tien } = congTienRuouBia(doc.dongHang, loaiHd, cotTienHang)
+    return laSoTienHopLe(tien) ? tien : undefined
+  }
+  return doc.tienRuouBia !== undefined && laSoTienHopLe(doc.tienRuouBia) ? doc.tienRuouBia : undefined
 }

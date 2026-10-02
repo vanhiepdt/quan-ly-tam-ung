@@ -7,18 +7,19 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const mock = `
-window.calls = []; window.responses = []; window.preferenceCalls = []; window.qrCalls = []; window.editCalls = []; window.historyCalls = []; window.historyResponses = [];
+window.calls = []; window.responses = []; window.preferenceCalls = []; window.qrCalls = []; window.editCalls = []; window.paperEditCalls = []; window.historyCalls = []; window.historyResponses = [];
 async function answer(queue) { const r = queue.shift() ?? {}; if (r.delay) await new Promise(resolve => setTimeout(resolve, r.delay)); if (r.throw) throw Error('Simulated offline'); return r.result ?? r; }
 export async function themGiaoDich(_, data) { window.calls.push(Object.fromEntries(data)); return answer(window.responses); }
 export async function suaGiaoDich(_, data) { window.editCalls.push(Object.fromEntries(data)); return answer(window.responses); }
+export async function suaThongTinGiayGiaoDich(_, data) { window.paperEditCalls.push(Object.fromEntries(data)); return answer(window.responses); }
 export async function xoaMemGiaoDich() { throw Error('Deletion forbidden in harness'); }
 export async function luuTuyChonCot(data) { window.preferenceCalls.push(data); const result = await answer(window.responses); if (result.ok && location.pathname === '/ledger') sessionStorage.setItem('fixture-ledger-preferences', JSON.stringify(data)); return result; }
 export async function layQrThanhToan(id) { window.qrCalls.push(id); return answer(window.responses); }
 export async function layLichSuGiaoDich(id) { window.historyCalls.push(id); return answer(window.historyResponses); }
 export async function xemGiayNhap() { return { loi: 'Harness' } }
-export async function taiNguoiKyGiay() { return { canBo: [], macDinh: { nguoiDeNghiId: '', lanhDaoTiepKhachId: '', lanhDaoThanhToanId: '', truongPhongId: '', keToanKiemSoatId: '' }, taiKhoanTheoNguoiLayHd: {} } }
+export async function taiNguoiKyGiay() { return window.fixturePaperSigners ?? { canBo: [], macDinh: { nguoiDeNghiId: '', lanhDaoTiepKhachId: '', lanhDaoThanhToanId: '', truongPhongId: '', keToanKiemSoatId: '' }, taiKhoanTheoNguoiLayHd: {} } }
 export async function docHoaDon() { return { loi: 'Harness' } }
-export async function tinhTrangAiHoaDon() { return { muc: 'ok', nha: '', moHinh: '', docAnh: false, thongDiep: 'Harness AI' } }
+export async function tinhTrangHaiAiHoaDon() { return { muc: 'ok', ai1: { muc: 'ok', nha: '', moHinh: '', docAnh: true, thongDiep: 'Harness AI 1' }, ai2: { muc: 'ok', nha: '', moHinh: '', docAnh: true, thongDiep: 'Harness AI 2' }, thongDiep: 'Harness AI' } }
 export async function kiemTraTrungKyHieu(ky) {
   window.kyHieuCalls = window.kyHieuCalls || []; window.kyHieuCalls.push(ky);
   const r = window.kyHieuResponses && window.kyHieuResponses.length ? await answer(window.kyHieuResponses) : {};
@@ -35,31 +36,56 @@ import React from 'react'; import {createRoot} from 'react-dom/client';
 import {FormGiaoDich} from './app/giao-dich/form';
 import {TuyChonCot} from './app/cai-dat/tuy-chon-cot';
 import {BangNhatKy} from './app/giao-dich/bang-nhat-ky';
+import {tinhToan} from './lib/tai-chinh/tinh-toan';
 import {ThanhToan} from './app/giao-dich/thanh-toan';
 import {cotMacDinh, cotNhatKy} from './app/giao-dich/cot-nhat-ky';
 const screen = location.pathname;
 window.fixtureColumns = cotNhatKy;
 const dong = (phan) => ({id:'r0', ngay:'2026-01-01', soThuTu:1, taoLuc:'2026-01-01T00:00:00.000Z', noiDung:'Tiếp khách',
   kyHieuHd:null, soHd:null, loaiHd:null, trangThaiHd:'Hợp lệ', hinhThuc:'Hoàn tạm ứng', tongTien:0, tienRuouBia:0,
-  tamUngTuCq:0, giaoTienChiThuy:0, hoanUngTienMat:0, nguoiLayHdId:null, nguoiLayHdTen:null, phiLayHdGhiDe:null,
+  tamUngTuCq:0, giaoTienChiThuy:0, hoanUngTienMat:0, nguoiDeNghiTen:null, nguoiLayHdId:null, nguoiLayHdTen:null, phiLayHdGhiDe:null,
   trangThaiTtPhi:'Không phát sinh', ghiChu:null, donViId:null, donViTen:null, coHoaDon:false, coChuyenKhoan:false,
   hoanTamUng:0, cqTraThang:0, phiLayHd:0, duLyThuyet:0, duThucTe:0, duDangCam:0, ...phan});
 window.fixtureRows = [
   dong({id:'r1', ngay:'2026-01-03', noiDung:'Tiếp đơn vị thử hai', donViId:'fixture-unit-2', donViTen:'Đơn vị thử hai', tongTien:2000000, hoanTamUng:2000000, duLyThuyet:2000000, soHd:'0000002', trangThaiTtPhi:'Chưa thanh toán'}),
-  dong({id:'r2', ngay:'2026-01-01', noiDung:'Tiếp đơn vị thử nghiệm', donViId:'fixture-unit', donViTen:'Đơn vị thử nghiệm', tongTien:900000, hoanTamUng:900000, duLyThuyet:900000, soThuTu:2, kyHieuHd:'1C26MTT', soHd:'0000001', trangThaiHd:'Chờ HĐ', trangThaiTtPhi:'Đã thanh toán'}),
+  dong({id:'r2', ngay:'2026-01-01', noiDung:'Tiếp đơn vị thử nghiệm', donViId:'fixture-unit', donViTen:'Đơn vị thử nghiệm', tongTien:900000, hoanTamUng:900000, duLyThuyet:900000, soThuTu:2, kyHieuHd:'1C26MTT', soHd:'0000001', trangThaiHd:'Chờ HĐ', trangThaiTtPhi:'Đã thanh toán', thongTinGiayDaChot:true, nguoiDeNghiId:'paper-proposer-old', lanhDaoTiepKhachId:'paper-leader-guest', lanhDaoThanhToanId:'paper-leader-payment', truongPhongId:'paper-manager-one', keToanKiemSoatId:'paper-accountant'}),
   dong({id:'r3', ngay:'2026-01-02', noiDung:'Tiếp đơn vị thử nghiệm', donViId:'fixture-unit', donViTen:'Đơn vị thử nghiệm', tongTien:1500000, hoanTamUng:1500000, duLyThuyet:1500000, soThuTu:3}),
 ];
+window.fixturePaperSigners = {
+  canBo: [
+    {id:'paper-proposer-old',hoTen:'Người đề nghị cũ',phong:'Phòng Một',chucDanh:'Chuyên viên',dangHoatDong:true},
+    {id:'paper-proposer-new',hoTen:'Người đề nghị mới',phong:'Phòng Hai',chucDanh:'Chuyên viên',dangHoatDong:true},
+    {id:'paper-leader-guest',hoTen:'Lãnh đạo tiếp khách',phong:'Ban Giám đốc',chucDanh:'Phó Giám đốc',dangHoatDong:true},
+    {id:'paper-leader-payment',hoTen:'Lãnh đạo thanh toán',phong:'Ban Giám đốc',chucDanh:'Giám đốc',dangHoatDong:true},
+    {id:'paper-manager-one',hoTen:'Trưởng phòng Một',phong:'Phòng Một',chucDanh:'Trưởng phòng',dangHoatDong:true},
+    {id:'paper-manager-two',hoTen:'Trưởng phòng Hai',phong:'Phòng Hai',chucDanh:'Trưởng phòng',dangHoatDong:true},
+    {id:'paper-accountant',hoTen:'Kế toán kiểm soát',phong:'Phòng Kế toán',chucDanh:'Kế toán viên',dangHoatDong:true},
+  ],
+  macDinh: {nguoiDeNghiId:'paper-proposer-old',lanhDaoTiepKhachId:'paper-leader-guest',lanhDaoThanhToanId:'paper-leader-payment',truongPhongId:'paper-manager-one',keToanKiemSoatId:'paper-accountant'},
+  taiKhoanTheoNguoiLayHd: {},
+};
 const phuTro = {collectors:[{id:'fixture-collector',ten:'Người lấy HĐ thử'}], donVi:[{id:'fixture-unit',ten:'Đơn vị thử nghiệm'},{id:'fixture-unit-2',ten:'Đơn vị thử hai'}]};
 // Chỉ ba hình thức đầu lập giấy đề nghị; hai dòng tiền nội bộ thì không.
 window.fixturePaperRows = [
   dong({id:'p1', noiDung:'Tạm ứng thử', hinhThuc:'Tạm ứng thêm'}),
   dong({id:'p2', noiDung:'Tiếp khách thử', hinhThuc:'Hoàn tạm ứng'}),
-  dong({id:'p3', noiDung:'Trả thẳng thử', hinhThuc:'Cơ quan trả thẳng'}),
+  dong({id:'p3', noiDung:'Trả thẳng thử', hinhThuc:'Cơ quan trả thẳng', chiThucTe:true}),
   dong({id:'p4', noiDung:'Giao tiền thử', hinhThuc:'Giao tiền chị Thúy'}),
   dong({id:'p5', noiDung:'Nộp hoàn thử', hinhThuc:'Nộp hoàn CQ'}),
 ];
+window.fixtureActualRows = tinhToan(location.search.includes('fees') ? [
+  dong({id:'f1', hinhThuc:'Tạm ứng thêm', tamUngTuCq:20000000, coTinhPhi:false}),
+  dong({id:'f2', soThuTu:2, tongTien:1000000, coTinhPhi:true, trangThaiTtPhi:'Chưa thanh toán'}),
+  dong({id:'f3', soThuTu:3, tongTien:2000000, tienRuouBia:400000, tienDuocThanhToanGoc:1234567, lamTronXuongHangNghin:true,
+    chiThucTe:true, coTinhPhi:true, phiLayHdGhiDe:50000, trangThaiTtPhi:'Đã thanh toán'}),
+  dong({id:'f4', soThuTu:4, tongTien:1000000, tienRuouBia:200000, chiThucTe:true, coTinhPhi:false}),
+  dong({id:'f5', soThuTu:5, hinhThuc:'Giao tiền chị Thúy', giaoTienChiThuy:500000, coTinhPhi:false}),
+] : [
+  dong({id:'a1', hinhThuc:'Tạm ứng thêm', tamUngTuCq:20000000, coTinhPhi:false}),
+  dong({id:'a2', soThuTu:2, noiDung:'Học phí 08 học viên', tongTien:16800000, tienDuocThanhToanGoc:16800000, chiThucTe:true, coTinhPhi:false}),
+]);
 const ledgerPreferences = JSON.parse(sessionStorage.getItem('fixture-ledger-preferences') || 'null') ?? {...cotMacDinh(), an: location.search.includes('hidden') ? ['chungTu','tongTien'] : []};
-createRoot(document.getElementById('root')).render(screen === '/settings' ? <TuyChonCot banDau={null} loiBanDau={null}/> : screen === '/ledger' ? <BangNhatKy rows={[]} coTheSua={false} banDau={ledgerPreferences} phuTro={phuTro}/> : screen === '/ledger-readonly' ? <BangNhatKy rows={window.fixtureRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-edit' ? <BangNhatKy rows={window.fixtureRows} coTheSua={true} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: location.search.includes('admin') ? 'admin' : 'nhap_lieu'}}/> : screen === '/ledger-paper' ? <BangNhatKy rows={window.fixturePaperRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/payment' ? <table><tbody><tr><td><ThanhToan id="fixture"/></td></tr></tbody></table> : <FormGiaoDich collectors={[{id:'fixture-collector',ten:'Người lấy HĐ thử'}]} donVi={[{id:'fixture-unit-2',ten:'Đơn vị thử hai',so_lan:3,lan_cuoi:'01/01/2026'},{id:'fixture-unit',ten:'Đơn vị thử nghiệm'}]} nguoiLayHdMacDinhId="fixture-collector" trangThaiTtPhiMacDinh="Chưa thanh toán"/>);
+createRoot(document.getElementById('root')).render(screen === '/settings' ? <TuyChonCot banDau={null} loiBanDau={null}/> : screen === '/ledger' ? <BangNhatKy rows={[]} coTheSua={false} banDau={ledgerPreferences} phuTro={phuTro}/> : screen === '/ledger-actual' ? <BangNhatKy rows={window.fixtureActualRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-readonly' ? <BangNhatKy rows={window.fixtureRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-edit' ? <BangNhatKy rows={window.fixtureRows} coTheSua={true} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: location.search.includes('admin') ? 'admin' : 'nhap_lieu'}}/> : screen === '/ledger-paper' ? <BangNhatKy rows={window.fixturePaperRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/payment' ? <table><tbody><tr><td><ThanhToan id="fixture"/></td></tr></tbody></table> : <FormGiaoDich collectors={[{id:'fixture-collector',ten:'Người lấy HĐ thử'}]} donVi={[{id:'fixture-unit-2',ten:'Đơn vị thử hai',so_lan:3,lan_cuoi:'01/01/2026'},{id:'fixture-unit',ten:'Đơn vị thử nghiệm'}]} nguoiLayHdMacDinhId="fixture-collector" trangThaiTtPhiMacDinh="Chưa thanh toán"/>);
 `
 // next/link kéo theo mã dùng chung của Next, thứ đọc process.env ở cấp module. Next tự thay
 // biến này khi đóng gói, còn esbuild thì không, nên phải khai báo để trang thử không vỡ.
@@ -140,6 +166,127 @@ try {
   if (coDonVi) await expect(page.locator('[name="don_vi_id"]')).toHaveValue('fixture-unit')
  }
  console.log('PASS local date before 07:00 Vietnam, unit-only transaction types, locked derived description, actual submitted document types and the three printed payment methods')
+ // Chi thực tế được gửi cùng giao dịch; mặc định tắt và chỉ đổi mặc định phí.
+ for (const type of ['Hoàn tạm ứng', 'Cơ quan trả thẳng']) {
+  await openForm()
+  await chonHinhThuc(type)
+  const chiThucTe = page.getByRole('checkbox',{name:'Chi thực tế',exact:true})
+  const phiHoaDon = page.getByRole('checkbox',{name:'Tính phí hóa đơn',exact:true})
+  await expect(chiThucTe).not.toBeChecked()
+  await expect(phiHoaDon).toBeChecked()
+  await page.getByLabel('Tổng tiền (VND) *').fill('1234567')
+  await page.getByLabel('Tiền không được thanh toán (VND)').fill('100')
+  const thanhToan = page.getByLabel('Tiền được hoàn/thanh toán (VND) *')
+  await expect(thanhToan).toHaveValue(type === 'Hoàn tạm ứng' ? '1.234.467' : '1.234.000')
+  await chiThucTe.check()
+  await expect(phiHoaDon).not.toBeChecked()
+  await expect(page.getByLabel('Phí ghi đè (VND)')).toBeDisabled()
+  await expect(page.getByLabel('Trạng thái thanh toán phí')).toHaveValue('Không phát sinh')
+  await thanhToan.fill('987654')
+  await thanhToan.press('Tab')
+  const lamTron = page.getByRole('checkbox',{name:'Làm tròn xuống hàng nghìn',exact:true})
+  await lamTron.check()
+  await expect(thanhToan).toHaveValue('987.000')
+  await lamTron.uncheck()
+  await expect(thanhToan).toHaveValue('987.654')
+  await queue([{loi:'Validation fixture'}])
+  await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click()
+  await expect.poll(()=>page.evaluate(()=>window.calls.at(-1)?.chi_thuc_te)).toBe('1')
+  expect(await page.evaluate(()=>window.calls.at(-1))).toMatchObject({
+   hinh_thuc:type,chi_thuc_te:'1',co_tinh_phi_lay_hd:'0',trang_thai_tt_phi:'Không phát sinh',
+   tien_ruou_bia:'100',tien_duoc_thanh_toan:'987654',tien_duoc_thanh_toan_goc:'987654',lam_tron_xuong_hang_nghin:'0',
+  })
+  await expect(chiThucTe).toBeChecked()
+  await phiHoaDon.check()
+  await expect(page.getByLabel('Phí ghi đè (VND)')).toBeEnabled()
+  await page.getByLabel('Phí ghi đè (VND)').fill('5000')
+  await queue([{thanhCong:'Đã thêm giao dịch.'}])
+  await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click()
+  await expect(page.getByRole('dialog',{name:'Thêm giao dịch',exact:true})).toHaveCount(0)
+  expect(await page.evaluate(()=>window.calls.at(-1))).toMatchObject({chi_thuc_te:'1',co_tinh_phi_lay_hd:'1',phi_lay_hd_ghi_de:'5000'})
+  await page.getByRole('button',{name:'+ Thêm giao dịch',exact:true}).click()
+  await chonHinhThuc(type)
+  await expect(chiThucTe).not.toBeChecked()
+  await chiThucTe.check()
+  await chonHinhThuc(type === 'Hoàn tạm ứng' ? 'Cơ quan trả thẳng' : 'Hoàn tạm ứng')
+  await expect(chiThucTe).toBeChecked()
+  await expect(phiHoaDon).not.toBeChecked()
+  await chonHinhThuc('Tạm ứng thêm')
+  await expect(chiThucTe).toHaveCount(0)
+  await expect(page.locator('[name="chi_thuc_te"]')).toHaveValue('0')
+  await chonHinhThuc(type)
+  await expect(chiThucTe).not.toBeChecked()
+  await chiThucTe.check()
+  await page.getByRole('button',{name:'Đóng hộp thoại',exact:true}).click()
+  await page.getByRole('button',{name:'+ Thêm giao dịch',exact:true}).click()
+  await expect(chiThucTe).not.toBeChecked()
+ }
+ console.log('PASS Chi thực tế defaults, fee override, amount editing/rounding, persistence after validation and reset after save/type changes')
+ const oLamTronXuongHangNghin = page.getByLabel('Làm tròn xuống hàng nghìn')
+ const oTienDuocThanhToan = page.getByLabel('Tiền được hoàn/thanh toán (VND) *')
+ const oTongTien = page.getByLabel('Tổng tiền (VND) *')
+ const oTienRuouBia = page.getByLabel('Tiền không được thanh toán (VND)')
+ await chonHinhThuc('Hoàn tạm ứng')
+ await expect(oLamTronXuongHangNghin).not.toBeChecked()
+ await oTongTien.fill('1234567')
+ await oTienRuouBia.fill('100')
+ await expect(oTienDuocThanhToan).toHaveValue('1.234.467')
+ await expect(page.locator('[name="tien_duoc_thanh_toan_goc"]')).toHaveValue('1234467')
+ await expect(page.locator('[name="lam_tron_xuong_hang_nghin"]')).toHaveValue('0')
+ await queue([{loi:'Validation fixture'}]); await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click()
+ expect(await page.evaluate(()=>window.calls.at(-1))).toMatchObject({
+  hinh_thuc:'Hoàn tạm ứng', tien_duoc_thanh_toan:'1234467', tien_duoc_thanh_toan_goc:'1234467', lam_tron_xuong_hang_nghin:'0',
+ })
+ await chonHinhThuc('Cơ quan trả thẳng')
+ await expect(oLamTronXuongHangNghin).toBeChecked()
+ await expect(oTienDuocThanhToan).toHaveValue('1.234.000')
+ const oThanhToanTrenGiay = page.getByLabel('In trên giấy đề nghị *')
+ await oTienRuouBia.fill('2000')
+ await expect(oTienDuocThanhToan).toHaveValue('1.232.000')
+ await expect(page.locator('[name="tien_duoc_thanh_toan_goc"]')).toHaveValue('1232567')
+ await oLamTronXuongHangNghin.uncheck()
+ await expect(oLamTronXuongHangNghin).not.toBeChecked()
+ await expect(oTienDuocThanhToan).toHaveValue('1.232.567')
+ await oLamTronXuongHangNghin.check()
+ await expect(oLamTronXuongHangNghin).toBeChecked()
+ await expect(oTienDuocThanhToan).toHaveValue('1.232.000')
+ await oThanhToanTrenGiay.selectOption('chuyen_khoan')
+ await expect(oLamTronXuongHangNghin).not.toBeChecked()
+ await expect(oTienDuocThanhToan).toHaveValue('1.232.567')
+ // Dù người dùng tự tích, đổi hình thức giao dịch phải nạp lại đúng mặc định mới.
+ await oLamTronXuongHangNghin.check()
+ await chonHinhThuc('Hoàn tạm ứng')
+ await expect(oLamTronXuongHangNghin).not.toBeChecked()
+ await expect(oTienDuocThanhToan).toHaveValue('1.232.567')
+ await chonHinhThuc('Cơ quan trả thẳng')
+ await expect(oLamTronXuongHangNghin).toBeChecked()
+ await expect(oTienDuocThanhToan).toHaveValue('1.232.000')
+ await queue([{loi:'Validation fixture'}]); await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click()
+ expect(await page.evaluate(()=>window.calls.at(-1))).toMatchObject({
+  hinh_thuc:'Cơ quan trả thẳng', hinh_thuc_thanh_toan:'tien_mat',
+  tien_duoc_thanh_toan:'1232000', tien_duoc_thanh_toan_goc:'1232567', lam_tron_xuong_hang_nghin:'1',
+ })
+ await oThanhToanTrenGiay.selectOption('chuyen_khoan')
+ console.log('PASS payment amount auto-subtracts alcohol, restores source after unchecking, and resets exact rounding defaults on transaction/payment changes')
+ await chonHinhThuc('Cơ quan trả thẳng')
+ await page.getByLabel('Tổng tiền (VND) *').fill('1000000')
+ const oChuyenKhoan = page.getByLabel('In trên giấy đề nghị *')
+ await oChuyenKhoan.selectOption('chuyen_khoan')
+ const oDungTaiKhoanMacDinh = page.getByLabel('Dùng tài khoản mặc định đã lưu')
+ await expect(oDungTaiKhoanMacDinh).toBeChecked()
+ await oDungTaiKhoanMacDinh.uncheck()
+ await page.getByLabel('Số tài khoản *').fill('000123')
+ await page.getByLabel('Ngân hàng').fill('Ngân hàng khác')
+ await page.getByLabel('Chi nhánh').fill('Chi nhánh B')
+ await page.getByLabel('Chủ tài khoản').fill('Người nhận khác')
+ await queue([{loi:'Validation fixture'}]); await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click()
+ await expect.poll(()=>page.evaluate(()=>window.calls.at(-1)?.dung_tai_khoan_mac_dinh)).toBe('0')
+ expect(await page.evaluate(()=>window.calls.at(-1))).toMatchObject({
+  hinh_thuc_thanh_toan:'chuyen_khoan', tai_khoan_nhan_so:'000123',
+  tai_khoan_nhan_ngan_hang:'Ngân hàng khác', tai_khoan_nhan_chi_nhanh:'Chi nhánh B',
+  tai_khoan_nhan_ten_chu_tk:'Người nhận khác',
+ })
+ console.log('PASS transfer default-account checkbox and manual account fields submit together')
  await chonHinhThuc('Hoàn tạm ứng')
  await oDonVi().fill('thử')
  await expect(page.getByRole('option',{name:/Đơn vị thử nghiệm/})).toBeVisible()
@@ -161,9 +308,10 @@ try {
  await page.getByLabel('Tổng tiền (VND) *').fill('2000000')
  const warning = fingerprint=>({canhBao:{duLyThuyet:100,hoanTamUng:200,thieu:100,fingerprint}})
  await queue([warning('first')]); await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click()
- await expect(page.getByRole('dialog',{name:'Hoàn ứng vượt dư lý thuyết'})).toBeVisible()
+ const warningDialog = page.getByRole('dialog',{name:/Hoàn ứng vượt dư(?: TƯ)? lý thuyết/})
+ await expect(warningDialog).toBeVisible()
  await page.getByRole('button',{name:'Quay lại chỉnh sửa'}).click()
- await expect(page.getByRole('dialog',{name:'Hoàn ứng vượt dư lý thuyết'})).toHaveCount(0)
+ await expect(warningDialog).toHaveCount(0)
  await page.getByLabel('Tổng tiền (VND) *').fill('2500000')
  await queue([warning('first'),warning('changed'),{thanhCong:'Đã thêm giao dịch.'}])
  await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click()
@@ -190,7 +338,7 @@ try {
  await expect(page.getByRole('button',{name:'Lưu giao dịch',exact:true})).toBeEnabled()
  await expect(page.getByLabel('Nội dung *')).toHaveValue('Tạm ứng thêm')
  await queue([warning('offline'),{throw:true}]); await page.getByRole('button',{name:'Lưu giao dịch',exact:true}).click(); await page.getByRole('button',{name:'Tiếp tục lưu',exact:true}).click()
- await expect(page.getByRole('dialog',{name:'Hoàn ứng vượt dư lý thuyết'})).toHaveCount(0)
+ await expect(warningDialog).toHaveCount(0)
  await expect(page.getByRole('alert')).toContainText('Kiểm tra nhật ký')
  console.log('PASS normal/confirmation request failure recoverable with retained fields')
  await page.goto(origin+'/settings'); await page.getByRole('button',{name:'Đưa cột Ngày sang phải',exact:true}).click(); await queue([{throw:true},{ok:true,thongBao:'Saved fixture'}]); await page.getByRole('button',{name:'Lưu tùy chọn',exact:true}).click()
@@ -248,7 +396,7 @@ try {
   await buoc('thả chuột',()=>page.mouse.up())
  }
  const nativeDrags = []
- for(const [source,target,after] of [['ngay','trangThai',true],['ngay','noiDung',false]]) {
+ for(const [source,target,after] of [['ngay','trangThaiHd',true],['ngay','noiDung',false]]) {
   const count=await page.evaluate(()=>window.preferenceCalls.length)
   await queue([{ok:true,thongBao:'Saved drag fixture'}])
   await ghiNhanKeo()
@@ -276,7 +424,7 @@ try {
   source.addEventListener('dragstart',event=>{window.externalDrags.push(event.isTrusted); event.dataTransfer.setData('application/x-ledger-column','ngay'); event.dataTransfer.setData('text/plain','ngay')})
   document.body.append(source)
  })
- await pointerDrag(page.locator('#external-drag'),header('trangThai'),true,false)
+ await pointerDrag(page.locator('#external-drag'),header('trangThaiHd'),true,false)
  expect(await page.evaluate(()=>window.externalDrags)).toEqual([true])
  expect(await page.evaluate(()=>window.preferenceCalls)).toEqual([])
  expect(await visibleOrder()).toEqual(expectedVisible())
@@ -285,8 +433,8 @@ try {
  // Separate adversarial synthetic drop: unlike native input this forces delivery
  // even though the external dragover was not accepted as a drop target.
  const forgedTransfer=await page.evaluateHandle(()=>{const data=new DataTransfer(); data.setData('application/x-ledger-column','ngay'); data.setData('text/plain','ngay'); return data})
- await header('trangThai').dispatchEvent('dragover',{dataTransfer:forgedTransfer,clientX:500})
- await header('trangThai').dispatchEvent('drop',{dataTransfer:forgedTransfer,clientX:500})
+ await header('trangThaiHd').dispatchEvent('dragover',{dataTransfer:forgedTransfer,clientX:500})
+ await header('trangThaiHd').dispatchEvent('drop',{dataTransfer:forgedTransfer,clientX:500})
  await forgedTransfer.dispose()
  expect(await page.evaluate(()=>window.preferenceCalls)).toEqual([])
  expect(await visibleOrder()).toEqual(expectedVisible())
@@ -312,16 +460,52 @@ try {
  const oTheoCot = async(ten,hang)=>{const i=(await tenCot()).indexOf(ten); return page.locator('tbody tr').nth(hang).locator('td').nth(i)}
  const hangTong = async(ten)=>{const i=(await tenCot()).indexOf(ten); return page.locator('tfoot td').nth(i)}
  const cotTheoTen = ten=>page.getByRole('columnheader').filter({has:page.getByRole('slider',{name:`Chiều rộng cột ${ten}`,exact:true})})
+ await expect(page.getByRole('columnheader').first()).toHaveCSS('position','relative')
+ // Khi hàng tiêu đề gốc cuộn khỏi thanh điều hướng, bản tiêu đề đồng bộ phải
+ // bám ngay dưới thanh đó; cuộn ngang vẫn phải giữ thẳng cột với phần thân bảng.
+ await page.evaluate(() => { document.body.style.minHeight = '2600px'; document.getElementById('root').style.paddingTop = '64px'; window.scrollTo(0, 0) })
+ const headerTopBefore = await page.locator('.ledger-horizontal-scroll .ledger thead').evaluate(node => node.getBoundingClientRect().top)
+ await page.evaluate(top => window.scrollTo(0, top - 40), headerTopBefore)
+ const stickyHeader = page.locator('.ledger-sticky-header')
+ await expect(stickyHeader).toBeVisible()
+ await expect(stickyHeader).toHaveCSS('top','64px')
+ const horizontalScroll = page.locator('.ledger-horizontal-scroll')
+ await horizontalScroll.evaluate(node => { node.scrollLeft = 120; node.dispatchEvent(new Event('scroll')) })
+ await expect.poll(async () => {
+  const [bodyLeft, stickyLeft] = await Promise.all([
+   page.locator('.ledger-horizontal-scroll .ledger thead th').first().evaluate(node => node.getBoundingClientRect().left),
+   stickyHeader.locator('th').first().evaluate(node => node.getBoundingClientRect().left),
+  ])
+  return Math.abs(bodyLeft - stickyLeft) < 1
+ }).toBe(true)
+ await page.evaluate(() => window.scrollTo(0, 0))
+ await expect(stickyHeader).toHaveCount(0)
+ await page.evaluate(() => { document.getElementById('root').style.paddingTop = ''; document.body.style.minHeight = '' })
+ console.log('PASS ledger header follows vertical page scrolling below the navigation bar and stays aligned during horizontal scrolling')
  await expect(page.locator('tbody tr')).toHaveCount(3)
  await expect(await oTheoCot('Đơn vị tiếp khách',0)).toHaveText('Đơn vị thử hai')
  await expect(await hangTong('Tổng tiền')).toContainText('4.400.000')
  await expect(await hangTong('Dư lý thuyết')).toHaveText('')
  await expect(page.locator('tfoot td').first()).toHaveText('Tổng 3 dòng')
  await expect(page.getByText('3/3 dòng')).toBeVisible()
+ // Click vùng dữ liệu chọn đúng một hàng; click lại bỏ chọn, click hàng khác chuyển lựa chọn.
+ const hangNhatKy = so => page.locator('tbody tr').nth(so)
+ await expect(hangNhatKy(0)).toHaveAttribute('data-selected','false')
+ await (await oTheoCot('Đơn vị tiếp khách',0)).click()
+ await expect(hangNhatKy(0)).toHaveAttribute('data-selected','true')
+ await expect(hangNhatKy(0)).toHaveClass(/ledger-row-selected/)
+ await (await oTheoCot('Đơn vị tiếp khách',0)).click()
+ await expect(hangNhatKy(0)).toHaveAttribute('data-selected','false')
+ await (await oTheoCot('Đơn vị tiếp khách',0)).click()
+ await (await oTheoCot('Đơn vị tiếp khách',1)).click()
+ await expect(hangNhatKy(0)).toHaveAttribute('data-selected','false')
+ await expect(hangNhatKy(1)).toHaveAttribute('data-selected','true')
  await page.getByRole('button',{name:'Tổng tiền',exact:true}).click()
  await expect(cotTheoTen('Tổng tiền')).toHaveAttribute('aria-sort','ascending')
  await expect(await oTheoCot('Tổng tiền',0)).toContainText('900.000')
  await expect(await oTheoCot('Đơn vị tiếp khách',0)).toHaveText('Đơn vị thử nghiệm')
+ await expect(hangNhatKy(0)).toHaveAttribute('data-selected','true')
+ await expect(hangNhatKy(0)).toHaveClass(/ledger-row-selected/)
  await expect(page.getByText('1. Tổng tiền ↑')).toBeVisible()
  await page.getByRole('button',{name:'Đơn vị tiếp khách',exact:true}).click({modifiers:['Shift']})
  await expect(page.getByText('2. Đơn vị tiếp khách ↑')).toBeVisible()
@@ -334,7 +518,7 @@ try {
  await expect(page.getByText('1. Tổng tiền ↑')).toHaveCount(0)
  await expect(cotTheoTen('Tổng tiền')).toHaveAttribute('aria-sort','none')
  await expect(await oTheoCot('Đơn vị tiếp khách',0)).toHaveText('Đơn vị thử hai')
- console.log('PASS ledger single/multi-column sort, per-column direction, sort chips and totals row over displayed rows')
+ console.log('PASS ledger row selection toggle/transfer persists through sorting, single/multi-column sort, per-column direction, sort chips and totals row over displayed rows')
  // Mỗi tiêu đề cột có hộp lọc riêng để tick chọn giá trị hiển thị.
  await page.getByRole('button',{name:'Lọc cột Đơn vị tiếp khách',exact:true}).click()
  const hopDonVi=page.getByRole('dialog',{name:'Lọc cột Đơn vị tiếp khách'})
@@ -351,9 +535,9 @@ try {
  await expect(await hangTong('Tổng tiền')).toContainText('4.400.000')
  await page.keyboard.press('Escape')
  await expect(hopDonVi).toHaveCount(0)
- // Cột ghép nhiều trường tách thành nhiều nhóm lọc riêng.
- await page.getByRole('button',{name:'Lọc cột Trạng thái',exact:true}).click()
- const hopTrangThai=page.getByRole('dialog',{name:'Lọc cột Trạng thái'})
+ // Trạng thái hóa đơn và thanh toán phí là hai cột lọc riêng.
+ await page.getByRole('button',{name:'Lọc cột Trạng thái hóa đơn',exact:true}).click()
+ const hopTrangThai=page.getByRole('dialog',{name:'Lọc cột Trạng thái hóa đơn'})
  await expect(hopTrangThai.getByRole('group')).toHaveCount(2)
  await hopTrangThai.getByRole('checkbox',{name:/^Hợp lệ/}).check()
  await expect(page.locator('tbody tr')).toHaveCount(2)
@@ -381,7 +565,8 @@ try {
  await expect(sua).toBeVisible()
  const chonTruong = sua.getByLabel('Trường cần sửa')
  // Vai trò nhập liệu chỉ thấy nhóm ngày, chứng từ, đơn vị, giấy đề nghị và ghi chú.
- await expect(chonTruong.locator('option')).toHaveCount(8)
+ await expect(chonTruong.locator('option')).toHaveCount(9)
+ await expect(chonTruong.locator('option[value="ngay_de_nghi"]')).toHaveCount(1)
  await expect(chonTruong.locator('optgroup')).toHaveCount(5)
  await expect(chonTruong.locator('option[value="ngay"]')).toHaveCount(1)
  await expect(chonTruong.locator('option[value="tong_tien"]')).toHaveCount(0)
@@ -417,12 +602,58 @@ try {
  await expect(sua.getByRole('alert')).toContainText('quản trị viên')
  await sua.getByRole('button',{name:'Hủy',exact:true}).click()
  await expect(sua).toHaveCount(0)
+ // Thông tin giấy nằm trong hộp thoại Sửa giao dịch: hiển thị đủ năm vai trò,
+ // tôn trọng snapshot của giao dịch, và khi đổi người đề nghị thì chọn đúng trưởng phòng cùng phòng.
+ await page.getByRole('button',{name:'Sửa',exact:true}).first().click()
+ const suaGiay = page.getByRole('dialog',{name:'Sửa giao dịch'})
+ await expect(suaGiay).toBeVisible()
+ await expect(page.getByRole('button',{name:'Thông tin giấy',exact:true})).toHaveCount(0)
+ const tabThongTinGiay = suaGiay.getByRole('tab',{name:'Thông tin giấy đề nghị',exact:true})
+ await expect(tabThongTinGiay).toHaveAttribute('aria-selected','false')
+ await tabThongTinGiay.click()
+ await expect(tabThongTinGiay).toHaveAttribute('aria-selected','true')
+ await expect(suaGiay.locator('select[name^="giay_"]')).toHaveCount(5)
+ const oNguoiDeNghi = suaGiay.locator('select[name="giay_nguoiDeNghiId"]')
+ const oLanhDaoTiepKhach = suaGiay.locator('select[name="giay_lanhDaoTiepKhachId"]')
+ const oLanhDaoThanhToan = suaGiay.locator('select[name="giay_lanhDaoThanhToanId"]')
+ const oTruongPhong = suaGiay.locator('select[name="giay_truongPhongId"]')
+ const oKeToan = suaGiay.locator('select[name="giay_keToanKiemSoatId"]')
+ await expect(oNguoiDeNghi).toHaveValue('paper-proposer-old')
+ await expect(oLanhDaoTiepKhach).toHaveValue('paper-leader-guest')
+ await expect(oLanhDaoThanhToan).toHaveValue('paper-leader-payment')
+ await expect(oTruongPhong).toHaveValue('paper-manager-one')
+ await expect(oKeToan).toHaveValue('paper-accountant')
+ await oNguoiDeNghi.selectOption('paper-proposer-new')
+ await expect(oTruongPhong).toHaveValue('paper-manager-two')
+ await queue([{thanhCong:'Đã lưu thông tin giấy đề nghị và làm mới tài liệu Word.'}])
+ await suaGiay.getByRole('button',{name:'Lưu thay đổi',exact:true}).click()
+ await expect.poll(()=>page.evaluate(()=>window.paperEditCalls.length)).toBe(1)
+ expect(await page.evaluate(()=>window.paperEditCalls.at(-1))).toEqual({
+  id:'r2',giay_nguoiDeNghiId:'paper-proposer-new',giay_lanhDaoTiepKhachId:'paper-leader-guest',
+  giay_lanhDaoThanhToanId:'paper-leader-payment',giay_truongPhongId:'paper-manager-two',giay_keToanKiemSoatId:'paper-accountant',
+ })
+ await expect(suaGiay).toHaveCount(0)
+ console.log('PASS paper-information tab in the transaction edit dialog edits all signer fields, auto-selects the new requester’s manager and submits one atomic update')
  await page.goto(origin+'/ledger-edit?admin')
  await page.getByRole('button',{name:'Sửa',exact:true}).first().click()
  const chonTruongAdmin = page.getByRole('dialog',{name:'Sửa giao dịch'}).getByLabel('Trường cần sửa')
  await expect(chonTruongAdmin.locator('option[value="tong_tien"]')).toHaveCount(1)
- await expect(chonTruongAdmin.locator('option')).toHaveCount(13)
- await expect(chonTruongAdmin.locator('optgroup')).toHaveCount(6)
+ await expect(chonTruongAdmin.locator('option')).toHaveCount(19)
+ await expect(chonTruongAdmin.locator('option[value="hinh_thuc"]')).toHaveCount(1)
+ await expect(chonTruongAdmin.locator('option[value="tien_duoc_thanh_toan"]')).toHaveCount(1)
+ await expect(chonTruongAdmin.locator('option[value="lam_tron_xuong_hang_nghin"]')).toHaveCount(1)
+ await expect(chonTruongAdmin.locator('option[value="co_tinh_phi_lay_hd"]')).toHaveCount(1)
+ await expect(chonTruongAdmin.locator('optgroup')).toHaveCount(7)
+ await chonTruongAdmin.selectOption('chi_thuc_te')
+ const suaChiThucTe = page.getByRole('dialog',{name:'Sửa giao dịch'})
+ const tichChiThucTeSua = suaChiThucTe.getByRole('checkbox')
+ await expect(tichChiThucTeSua).not.toBeChecked()
+ await tichChiThucTeSua.check()
+ await queue([{loi:'Validation fixture'}])
+ await suaChiThucTe.getByRole('button',{name:'Lưu thay đổi',exact:true}).click()
+ await expect.poll(()=>page.evaluate(()=>window.editCalls.at(-1)?.truong)).toBe('chi_thuc_te')
+ expect(await page.evaluate(()=>window.editCalls.at(-1))).toEqual({id:'r1',truong:'chi_thuc_te',gia_tri:'1'})
+ await expect(tichChiThucTeSua).toBeChecked()
  await chonTruongAdmin.selectOption('tong_tien')
  const oTien = page.getByRole('dialog',{name:'Sửa giao dịch'}).locator('input[type="text"][inputmode="numeric"]')
  await expect(oTien).toHaveValue('2.000.000')
@@ -524,6 +755,31 @@ try {
  await expect(page.getByRole('button',{name:'Sửa',exact:true})).toHaveCount(0)
  await expect(page.getByRole('button',{name:'Lịch sử',exact:true})).toHaveCount(5)
  console.log('PASS ledger offers the paper link only for transaction types that produce a document, pointing at that row, even read-only')
+ await expect(await oTheoCot('Trạng thái hóa đơn',1)).toContainText('Không chi thực tế')
+ await expect(await oTheoCot('Trạng thái hóa đơn',2)).toContainText('Chi thực tế')
+ for (const index of [0,3,4]) await expect(await oTheoCot('Trạng thái hóa đơn',index)).not.toContainText('chi thực tế')
+ await page.goto(origin+'/ledger-actual')
+ await expect(await oTheoCot('Trạng thái hóa đơn',1)).toContainText('Hợp lệ')
+ await expect(await oTheoCot('Trạng thái hóa đơn',1)).toContainText('Chi thực tế')
+ for (const col of ['Dư TƯ lý thuyết','Dư TƯ thực tế','Dư TƯ đang cầm','Dư Hiệp đang cầm']) {
+  await expect(await oTheoCot(col,0)).toContainText('20.000.000')
+  await expect(await oTheoCot(col,1)).toContainText('3.200.000')
+ }
+ console.log('PASS actual tuition expense deducts 16,800,000 in rendered balances and invoice status displays actual spending for invoice transactions')
+ await page.goto(origin+'/ledger-actual?fees')
+ await expect(await oTheoCot('Dư TƯ thực tế',1)).toContainText('19.850.000')
+ await expect(await oTheoCot('Dư TƯ đang cầm',1)).toContainText('20.000.000')
+ await expect(await oTheoCot('Dư TƯ lý thuyết',2)).toContainText('17.766.000')
+ await expect(await oTheoCot('Phí HĐ',2)).toContainText('50.000')
+ await expect(await oTheoCot('Dư TƯ thực tế',2)).toContainText('17.800.000')
+ await expect(await oTheoCot('Dư TƯ đang cầm',2)).toContainText('18.000.000')
+ await expect(await oTheoCot('Dư TƯ thực tế',3)).toContainText('16.800.000')
+ await expect(await oTheoCot('Dư TƯ thực tế',4)).toContainText('16.300.000')
+ for (const col of ['Dư TƯ đang cầm','Dư Hiệp đang cầm']) {
+  await expect(await oTheoCot(col,3)).toContainText('17.000.000')
+  await expect(await oTheoCot(col,4)).toContainText('16.500.000')
+ }
+ console.log('PASS actual spending carries each previous balance forward, preserving earlier fee differences through fee-free expenses and later handovers')
  await page.goto(origin+'/payment'); await queue([{throw:true}]); await page.getByRole('button',{name:'Thanh toán',exact:true}).click(); await expect(page.getByRole('alert')).toContainText('Vui lòng thử lại')
  const qr = {duLieu:{payload:'TEST-LOCAL-QR',tenChuTk:'FIXTURE OWNER',bin:'970000',soTaiKhoan:'000000',soTien:200,soHd:'TEST1',ngay:'16/09/2026',noiDung:'TEST1 20260916'}}
  await queue([qr]); await page.getByRole('button',{name:'Tải lại QR theo dữ liệu mới nhất'}).click(); await expect(page.getByRole('img')).toHaveAttribute('src',/^data:image\/png;base64,/); await expect(page.getByText('FIXTURE OWNER')).toBeVisible(); await page.getByRole('button',{name:'Đóng',exact:true}).click(); await expect(page.getByRole('dialog')).toHaveCount(0)

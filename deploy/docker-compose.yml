@@ -1,0 +1,79 @@
+# App tài chính trên VPS — KHÔNG đụng container OnlyOffice của ttdt.site.
+#
+#   cd /opt/quan-ly-tam-ung/deploy && docker compose up -d --build
+#
+# Chỉ dựng postgres + app. Document Server dùng sẵn:
+#   qlcv-onlyoffice (127.0.0.1:8081, office.ttdt.site)
+# Không restart, không đổi JWT, không sửa nginx office.ttdt.site.
+#
+# App nối OnlyOffice qua Docker DNS `onlyoffice` (alias sẵn trên mạng
+# quanlycongviec_default). Trình duyệt vẫn mở https://office.ttdt.site.
+
+name: quan-ly-tam-ung
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: quan-ly-tam-ung-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?thiếu POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?thiếu POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?thiếu POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C.UTF-8'
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    logging: *logging
+
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: quan-ly-tam-ung:latest
+    container_name: quan-ly-tam-ung-app
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      HOSTNAME: 0.0.0.0
+      DATABASE_SSL: 'false'
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      UPLOAD_DIR: /var/lib/tam-ung/tep
+      # Browser: office.ttdt.site. DS↔app: Docker DNS trên mạng sẵn có — không restart OnlyOffice.
+      ONLYOFFICE_PUBLIC_URL: https://office.ttdt.site
+      ONLYOFFICE_INTERNAL_URL: http://onlyoffice
+      ONLYOFFICE_APP_URL: http://quan-ly-tam-ung-app:3000
+    ports:
+      - '127.0.0.1:3002:3000'
+    volumes:
+      - tep:/var/lib/tam-ung/tep
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - default
+      - quanlycongviec_default
+    logging: *logging
+
+volumes:
+  pgdata:
+  tep:
+
+networks:
+  quanlycongviec_default:
+    external: true

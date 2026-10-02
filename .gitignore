@@ -3,6 +3,7 @@ node_modules
 .env
 .env.*
 !.env.example
+!**/.env.example
 *.pem
 *.key
 *.pfx
@@ -19,3 +20,12 @@ uploads/
 /Giấy đề nghị*.docx
 Code.gs.bak-layout-cu
 postgres/
+
+# Agent Windows token/config cục bộ
+agent-windows/config.json
+agent-windows/node_modules/
+agent-windows/*.log
+
+# Google Drive backup credentials
+ops/backup.env
+*service-account*.json

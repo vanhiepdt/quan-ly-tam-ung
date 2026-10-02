@@ -36,3 +36,19 @@ export function docUrl(token: unknown) {
   if (typeof data.exp !== 'number') throw new Error('Thiếu hạn token')
   return data
 }
+
+/** Document Server trên VPS gửi JWT ở Authorization; bản dev/cũ để token trong body. */
+export function docJwtTuYeuCau(req: Request, text: string): Record<string, unknown> {
+  const bearer = /^Bearer\s+(\S+)/i.exec(req.headers.get('authorization')?.trim() ?? '')?.[1]
+  if (bearer) {
+    const claims = docJwt(bearer)
+    const payload = claims.payload
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) return payload as Record<string, unknown>
+    return claims
+  }
+  const parsed = text ? JSON.parse(text) as unknown : null
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && typeof (parsed as { token?: unknown }).token === 'string') {
+    return docJwt((parsed as { token: string }).token)
+  }
+  throw new Error('Thiếu token')
+}

@@ -9,8 +9,11 @@ export function giaTriSoSanh(r: GiaoDichTinh, id: CotId): string | number {
   switch (id) {
     // Cột ghép nhiều trường: nối lại thành một chuỗi để thứ tự vẫn xác định.
     case 'chungTu': return `${r.kyHieuHd ?? ''} ${r.soHd ?? ''}`.trim()
-    case 'trangThai': return `${r.trangThaiHd} ${r.trangThaiTtPhi}`
     case 'donVi': return r.donViTen ?? ''
+    case 'nguoiDeNghi': return r.nguoiDeNghiTen ?? ''
+    case 'nguoiLayHd': return r.nguoiLayHdTen ?? ''
+    case 'trangThaiHd': return r.trangThaiHd
+    case 'trangThaiTtPhi': return r.trangThaiTtPhi
     case 'tep': return `${r.coHoaDon ? 1 : 0}${r.coChuyenKhoan ? 1 : 0}`
     case 'thaoTac': return ''
     // Cột trùng tên với trường của giao dịch.
@@ -21,13 +24,17 @@ export function giaTriSoSanh(r: GiaoDichTinh, id: CotId): string | number {
     case 'tienRuouBia': return r.tienRuouBia
     case 'hoanTamUng': return r.hoanTamUng
     case 'cqTraThang': return r.cqTraThang
+    case 'duaTienCqTraThangChoChiThuy': return r.duaTienCqTraThangChoChiThuy
+    case 'duTienCqTraThang': return r.duTienCqTraThang
     case 'phiLayHd': return r.phiLayHd
     case 'tamUngTuCq': return r.tamUngTuCq
     case 'giaoTienChiThuy': return r.giaoTienChiThuy
+    case 'tongTienDuaChiThuy': return r.tongTienDuaChiThuy
     case 'hoanUngTienMat': return r.hoanUngTienMat
     case 'duLyThuyet': return r.duLyThuyet
     case 'duThucTe': return r.duThucTe
     case 'duDangCam': return r.duDangCam
+    case 'duHiepDangCam': return r.duHiepDangCam
   }
 }
 

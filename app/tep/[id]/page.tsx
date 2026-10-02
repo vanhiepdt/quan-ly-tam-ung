@@ -37,7 +37,7 @@ export default async function ThuMucTepPage({ params }: { params: Promise<{ id: 
     <main className="mx-auto max-w-5xl space-y-4 px-4 py-6 sm:px-6">
       {coTheTai && <section className="card p-5">
         <h2 className="mb-3 text-lg font-semibold">Tải tệp vào thư mục</h2>
-        <p className="mb-4 text-sm text-slate-500">Hóa đơn: PDF hoặc ảnh. Tờ trình đã ký và giấy đề nghị thanh toán đã ký: chỉ PDF. Tối đa 10 MB.</p>
+        <p className="mb-4 text-sm text-slate-500">Hóa đơn: PDF hoặc XML. Tờ trình đã ký và giấy đề nghị thanh toán đã ký: chỉ PDF. Tối đa 10 MB.</p>
         <TaiTep giaoDichId={tm.id} />
       </section>}
       <section className="card overflow-x-auto p-0">

@@ -6,7 +6,7 @@ import { db } from '@/lib/db/pool'
 import { batBuocVaiTro } from '@/lib/xac-thuc/bao-ve'
 import { docCauHinhGiay, KHOA_CAU_HINH_GIAY, VAI_TRO_KY, type VaiTroKyId } from '@/lib/tai-chinh/cau-hinh-giay'
 import { TRANG_THAI_PHI } from '@/lib/tai-chinh/danh-muc'
-import { hienThiMst } from '@/lib/kiem-tra/qr-hoa-don'
+import { hienThiMst } from '@/lib/kiem-tra/so-sanh'
 
 export type KetQuaGiay = { loi?: string; thanhCong?: string }
 

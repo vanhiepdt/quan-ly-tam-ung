@@ -49,6 +49,24 @@ it('status 2 ghi tệp thật và đợi INSERT phiên bản trước khi xác n
   expect(await res.json()).toEqual({ error: 0 })
   expect(db.query).toHaveBeenCalledWith('update tai_lieu_phien set da_dong=true where khoa=$1', ['test-key'])
 })
+it('status 2 nhận JWT Authorization (Document Server trên VPS)', async () => {
+  vi.mocked(db.query).mockImplementation((async (sql: string) => {
+    if (sql.includes('select n.vai_tro')) return { rows: [{ vai_tro: 'admin', ten_mau: null }] }
+    if (sql.includes('select t.*')) return { rows: [{ id: 'test-id', khoa: 'test-key', phien_ban: 1, da_dong: false }] }
+    if (sql.includes('select sha256')) return { rows: [{ sha256: 'previous' }] }
+    return { rows: [] }
+  }) as never)
+  const res = await POST(new Request(`http://localhost/api/onlyoffice/goi-lai?t=${kyUrl({ purpose: 'callback', key: 'test-key', id: 'test-id', user: 'test-user', edit: true })}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${kyJwt({ payload: { key: 'test-key', status: 2, url: 'http://localhost:8081/cache/file.docx' } })}` },
+    body: JSON.stringify({ status: 2 }),
+  }))
+  expect(res.status).toBe(200)
+  expect(await res.json()).toEqual({ error: 0 })
+  expect(fetch).toHaveBeenCalled()
+  const init = vi.mocked(fetch).mock.calls[0][1] as RequestInit
+  expect(String((init.headers as Record<string, string>).Authorization)).toMatch(/^Bearer /)
+})
 it('chữ ký sai không đọc DB hoặc tải tệp', async () => {
   expect((await POST(request(2, 'invalid'))).status).toBe(403)
   expect(db.query).not.toHaveBeenCalled()

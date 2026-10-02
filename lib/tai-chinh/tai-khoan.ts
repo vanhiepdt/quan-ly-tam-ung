@@ -36,6 +36,23 @@ export function taiKhoanTu(dong: DongTaiKhoan | null | undefined): TaiKhoanNhan 
   }
 }
 
+// Chuyển các ô tài khoản trên giấy thành snapshot dùng chung cho bản xem trước,
+// lúc lưu giao dịch và lúc tải lại giấy. Số tài khoản đã được kiểm tra ở schema;
+// hàm vẫn trả null khi được gọi từ một nguồn khác gửi thiếu số.
+export function taiKhoanTuNhap(duLieu: {
+  soTaiKhoan: string | null | undefined
+  nganHang?: string | null
+  chiNhanh?: string | null
+  tenChuTk?: string | null
+}): TaiKhoanNhan | null {
+  return taiKhoanTu({
+    so_tai_khoan: duLieu.soTaiKhoan,
+    ten_ngan_hang: duLieu.nganHang,
+    chi_nhanh: duLieu.chiNhanh,
+    ten_chu_tk: duLieu.tenChuTk,
+  })
+}
+
 // "Số tài khoản: 123 – Ngân hàng: BIDV – Chủ tài khoản: Nguyễn Văn A". Phần nào chưa
 // cấu hình thì bỏ đi thay vì in ra một khoảng trống trên giấy.
 export function dongTaiKhoan(tk: TaiKhoanNhan): string {

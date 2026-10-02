@@ -1,4 +1,5 @@
 import type { GiaoDichTinh } from '@/lib/tai-chinh/kieu'
+import { canDonVi } from '@/lib/tai-chinh/hinh-thuc'
 import type { CotId } from './cot-nhat-ky'
 
 // Nhãn hiển thị cho giá trị rỗng, dùng chung cho ô lọc và chip tóm tắt.
@@ -10,9 +11,8 @@ export type Facet = {
   giaTri: (r: GiaoDichTinh) => string
 }
 
-// Mỗi cột lọc theo một hay nhiều nhóm giá trị. Cột ghép nhiều trường (chứng từ,
-// trạng thái, tệp) tách thành nhiều nhóm để lọc riêng từng phần, ví dụ chỉ tick
-// "Hợp lệ" ở nhóm trạng thái hóa đơn mà không đụng tới trạng thái thanh toán phí.
+// Mỗi cột lọc theo một hay nhiều nhóm giá trị. Cột chứng từ và tệp ghép nhiều
+// trường nên tách thành nhiều nhóm để lọc riêng từng phần.
 // Cột tiền không có nhóm lọc: danh sách số tiền rời rạc không dùng để tick được,
 // việc tổng hợp đã do hàng tổng đảm nhiệm.
 export const FACET_COT: Partial<Record<CotId, readonly Facet[]>> = {
@@ -22,15 +22,18 @@ export const FACET_COT: Partial<Record<CotId, readonly Facet[]>> = {
     { id: 'ghiChu', ten: 'Ghi chú', giaTri: r => r.ghiChu ?? '' },
   ],
   donVi: [{ id: 'donVi', ten: 'Đơn vị', giaTri: r => r.donViTen ?? '' }],
+  nguoiDeNghi: [{ id: 'nguoiDeNghi', ten: 'Người đề nghị', giaTri: r => r.nguoiDeNghiTen ?? '' }],
+  nguoiLayHd: [{ id: 'nguoiLayHd', ten: 'Người lấy hóa đơn', giaTri: r => r.nguoiLayHdTen ?? '' }],
   chungTu: [
     { id: 'kyHieuHd', ten: 'Ký hiệu HĐ', giaTri: r => r.kyHieuHd ?? '' },
     { id: 'soHd', ten: 'Số HĐ', giaTri: r => r.soHd ?? '' },
     { id: 'loaiHd', ten: 'Loại chứng từ', giaTri: r => r.loaiHd ?? '' },
   ],
-  trangThai: [
+  trangThaiHd: [
     { id: 'trangThaiHd', ten: 'Trạng thái hóa đơn', giaTri: r => r.trangThaiHd },
-    { id: 'trangThaiTtPhi', ten: 'Thanh toán phí', giaTri: r => r.trangThaiTtPhi },
+    { id: 'chiThucTe', ten: 'Chi thực tế', giaTri: r => canDonVi(r.hinhThuc) && r.chiThucTe ? 'Chi thực tế' : 'Không chi thực tế' },
   ],
+  trangThaiTtPhi: [{ id: 'trangThaiTtPhi', ten: 'Thanh toán phí', giaTri: r => r.trangThaiTtPhi }],
   hinhThuc: [{ id: 'hinhThuc', ten: 'Hình thức', giaTri: r => r.hinhThuc }],
   tep: [
     { id: 'coHoaDon', ten: 'Hóa đơn', giaTri: r => (r.coHoaDon ? 'Có hóa đơn' : 'Chưa có hóa đơn') },

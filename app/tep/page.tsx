@@ -28,7 +28,7 @@ export default async function DanhSachTepPage() {
           <div>
             <p className="eyebrow mb-2 text-xs font-bold tracking-widest text-indigo-700">HỒ SƠ TỆP</p>
             <h1>Thư mục theo giao dịch</h1>
-            <p>Mỗi giao dịch một thư mục: hóa đơn lúc đọc, tờ trình đã ký, giấy đề nghị thanh toán đã ký (PDF) và ảnh chuyển khoản.</p>
+            <p>Mỗi giao dịch một thư mục: hóa đơn PDF/XML, tờ trình đã ký, giấy đề nghị thanh toán đã ký (PDF) và ảnh chuyển khoản.</p>
           </div>
           <Link className="btn btn-secondary" href="/giao-dich">← Nhật ký</Link>
         </header>

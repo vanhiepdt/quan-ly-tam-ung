@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db/pool'
 import { layPhien } from '@/lib/xac-thuc/phien'
-import { cotMacDinh, tuyChonSchema, type TuyChonCot } from './cot-nhat-ky'
+import { chuyenTuyChonCu, cotMacDinh, tuyChonSchema, type TuyChonCot } from './cot-nhat-ky'
 
 type KetQuaDoc = { tuyChon: TuyChonCot; loi?: string }
 
@@ -14,7 +14,7 @@ export async function docTuyChonCot(): Promise<KetQuaDoc> {
       'select tuy_chon from tuy_chon_cot_nhat_ky where nguoi_dung_id=$1', [phien.id],
     )
     if (!rows.length) return { tuyChon: cotMacDinh() }
-    const ketQua = tuyChonSchema.safeParse(rows[0].tuy_chon)
+    const ketQua = tuyChonSchema.safeParse(chuyenTuyChonCu(rows[0].tuy_chon))
     return ketQua.success ? { tuyChon: ketQua.data } : { tuyChon: cotMacDinh(), loi: 'Tùy chọn cũ không hợp lệ. Đang dùng cột mặc định.' }
   } catch {
     return { tuyChon: cotMacDinh(), loi: 'Không tải được tùy chọn cột. Kiểm tra kết nối và migration 005.' }

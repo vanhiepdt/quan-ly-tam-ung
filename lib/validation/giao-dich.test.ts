@@ -72,7 +72,7 @@ describe('schemaGiaoDich validation', () => {
       })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('Tiền rượu bia không được vượt tổng tiền')
+        expect(result.error.issues[0].message).toContain('Tiền không được thanh toán không được vượt tổng tiền')
       }
     })
 
@@ -105,6 +105,48 @@ describe('schemaGiaoDich validation', () => {
       })
       expect(result.success).toBe(true)
     })
+
+    it('requires a manual account number when default account is disabled', () => {
+      const base = {
+        ngay: '2026-01-15', noi_dung: 'Tiếp khách đối tác', don_vi_id: DON_VI,
+        hinh_thuc: 'Cơ quan trả thẳng', hinh_thuc_thanh_toan: 'chuyen_khoan',
+        tong_tien: 2_000_000, tien_ruou_bia: 0, trang_thai_hd: 'Hợp lệ',
+        trang_thai_tt_phi: 'Không phát sinh', dung_tai_khoan_mac_dinh: '0',
+      }
+      const thieu = schemaGiaoDich.safeParse(base)
+      expect(thieu.success).toBe(false)
+      if (!thieu.success) expect(thieu.error.issues.some(i => i.path.includes('tai_khoan_nhan_so'))).toBe(true)
+
+      expect(schemaGiaoDich.safeParse({ ...base, tai_khoan_nhan_so: '0123456789012345678' }).success).toBe(true)
+      expect(schemaGiaoDich.safeParse({ ...base, tai_khoan_nhan_so: '12345678901234567890' }).success).toBe(false)
+      expect(schemaGiaoDich.safeParse({ ...base, tai_khoan_nhan_so: '12A45' }).success).toBe(false)
+    })
+
+    it('defaults to the saved account when the transfer checkbox is omitted', () => {
+      const result = schemaGiaoDich.safeParse({
+        ngay: '2026-01-15', noi_dung: 'Tiếp khách đối tác', don_vi_id: DON_VI,
+        hinh_thuc: 'Cơ quan trả thẳng', hinh_thuc_thanh_toan: 'chuyen_khoan',
+        tong_tien: 2_000_000, tien_ruou_bia: 0, trang_thai_hd: 'Hợp lệ',
+        trang_thai_tt_phi: 'Không phát sinh',
+      })
+      expect(result.success).toBe(true)
+      if (result.success) expect(result.data.dung_tai_khoan_mac_dinh).toBe(true)
+    })
+
+    it.each(['Hoàn tạm ứng', 'Cơ quan trả thẳng'])('báo lỗi rõ ràng khi số tiền tự điền là NaN (%s)', hinh_thuc => {
+      const result = schemaGiaoDich.safeParse({
+        ngay: '2026-01-15',
+        noi_dung: 'Tiếp khách đối tác',
+        don_vi_id: DON_VI,
+        hinh_thuc,
+        tong_tien: 'NaN',
+        tien_ruou_bia: 0,
+        trang_thai_hd: 'Hợp lệ',
+        trang_thai_tt_phi: 'Không phát sinh',
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error.issues[0]?.message).toBe('Số tiền không hợp lệ.')
+    })
   })
 
   describe('Đơn vị tiếp khách', () => {
@@ -113,7 +155,7 @@ describe('schemaGiaoDich validation', () => {
       trang_thai_hd: 'Hợp lệ', trang_thai_tt_phi: 'Không phát sinh',
     }
 
-    it.each(['Hoàn tạm ứng', 'Cơ quan trả thẳng'])('bắt buộc chọn đơn vị với %s', hinh_thuc => {
+  it.each(['Hoàn tạm ứng', 'Cơ quan trả thẳng'])('bắt buộc chọn đơn vị với %s', hinh_thuc => {
       const thieu = schemaGiaoDich.safeParse({ ...coBan, hinh_thuc })
       expect(thieu.success).toBe(false)
       if (!thieu.success) expect(thieu.error.issues[0].message).toContain('phải chọn đơn vị tiếp khách')
@@ -125,7 +167,7 @@ describe('schemaGiaoDich validation', () => {
       expect(result.success).toBe(true)
     })
 
-    it.each(['Tạm ứng thêm', 'Giao tiền chị Thúy', 'Nộp hoàn CQ'])('từ chối đơn vị gắn vào %s', hinh_thuc => {
+    it.each(['Tạm ứng thêm', 'Giao tiền chị Thúy', 'Đưa tiền CQ trả thẳng cho Chị Thúy', 'Nộp hoàn CQ'])('từ chối đơn vị gắn vào %s', hinh_thuc => {
       const result = schemaGiaoDich.safeParse({ ...coBan, hinh_thuc, don_vi_id: DON_VI })
       expect(result.success).toBe(false)
       if (!result.success) expect(result.error.issues[0].message).toContain('không gắn với đơn vị tiếp khách')
@@ -133,8 +175,13 @@ describe('schemaGiaoDich validation', () => {
       expect(schemaGiaoDich.safeParse({ ...coBan, hinh_thuc }).success).toBe(true)
     })
 
-    it.each(['Tạm ứng thêm', 'Giao tiền chị Thúy', 'Nộp hoàn CQ'])('cho phép nội dung rỗng vì máy chủ điền tên hình thức %s', hinh_thuc => {
+    it.each(['Tạm ứng thêm', 'Giao tiền chị Thúy', 'Đưa tiền CQ trả thẳng cho Chị Thúy', 'Nộp hoàn CQ'])('cho phép nội dung rỗng vì máy chủ điền tên hình thức %s', hinh_thuc => {
       expect(schemaGiaoDich.safeParse({ ...coBan, hinh_thuc, noi_dung: '' }).success).toBe(true)
+    })
+
+    it('nhận cờ tính phí dạng checkbox từ FormData', () => {
+      expect(schemaGiaoDich.safeParse({ ...coBan, hinh_thuc: 'Cơ quan trả thẳng', don_vi_id: DON_VI, co_tinh_phi_lay_hd: '1' }).data?.co_tinh_phi_lay_hd).toBe(true)
+      expect(schemaGiaoDich.safeParse({ ...coBan, hinh_thuc: 'Cơ quan trả thẳng', don_vi_id: DON_VI, co_tinh_phi_lay_hd: '0' }).data?.co_tinh_phi_lay_hd).toBe(false)
     })
   })
 
@@ -153,6 +200,30 @@ describe('schemaGiaoDich validation', () => {
         hoan_ung_tien_mat: 0,
       })
       expect(result.success).toBe(true)
+    })
+  })
+
+  describe('Đưa tiền CQ trả thẳng cho Chị Thúy transactions', () => {
+    const coBan = {
+      ngay: '2026-01-15', noi_dung: '', hinh_thuc: 'Đưa tiền CQ trả thẳng cho Chị Thúy',
+      dua_tien_cq_tra_thang_cho_chi_thuy: 2_500_000, trang_thai_hd: 'Hợp lệ', trang_thai_tt_phi: 'Không phát sinh',
+      tong_tien: 0, tien_ruou_bia: 0, tam_ung_tu_cq: 0, giao_tien_chi_thuy: 0, hoan_ung_tien_mat: 0,
+    }
+
+    it.each(['tien_mat', 'chuyen_khoan'])('accepts %s as the method of handing over CQ direct-payment money', hinh_thuc_thanh_toan => {
+      const result = schemaGiaoDich.safeParse({ ...coBan, hinh_thuc_thanh_toan })
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.dua_tien_cq_tra_thang_cho_chi_thuy).toBe(2_500_000)
+        expect(result.data.hinh_thuc_thanh_toan).toBe(hinh_thuc_thanh_toan)
+      }
+    })
+
+    it('rejects temporary-advance money or the new money column on another transaction type', () => {
+      expect(schemaGiaoDich.safeParse({ ...coBan, tam_ung_tu_cq: 1 }).success).toBe(false)
+      expect(schemaGiaoDich.safeParse({
+        ...coBan, hinh_thuc: 'Giao tiền chị Thúy', giao_tien_chi_thuy: 1, dua_tien_cq_tra_thang_cho_chi_thuy: 1,
+      }).success).toBe(false)
     })
   })
 
@@ -284,5 +355,28 @@ describe('schemaGiaoDich validation', () => {
         expect(result.data.tam_ung_tu_cq).toBe(0)
       }
     })
+  })
+})
+
+
+describe('lựa chọn Chi thực tế', () => {
+  const hoaDon = { ngay: '2026-09-30', hinh_thuc: 'Hoàn tạm ứng', don_vi_id: DON_VI }
+
+  it.each([undefined, null, '', false, '0', 'false', 'off'])('mặc định không tích cho giá trị %s', chi_thuc_te => {
+    expect(schemaGiaoDich.parse({ ...hoaDon, chi_thuc_te }).chi_thuc_te).toBe(false)
+  })
+
+  it.each(['Hoàn tạm ứng', 'Cơ quan trả thẳng'])('nhận cờ trên giao dịch %s', hinh_thuc => {
+    expect(schemaGiaoDich.parse({ ...hoaDon, hinh_thuc, chi_thuc_te: '1' }).chi_thuc_te).toBe(true)
+  })
+
+  it.each(['Tạm ứng thêm', 'Giao tiền chị Thúy', 'Đưa tiền CQ trả thẳng cho Chị Thúy', 'Nộp hoàn CQ'])('không nhận cờ cho %s', hinh_thuc => {
+    const result = schemaGiaoDich.safeParse({ ngay: '2026-09-30', hinh_thuc, chi_thuc_te: '1' })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ['chi_thuc_te'] }))
+  })
+
+  it('từ chối cờ không phải boolean', () => {
+    expect(schemaGiaoDich.safeParse({ ...hoaDon, chi_thuc_te: 'khong_hop_le' }).success).toBe(false)
   })
 })

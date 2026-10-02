@@ -36,6 +36,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="giay-de-nghi.docx"; filename*=UTF-8''${encodeURIComponent(ten)}`,
+        // URL tải giữ nguyên theo giao dịch, nên không cho trình duyệt tái dùng bản DOCX
+        // cũ sau khi số tiền đã được sửa và tài liệu đã sinh lại ở máy chủ.
+        'Cache-Control': 'private, no-store, max-age=0',
         'X-Content-Type-Options': 'nosniff',
       },
     })

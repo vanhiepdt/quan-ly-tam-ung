@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { catTrangNhatKy, cotMacDinh, cotNhatKy, soDongTrangHopLe, thuTuCot, tuyChonSchema } from './cot-nhat-ky'
+import { catTrangNhatKy, chuyenTuyChonCu, cotMacDinh, cotNhatKy, soDongTrangHopLe, thuTuCot, tuyChonSchema, type CotId } from './cot-nhat-ky'
 
 describe('column preference validation', () => {
   it('accepts defaults, legacy preferences and inclusive integer width boundaries', () => {
@@ -16,11 +16,41 @@ describe('column preference validation', () => {
     expect(tuyChonSchema.safeParse({ an: [], rong: {}, thuTu: ['khongCo'] }).success).toBe(false)
   })
   it('appends columns missing from a saved order so new columns still show up', () => {
-    // Tùy chọn lưu từ bản cũ chưa biết cột "Đơn vị tiếp khách".
-    const cu = { an: [], rong: {}, thuTu: cotNhatKy.filter(c => c.id !== 'donVi').map(c => c.id) }
+    // Tùy chọn lưu từ trước các cột Đơn vị và các số dư CQ trả thẳng.
+    const thuTuCu: CotId[] = [
+      'ngay', 'noiDung', 'nguoiDeNghi', 'nguoiLayHd', 'chungTu', 'trangThaiHd', 'trangThaiTtPhi', 'hinhThuc',
+      'tongTien', 'tienRuouBia', 'hoanTamUng', 'cqTraThang', 'phiLayHd', 'tamUngTuCq', 'giaoTienChiThuy',
+      'hoanUngTienMat', 'duLyThuyet', 'duThucTe', 'duDangCam', 'tep', 'thaoTac',
+    ]
+    const cu = { an: [], rong: {}, thuTu: thuTuCu }
     const parsed = tuyChonSchema.parse(cu)
-    expect(thuTuCot(parsed)).toEqual(['ngay', 'noiDung', 'chungTu', 'trangThai', 'hinhThuc', 'tongTien', 'tienRuouBia', 'hoanTamUng', 'cqTraThang', 'phiLayHd', 'tamUngTuCq', 'giaoTienChiThuy', 'hoanUngTienMat', 'duLyThuyet', 'duThucTe', 'duDangCam', 'tep', 'thaoTac', 'donVi'])
+    const daCo = new Set(thuTuCu)
+    expect(thuTuCot(parsed)).toEqual([...thuTuCu, ...cotNhatKy.map(c => c.id).filter(id => !daCo.has(id))])
     expect(thuTuCot({ an: [], rong: {} })).toEqual(cotNhatKy.map(c => c.id))
+  })
+  it('shows all CQ direct-payment and combined-balance columns by default with their new labels', () => {
+    const macDinh = cotMacDinh()
+    expect(macDinh.an).toEqual([])
+    for (const [id, ten] of [
+      ['duaTienCqTraThangChoChiThuy', 'Đưa tiền CQ trả thẳng cho Chị Thúy'],
+      ['duTienCqTraThang', 'Dư tiền CQ trả thẳng'],
+      ['tongTienDuaChiThuy', 'Tổng Tiền đưa chị Thúy'],
+      ['duHiepDangCam', 'Dư Hiệp đang cầm'],
+      ['giaoTienChiThuy', 'Giao tiền TƯ cho Chị Thúy'],
+      ['duLyThuyet', 'Dư TƯ lý thuyết'],
+      ['duThucTe', 'Dư TƯ thực tế'],
+      ['duDangCam', 'Dư TƯ đang cầm'],
+    ] as const) {
+      expect(macDinh.thuTu).toContain(id)
+      expect(cotNhatKy.find(c => c.id === id)?.ten).toBe(ten)
+    }
+  })
+  it('migrates the old combined status column', () => {
+    const cu = { an: ['trangThai'], rong: { trangThai: 190 }, thuTu: ['ngay', 'trangThai', 'thaoTac'] }
+    const parsed = tuyChonSchema.parse(chuyenTuyChonCu(cu))
+    expect(parsed.an).toEqual(['trangThaiHd', 'trangThaiTtPhi'])
+    expect(parsed.rong).toEqual({ trangThaiHd: 190, trangThaiTtPhi: 190 })
+    expect(thuTuCot(parsed).slice(0, 4)).toEqual(['ngay', 'trangThaiHd', 'trangThaiTtPhi', 'thaoTac'])
   })
   it.each([89, 601, 100.5, NaN, Infinity, '170', null])('rejects invalid width %s', width => {
     expect(tuyChonSchema.safeParse({ an: [], rong: { ngay: width } }).success).toBe(false)

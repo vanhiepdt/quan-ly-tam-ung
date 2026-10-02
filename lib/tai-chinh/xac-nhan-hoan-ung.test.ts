@@ -4,6 +4,12 @@ const mocks = vi.hoisted(() => ({ query: vi.fn(), role: vi.fn(), transaction: vi
 vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidate }))
 vi.mock('@/lib/xac-thuc/bao-ve', () => ({ batBuocVaiTro: mocks.role }))
 vi.mock('@/lib/db/pool', () => ({ db: {}, trongTransaction: mocks.transaction }))
+vi.mock('@/lib/tai-chinh/cau-hinh-giay', () => ({ boiCanhGiay: vi.fn(async () => ({
+  nguoiDeNghi: { id: 'cb-default', hoTen: 'Người mặc định', gioiTinh: null, chucDanh: null, phong: null, laLanhDao: false, dangHoatDong: true },
+  canBo: [{ id: 'cb-default', hoTen: 'Người mặc định', gioiTinh: null, chucDanh: null, phong: null, laLanhDao: false, dangHoatDong: true }],
+  cauHinh: { nguoiDeNghiId: 'cb-default', lanhDaoTiepKhachId: null, lanhDaoThanhToanId: null, truongPhongId: null, keToanKiemSoatId: null },
+  taiKhoanTheoNguoiLayHd: {},
+})) }))
 vi.mock('@/lib/validation/giao-dich', async () => import('../validation/giao-dich'))
 vi.mock('@/lib/tai-chinh/xac-nhan-hoan-ung', async () => import('./xac-nhan-hoan-ung'))
 vi.mock('@/lib/tep/gan', () => ({ ganTepVaoGiaoDich: vi.fn() }))
@@ -16,20 +22,27 @@ const dong = (overrides: Record<string, unknown> = {}) => ({
   id: 'funding', ngay: '2026-01-01', so_thu_tu: 1, tao_luc: '2026-01-01T00:00:00Z',
   noi_dung: 'Tạm ứng', ky_hieu_hd: null, so_hd: null, loai_hd: null,
   trang_thai_hd: 'Không có', hinh_thuc: 'Tạm ứng thêm', tong_tien: '0', tien_ruou_bia: '0',
-  tam_ung_tu_cq: '100', giao_tien_chi_thuy: '0', hoan_ung_tien_mat: '0',
+  tam_ung_tu_cq: '100000', giao_tien_chi_thuy: '0', hoan_ung_tien_mat: '0',
   nguoi_lay_hd_id: null, phi_lay_hd_ghi_de: null, trang_thai_tt_phi: 'Không phát sinh', ghi_chu: null,
   ...overrides,
 })
 const form = (overrides: Record<string, string> = {}) => {
   const f = new FormData()
   Object.entries({ ngay: '2026-01-02', noi_dung: 'Chi tiếp khách', hinh_thuc: 'Hoàn tạm ứng',
-    don_vi_id: donVi, trang_thai_hd: 'Hợp lệ', tong_tien: '160', tien_ruou_bia: '10', ...overrides,
+    don_vi_id: donVi, trang_thai_hd: 'Hợp lệ', tong_tien: '160000', tien_ruou_bia: '10000', ...overrides,
   }).forEach(([key, value]) => f.set(key, value))
   return f
 }
 let ledger: ReturnType<typeof dong>[]
 let sequence: number
 const inserts = () => mocks.query.mock.calls.filter(([sql]) => sql.startsWith('insert into'))
+const duLieuDaLuu = () => {
+  const [sql, values] = inserts().at(-1)!
+  const match = /insert into giao_dich \(([\s\S]+?)\) values \(([\s\S]+?)\) returning id/.exec(sql)!
+  const columns = match[1].split(',').map(c => c.trim())
+  const params = match[2].split(',').map(p => Number(p.trim().slice(1)) - 1)
+  return Object.fromEntries(columns.map((c, i) => [c, values[params[i]]]))
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -43,6 +56,9 @@ beforeEach(() => {
     if (sql.startsWith('select * from giao_dich')) return { rows: ledger.filter(g => String(g.ngay) <= String(params[0])) }
     // Tra tên đơn vị để máy chủ sinh nội dung "Tiếp <đơn vị>".
     if (sql.includes('from don_vi')) return { rows: [{ ten: TEN_DON_VI }] }
+    // Tạo giao dịch mới chốt người ký từ bối cảnh giấy và xác minh lại cán bộ còn
+    // hoạt động ở trong transaction.
+    if (sql.includes('from can_bo')) return { rows: Array.isArray(params?.[0]) ? params[0].map(id => ({ id })) : [] }
     return { rows: [] }
   })
 })
@@ -50,7 +66,7 @@ beforeEach(() => {
 describe('server reimbursement confirmation', () => {
   it('warns without inserting or revalidating, ignores client balance and prior action state', async () => {
     const result = await themGiaoDich({ thanhCong: 'untrusted' }, form({ du_ly_thuyet: '999999' }))
-    expect(result.canhBao).toMatchObject({ duLyThuyet: 100, hoanTamUng: 150, thieu: 50 })
+    expect(result.canhBao).toMatchObject({ duLyThuyet: 100000, hoanTamUng: 150000, thieu: 50000 })
     expect(result.canhBao?.fingerprint).toMatch(/^[a-f0-9]{64}$/)
     expect(inserts()).toHaveLength(0)
     expect(mocks.revalidate).not.toHaveBeenCalled()
@@ -67,9 +83,7 @@ describe('server reimbursement confirmation', () => {
     f.set('xac_nhan_hoan_tam_ung', '1')
     expect((await themGiaoDich({}, f)).thanhCong).toBeDefined()
     expect(inserts()).toHaveLength(1)
-    // người tạo/người sửa là hai tham số cuối của câu insert, dùng vị trí cuối để
-    // không phải sửa lại chỉ số mỗi khi thêm cột mới vào giao_dich.
-    expect(inserts()[0][1].at(-1)).toBe(actor)
+    expect(duLieuDaLuu()).toMatchObject({ nguoi_tao: actor, nguoi_sua: actor })
     expect(mocks.revalidate).toHaveBeenCalledWith('/dashboard')
   })
 
@@ -88,23 +102,23 @@ describe('server reimbursement confirmation', () => {
   })
 
   it('uses preceding same-day rows but not later funding for backdated entries', async () => {
-    ledger = [dong({ ngay: '2026-01-02', tam_ung_tu_cq: '40' }), dong({ id: 'future', ngay: '2026-02-01', tam_ung_tu_cq: '9999' })]
+    ledger = [dong({ ngay: '2026-01-02', tam_ung_tu_cq: '40000' }), dong({ id: 'future', ngay: '2026-02-01', tam_ung_tu_cq: '9999000' })]
     sequence = 2
-    expect((await themGiaoDich({}, form())).canhBao).toMatchObject({ duLyThuyet: 40, hoanTamUng: 150, thieu: 110 })
+    expect((await themGiaoDich({}, form())).canhBao).toMatchObject({ duLyThuyet: 40000, hoanTamUng: 150000, thieu: 110000 })
     expect(inserts()).toHaveLength(0)
   })
 
   it('compares the balance before the candidate, not including its own funding', async () => {
-    expect((await themGiaoDich({}, form({ tam_ung_tu_cq: '500' }))).canhBao?.duLyThuyet).toBe(100)
+    expect((await themGiaoDich({}, form({ tam_ung_tu_cq: '500000' }))).canhBao?.duLyThuyet).toBe(100000)
     expect(inserts()).toHaveLength(0)
   })
 
   it.each<Record<string, string>>([
-    { tong_tien: '110' },
+    { tong_tien: '110000' },
     { trang_thai_hd: 'Chờ HĐ' },
     { trang_thai_hd: '' },
     { hinh_thuc: 'Cơ quan trả thẳng' },
-    { tong_tien: '10', tien_ruou_bia: '10' },
+    { tong_tien: '10000', tien_ruou_bia: '10000' },
   ])('does not warn when no excess reimbursable amount: %o', async overrides => {
     expect((await themGiaoDich({}, form(overrides))).thanhCong).toBeDefined()
     expect(inserts()).toHaveLength(1)
@@ -112,13 +126,13 @@ describe('server reimbursement confirmation', () => {
 
   it('rechecks and saves without warning when fresh balance now covers reimbursement', async () => {
     const first = await themGiaoDich({}, form())
-    ledger[0].tam_ung_tu_cq = '500'
+    ledger[0].tam_ung_tu_cq = '500000'
     expect((await themGiaoDich({}, form({ xac_nhan_hoan_tam_ung: '1', fingerprint_hoan_tam_ung: first.canhBao!.fingerprint }))).thanhCong).toBeDefined()
   })
 
   it('stores the chosen unit and derives the description from its name', async () => {
     // Số dư đủ lớn để không phát sinh cảnh báo hoàn tạm ứng, nhờ vậy lệnh ghi chạy thẳng.
-    ledger = [dong({ tam_ung_tu_cq: '500' })]
+    ledger = [dong({ tam_ung_tu_cq: '500000' })]
     await themGiaoDich({}, form({ noi_dung: 'Nội dung client tự gửi' }))
     const values = inserts()[0][1]
     // Nội dung do máy chủ sinh, không lấy từ client, để nhật ký không lệch tên đơn vị.
@@ -133,8 +147,19 @@ describe('server reimbursement confirmation', () => {
     expect(values[3]).toBeNull()
     expect(values[4]).toBeNull()
     expect(values[7]).toBe('Không có')
-    expect(values[15]).toBeNull()
-    expect(values[16]).toBe('Không phát sinh')
+    expect(values[11]).toBeNull()
+    expect(values[12]).toBe(false)
+    expect(values[15]).toBe(0)
+    expect(values[17]).toBe('cb-default')
+    expect(values[18]).toBeNull()
+    expect(values[19]).toBeNull()
+    expect(values[20]).toBeNull()
+    expect(values[21]).toBeNull()
+    expect(values[22]).toBe(true)
+    expect(values[23]).toBeNull()
+    expect(values[24]).toBeNull()
+    expect(values[25]).toBe(false)
+    expect(values[26]).toBe('Không phát sinh')
   })
 
   it('uses the same financial lock for soft delete and retains actor auditing', async () => {
@@ -151,10 +176,10 @@ describe('server reimbursement confirmation', () => {
 
   it('warns for an empty ledger and correctly includes prior cash refunds and reimbursements', async () => {
     ledger = []
-    expect((await themGiaoDich({}, form())).canhBao).toMatchObject({ duLyThuyet: 0, thieu: 150 })
-    ledger = [dong(), dong({ id: 'refund', tam_ung_tu_cq: '0', hoan_ung_tien_mat: '20' }),
-      dong({ id: 'expense', tam_ung_tu_cq: '0', hinh_thuc: 'Hoàn tạm ứng', trang_thai_hd: 'Hợp lệ', tong_tien: '100', tien_ruou_bia: '10' })]
-    expect((await themGiaoDich({}, form())).canhBao).toMatchObject({ duLyThuyet: -10, thieu: 160 })
+    expect((await themGiaoDich({}, form())).canhBao).toMatchObject({ duLyThuyet: 0, thieu: 150000 })
+    ledger = [dong(), dong({ id: 'refund', tam_ung_tu_cq: '0', hoan_ung_tien_mat: '20000' }),
+      dong({ id: 'expense', tam_ung_tu_cq: '0', hinh_thuc: 'Hoàn tạm ứng', trang_thai_hd: 'Hợp lệ', tong_tien: '100000', tien_ruou_bia: '10000' })]
+    expect((await themGiaoDich({}, form())).canhBao).toMatchObject({ duLyThuyet: -10000, thieu: 160000 })
     expect(inserts()).toHaveLength(0)
   })
 
@@ -172,7 +197,45 @@ describe('server reimbursement confirmation', () => {
   })
 
   it('returns validation errors without touching the ledger', async () => {
-    expect((await themGiaoDich({}, form({ tien_ruou_bia: '999' }))).loi).toBeDefined()
+    expect((await themGiaoDich({}, form({ tien_ruou_bia: '160001' }))).loi).toBeDefined()
     expect(mocks.transaction).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('lưu Chi thực tế từ form thêm giao dịch', () => {
+  it.each(['Hoàn tạm ứng', 'Cơ quan trả thẳng'])('lưu cờ, mặc định tắt phí và giữ số thanh toán tùy chỉnh: %s', async hinh_thuc => {
+    ledger = [dong({ tam_ung_tu_cq: '10000000' })]
+    const result = await themGiaoDich({}, form({
+      hinh_thuc, chi_thuc_te: '1', tong_tien: '1234567', tien_ruou_bia: '100000',
+      tien_duoc_thanh_toan_goc: '876543', tien_duoc_thanh_toan: '876000', lam_tron_xuong_hang_nghin: '1',
+      phi_lay_hd_ghi_de: '50000', trang_thai_tt_phi: 'Đã thanh toán',
+    }))
+    expect(result.thanhCong).toBeDefined()
+    expect(duLieuDaLuu()).toMatchObject({
+      chi_thuc_te: true, co_tinh_phi_lay_hd: false, phi_lay_hd_ghi_de: null, trang_thai_tt_phi: 'Không phát sinh',
+      tong_tien: 1_234_567, tien_ruou_bia: 100_000, tien_duoc_thanh_toan_goc: 876_543,
+      tien_duoc_thanh_toan: 876_000, lam_tron_xuong_hang_nghin: true,
+    })
+  })
+
+  it('lưu phí khi người dùng chủ động bật lại sau khi chọn Chi thực tế', async () => {
+    expect((await themGiaoDich({}, form({
+      tong_tien: '100000', chi_thuc_te: '1', co_tinh_phi_lay_hd: '1', phi_lay_hd_ghi_de: '5000', trang_thai_tt_phi: 'Chưa thanh toán',
+    }))).thanhCong).toBeDefined()
+    expect(duLieuDaLuu()).toMatchObject({ chi_thuc_te: true, co_tinh_phi_lay_hd: true, phi_lay_hd_ghi_de: 5_000, trang_thai_tt_phi: 'Chưa thanh toán' })
+  })
+
+  it('nguồn nhập cũ không gửi cờ vẫn lưu false và giữ mặc định phí hoàn ứng', async () => {
+    expect((await themGiaoDich({}, form({ tong_tien: '100000' }))).thanhCong).toBeDefined()
+    expect(duLieuDaLuu()).toMatchObject({ chi_thuc_te: false, co_tinh_phi_lay_hd: true })
+  })
+
+  it('phải xác nhận lại cảnh báo hoàn ứng nếu lựa chọn Chi thực tế thay đổi', async () => {
+    const first = await themGiaoDich({}, form())
+    const result = await themGiaoDich({}, form({ chi_thuc_te: '1', xac_nhan_hoan_tam_ung: '1', fingerprint_hoan_tam_ung: first.canhBao!.fingerprint }))
+    expect(result.canhBao?.fingerprint).toBeDefined()
+    expect(result.canhBao?.fingerprint).not.toBe(first.canhBao!.fingerprint)
+    expect(inserts()).toHaveLength(0)
   })
 })

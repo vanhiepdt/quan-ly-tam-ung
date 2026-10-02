@@ -1,9 +1,9 @@
 import type { DuLieuDocTuHoaDon, KetQuaDocHoaDon } from './giao-dien'
 import { diaChiGanDung, tenGanDung } from './hop-nhat'
-import { giongChuoi, giongMst, giongTien, hienThiMst } from './qr-hoa-don'
+import { giongChuoi, giongMst, giongTien, hienThiMst } from './so-sanh'
 import { tienRuouBiaCuaLop } from './ruou-bia'
 
-export type NguonDoc = 'ocr' | 'qr' | 'ai'
+export type NguonDoc = 'ai1' | 'ai2' | 'xml'
 
 export type OCotDoiChieu = {
   nguon: NguonDoc
@@ -21,9 +21,9 @@ export type HangDoiChieu = {
 }
 
 const NGUON: { id: NguonDoc; nhan: string }[] = [
-  { id: 'ocr', nhan: 'OCR' },
-  { id: 'qr', nhan: 'QR' },
-  { id: 'ai', nhan: 'AI' },
+  { id: 'ai1', nhan: 'AI 1' },
+  { id: 'ai2', nhan: 'AI 2' },
+  { id: 'xml', nhan: 'XML' },
 ]
 
 const vnd = new Intl.NumberFormat('vi-VN')
@@ -39,12 +39,10 @@ export function catDiaChi(chu: string, toiDa = 26): string {
 
 export function nhanRuouBia(deXuat: DuLieuDocTuHoaDon): string {
   if (deXuat.loaiHd === 'gtgt') {
-    if (deXuat.cotTienHang === 'sau_thue') return 'Rượu bia (đã gồm thuế GTGT)'
-    if (deXuat.cotTienHang === 'truoc_thue') return 'Rượu bia (đã cộng thuế GTGT)'
-    return 'Rượu bia'
+    if (deXuat.cotTienHang === 'sau_thue') return 'Tiền không được thanh toán (đã gồm thuế GTGT)'
+    if (deXuat.cotTienHang === 'truoc_thue') return 'Tiền không được thanh toán (đã cộng thuế GTGT)'
   }
-  if (deXuat.loaiHd === 'ban_hang') return 'Rượu bia'
-  return 'Rượu bia (đã cộng thuế GTGT)'
+  return 'Tiền không được thanh toán'
 }
 
 function kyHieuSo(doc: DuLieuDocTuHoaDon): string | undefined {
@@ -68,52 +66,21 @@ function chuTruong(doc: DuLieuDocTuHoaDon | null, khoa: HangDoiChieu['khoa'], de
   return khoa === 'mstMuaHang' ? hienThiMst(String(raw)) : String(raw)
 }
 
-function khopTruong(
-  khoa: HangDoiChieu['khoa'],
-  chuan: DuLieuDocTuHoaDon | null,
-  soSanh: DuLieuDocTuHoaDon | null,
-): boolean {
+function khopTruong(khoa: HangDoiChieu['khoa'], chuan: DuLieuDocTuHoaDon | null, soSanh: DuLieuDocTuHoaDon | null): boolean {
   if (!chuan || !soSanh) return false
   if (khoa === 'mstMuaHang') return giongMst(chuan.mstMuaHang, soSanh.mstMuaHang)
-  if (khoa === 'tenMuaHang') {
-    return Boolean(chuan.tenMuaHang && soSanh.tenMuaHang && tenGanDung(chuan.tenMuaHang, soSanh.tenMuaHang))
-  }
-  if (khoa === 'diaChiMuaHang') {
-    return Boolean(chuan.diaChiMuaHang && soSanh.diaChiMuaHang && diaChiGanDung(chuan.diaChiMuaHang, soSanh.diaChiMuaHang))
-  }
+  if (khoa === 'tenMuaHang') return Boolean(chuan.tenMuaHang && soSanh.tenMuaHang && tenGanDung(chuan.tenMuaHang, soSanh.tenMuaHang))
+  if (khoa === 'diaChiMuaHang') return Boolean(chuan.diaChiMuaHang && soSanh.diaChiMuaHang && diaChiGanDung(chuan.diaChiMuaHang, soSanh.diaChiMuaHang))
   if (khoa === 'kyHieuSo') {
     const a = kyHieuSo(chuan), b = kyHieuSo(soSanh)
     return Boolean(a && b && giongChuoi(a, b))
   }
   if (khoa === 'ngay') return Boolean(chuan.ngay && soSanh.ngay && giongChuoi(chuan.ngay, soSanh.ngay))
   if (khoa === 'tongTien') return giongTien(chuan.tongTien, soSanh.tongTien)
-  if (khoa === 'tienRuouBia') {
-    return giongTien(
-      tienRuouBiaCuaLop(chuan, chuan.loaiHd, chuan.cotTienHang),
-      tienRuouBiaCuaLop(soSanh, chuan.loaiHd, chuan.cotTienHang),
-    )
-  }
-  return false
-}
-
-function oCot(
-  nguon: NguonDoc,
-  nhanNguon: string,
-  khoa: HangDoiChieu['khoa'],
-  chuan: DuLieuDocTuHoaDon | null,
-  doc: DuLieuDocTuHoaDon | null,
-): OCotDoiChieu {
-  const giaTri = chuTruong(doc, khoa, chuan ?? {})
-  if (!giaTri) {
-    return { nguon, khop: false, goiY: `${nhanNguon} không có ${nhanKhoa(khoa, chuan ?? {}).toLowerCase()}` }
-  }
-  const khop = khopTruong(khoa, chuan, doc)
-  return {
-    nguon,
-    khop,
-    giaTri,
-    goiY: khop ? `${nhanNguon} khớp` : `${nhanNguon} đọc: ${giaTri}`,
-  }
+  return giongTien(
+    tienRuouBiaCuaLop(chuan, chuan.loaiHd, chuan.cotTienHang),
+    tienRuouBiaCuaLop(soSanh, chuan.loaiHd, chuan.cotTienHang),
+  )
 }
 
 function nhanKhoa(khoa: HangDoiChieu['khoa'], deXuat: DuLieuDocTuHoaDon = {}): string {
@@ -126,14 +93,16 @@ function nhanKhoa(khoa: HangDoiChieu['khoa'], deXuat: DuLieuDocTuHoaDon = {}): s
   return nhanRuouBia(deXuat)
 }
 
-function hang(
-  khoa: HangDoiChieu['khoa'],
-  kq: KetQuaDocHoaDon,
-): HangDoiChieu {
+function oCot(nguon: NguonDoc, nhanNguon: string, khoa: HangDoiChieu['khoa'], chuan: DuLieuDocTuHoaDon, doc: DuLieuDocTuHoaDon | null): OCotDoiChieu {
+  const giaTri = chuTruong(doc, khoa, chuan)
+  if (!giaTri) return { nguon, khop: false, goiY: `${nhanNguon} không có ${nhanKhoa(khoa, chuan).toLowerCase()}` }
+  const khop = khopTruong(khoa, chuan, doc)
+  return { nguon, khop, giaTri, goiY: khop ? `${nhanNguon} khớp` : `${nhanNguon} đọc: ${giaTri}` }
+}
+
+function hang(khoa: HangDoiChieu['khoa'], kq: KetQuaDocHoaDon): HangDoiChieu {
   const dayDu = chuTruong(kq.deXuat, khoa, kq.deXuat) ?? 'không đọc được'
-  const hienThi = khoa === 'diaChiMuaHang' && chuTruong(kq.deXuat, khoa, kq.deXuat)
-    ? catDiaChi(dayDu)
-    : dayDu
+  const hienThi = khoa === 'diaChiMuaHang' && chuTruong(kq.deXuat, khoa, kq.deXuat) ? catDiaChi(dayDu) : dayDu
   return {
     khoa,
     nhan: nhanKhoa(khoa, kq.deXuat),

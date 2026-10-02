@@ -7,9 +7,10 @@ const dong = (phan: Partial<GiaoDichTinh>): GiaoDichTinh => ({
   id: 'g', ngay: '2026-01-01', soThuTu: 1, taoLuc: '2026-01-01T00:00:00.000Z', noiDung: '',
   kyHieuHd: null, soHd: null, loaiHd: null, trangThaiHd: TRANG_THAI.HOP_LE, hinhThuc: HINH_THUC.HOAN_TAM_UNG,
   tongTien: 0, tienRuouBia: 0, tamUngTuCq: 0, giaoTienChiThuy: 0, hoanUngTienMat: 0,
-  nguoiLayHdId: null, nguoiLayHdTen: null, phiLayHdGhiDe: null, trangThaiTtPhi: 'Không phát sinh',
-  ghiChu: null, donViId: null, donViTen: null, hinhThucThanhToan: null, taiKhoanNhan: null, coHoaDon: false, coChuyenKhoan: false,
-  hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0,
+  nguoiDeNghiId: null, nguoiDeNghiTen: null, nguoiLayHdId: null, nguoiLayHdTen: null, phiLayHdGhiDe: null, trangThaiTtPhi: 'Không phát sinh',
+  ghiChu: null, donViId: null, donViTen: null, hinhThucThanhToan: null, taiKhoanNhan: null, coHoaDon: false, coChuyenKhoan: false, coTinhPhi: false,
+  duaTienCqTraThangChoChiThuy: 0, hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0,
+  duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0,
   ...phan,
 })
 
@@ -18,6 +19,18 @@ describe('sắp xếp nhật ký', () => {
     const rows = [dong({ id: 'a', tongTien: 9 }), dong({ id: 'b', tongTien: 100 }), dong({ id: 'c', tongTien: 20 })]
     expect(sapXepDong(rows, [{ id: 'tongTien', giam: false }]).map(r => r.id)).toEqual(['a', 'c', 'b'])
     expect(sapXepDong(rows, [{ id: 'tongTien', giam: true }]).map(r => r.id)).toEqual(['b', 'c', 'a'])
+  })
+
+  it('sắp xếp được các cột tiền CQ trả thẳng và tổng tiền đưa Chị Thúy', () => {
+    const rows = [
+      dong({ id: 'a', duaTienCqTraThangChoChiThuy: 9, tongTienDuaChiThuy: 12, duTienCqTraThang: 4, duHiepDangCam: 8 }),
+      dong({ id: 'b', duaTienCqTraThangChoChiThuy: 100, tongTienDuaChiThuy: 3, duTienCqTraThang: 1, duHiepDangCam: 11 }),
+      dong({ id: 'c', duaTienCqTraThangChoChiThuy: 20, tongTienDuaChiThuy: 20, duTienCqTraThang: 8, duHiepDangCam: 2 }),
+    ]
+    expect(sapXepDong(rows, [{ id: 'duaTienCqTraThangChoChiThuy', giam: false }]).map(r => r.id)).toEqual(['a', 'c', 'b'])
+    expect(sapXepDong(rows, [{ id: 'tongTienDuaChiThuy', giam: true }]).map(r => r.id)).toEqual(['c', 'a', 'b'])
+    expect(sapXepDong(rows, [{ id: 'duTienCqTraThang', giam: false }]).map(r => r.id)).toEqual(['b', 'a', 'c'])
+    expect(sapXepDong(rows, [{ id: 'duHiepDangCam', giam: true }]).map(r => r.id)).toEqual(['b', 'a', 'c'])
   })
 
   it('sắp xếp theo nhiều cột, cột sau chỉ dùng khi cột trước bằng nhau', () => {
@@ -45,6 +58,10 @@ describe('sắp xếp nhật ký', () => {
     const row = dong({ kyHieuHd: '1C26MTT', soHd: '00123', donViTen: 'Phòng A', coHoaDon: true, coChuyenKhoan: false })
     expect(giaTriSoSanh(row, 'chungTu')).toBe('1C26MTT 00123')
     expect(giaTriSoSanh(row, 'donVi')).toBe('Phòng A')
+    expect(giaTriSoSanh({ ...row, nguoiDeNghiTen: 'Nguyễn Văn A' }, 'nguoiDeNghi')).toBe('Nguyễn Văn A')
+    expect(giaTriSoSanh({ ...row, nguoiLayHdTen: 'Trần Thị T' }, 'nguoiLayHd')).toBe('Trần Thị T')
+    expect(giaTriSoSanh(row, 'trangThaiHd')).toBe(TRANG_THAI.HOP_LE)
+    expect(giaTriSoSanh(row, 'trangThaiTtPhi')).toBe('Không phát sinh')
     expect(giaTriSoSanh(row, 'tep')).toBe('10')
     // Đơn vị trống xếp trước đơn vị có tên khi sắp xếp tăng dần.
     const rows = [dong({ id: 'x', donViTen: 'Phòng A' }), dong({ id: 'y', donViTen: null })]
@@ -99,14 +116,14 @@ describe('hàng tổng', () => {
   })
 
   it('không cộng cột chữ, cột số dư luỹ kế hay cột thao tác', () => {
-    for (const id of ['ngay', 'noiDung', 'donVi', 'trangThai', 'tep', 'thaoTac', 'duLyThuyet', 'duThucTe', 'duDangCam'] as const) {
+    for (const id of ['ngay', 'noiDung', 'donVi', 'nguoiDeNghi', 'nguoiLayHd', 'trangThaiHd', 'trangThaiTtPhi', 'tep', 'thaoTac', 'duTienCqTraThang', 'duLyThuyet', 'duThucTe', 'duDangCam', 'duHiepDangCam'] as const) {
       expect(tongCot(rows, id)).toBeNull()
     }
   })
 
   it('cột tiền nào cũng cộng được', () => {
     const congDon = cotNhatKy.filter(c => c.congDon).map(c => c.id)
-    expect(congDon).toEqual(['tongTien', 'tienRuouBia', 'hoanTamUng', 'cqTraThang', 'phiLayHd', 'tamUngTuCq', 'giaoTienChiThuy', 'hoanUngTienMat'])
+    expect(congDon).toEqual(['tongTien', 'tienRuouBia', 'hoanTamUng', 'cqTraThang', 'duaTienCqTraThangChoChiThuy', 'phiLayHd', 'tamUngTuCq', 'giaoTienChiThuy', 'tongTienDuaChiThuy', 'hoanUngTienMat'])
     for (const id of congDon) expect(typeof tongCot(rows, id)).toBe('number')
   })
 

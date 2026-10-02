@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/pool'
-import { docJwt, docUrl } from '@/lib/onlyoffice/jwt'
+import { docJwtTuYeuCau, docUrl, kyJwt } from '@/lib/onlyoffice/jwt'
 import { diaChi } from '@/lib/onlyoffice/cau-hinh'
 import { luuPhienBanMoi } from '@/lib/onlyoffice/tai-lieu'
 
@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     if (Number(req.headers.get('content-length')) > 65536) throw new Error('Body quá lớn')
     const text = await req.text()
     if (text.length > 65536) throw new Error('Body quá lớn')
-    body = docJwt(JSON.parse(text).token)
+    body = docJwtTuYeuCau(req, text)
     if (capability.purpose !== 'callback' || capability.key !== body.key || typeof body.key !== 'string') throw new Error('Sai phiên')
     const { rows } = await db.query(`select n.vai_tro,t.ten_mau from nguoi_dung n cross join tai_lieu t
       join tai_lieu_phien p on p.tai_lieu_id=t.id
@@ -32,7 +32,11 @@ export async function POST(req: Request) {
       // Chỉ tải từ DocumentServer đã cấu hình; không theo redirect ra máy khác.
       if (![urls.internal, urls.public].includes(url.origin) || url.username || url.password) throw new Error('URL không hợp lệ')
       const target = new URL(url.pathname + url.search, urls.internal)
-      const res = await fetch(target, { redirect: 'error', signal: AbortSignal.timeout(30000) })
+      const res = await fetch(target, {
+        redirect: 'error',
+        signal: AbortSignal.timeout(30000),
+        headers: { Authorization: `Bearer ${kyJwt({ payload: { url: target.href } })}` },
+      })
       if (!res.ok || !res.body || Number(res.headers.get('content-length')) > 20 * 1024 * 1024) throw new Error('Không tải được tệp')
       const reader = res.body.getReader(), chunks: Uint8Array[] = []
       let size = 0

@@ -26,6 +26,52 @@ export function luaChonNguoiKy(ctx: BoiCanhGiay): LuaChonNguoiKy {
   return { canBo, macDinh, taiKhoanTheoNguoiLayHd: ctx.taiKhoanTheoNguoiLayHd }
 }
 
+// Khi người dùng không mở phần "Thông tin giấy đề nghị", giao dịch vẫn phải dùng
+// đúng người đề nghị mặc định mà phần đó sẽ hiển thị nếu được mở.
+export function apDungNguoiDeNghiMacDinh(ctx: BoiCanhGiay): BoiCanhGiay {
+  const { canBo, macDinh } = luaChonNguoiKy(ctx)
+  const nguoiDeNghi = canBo.find(cb => cb.id === macDinh.nguoiDeNghiId)
+  if (!nguoiDeNghi) throw new Error('Chưa có người đề nghị đang hoạt động trong cấu hình giấy.')
+  return {
+    ...ctx,
+    canBo,
+    nguoiDeNghi,
+    cauHinh: { ...ctx.cauHinh, nguoiDeNghiId: nguoiDeNghi.id },
+  }
+}
+
+// Khi không mở phần giấy trên biểu mẫu, vẫn phải chốt đúng cả năm giá trị mà phần
+// đó sẽ hiển thị. Điều này cũng lưu lại trưởng phòng được suy ra từ người đề nghị.
+export function apDungNguoiKyMacDinh(ctx: BoiCanhGiay): BoiCanhGiay {
+  const { canBo, macDinh } = luaChonNguoiKy(ctx)
+  const nguoiDeNghi = canBo.find(cb => cb.id === macDinh.nguoiDeNghiId)
+  if (!nguoiDeNghi) throw new Error('Chưa có người đề nghị đang hoạt động trong cấu hình giấy.')
+  const cauHinh = { ...ctx.cauHinh }
+  for (const vai of VAI_TRO_KY) cauHinh[vai.id] = macDinh[vai.id] || null
+  return {
+    ...ctx,
+    canBo,
+    nguoiDeNghi,
+    cauHinh,
+  }
+}
+
+// Chỉ dùng giá trị người đề nghị do form gửi khi người dùng đã mở phần giấy. ID
+// được đối chiếu với danh sách cán bộ đang hoạt động ở máy chủ, không tin tên hiển thị.
+export function apDungNguoiDeNghiTheoForm(ctx: BoiCanhGiay, form: FormData): BoiCanhGiay {
+  const raw = form.get('giay_nguoiDeNghiId')
+  if (raw === null) return apDungNguoiDeNghiMacDinh(ctx)
+  const { canBo } = luaChonNguoiKy(ctx)
+  const nguoiDeNghi = typeof raw === 'string' ? canBo.find(cb => cb.id === raw) : undefined
+  if (!nguoiDeNghi) throw new Error('Người đề nghị không tồn tại hoặc đã ngừng hoạt động.')
+  return {
+    ...ctx,
+    canBo,
+    nguoiDeNghi,
+    cauHinh: { ...ctx.cauHinh, nguoiDeNghiId: nguoiDeNghi.id },
+  }
+}
+
 // Chỉ ghi đè bối cảnh của lần lập giấy này, không thay Cài đặt chung.
 export function apDungNguoiKy(ctx: BoiCanhGiay, form: FormData): BoiCanhGiay {
   if (!VAI_TRO_KY.some(v => form.has(`giay_${v.id}`))) return ctx
@@ -34,6 +80,9 @@ export function apDungNguoiKy(ctx: BoiCanhGiay, form: FormData): BoiCanhGiay {
   let nguoiDeNghi = ctx.nguoiDeNghi
   for (const vai of VAI_TRO_KY) {
     const value = form.get(`giay_${vai.id}`)
+    // Chỉ người đề nghị đã chọn ở các biểu mẫu cũ vẫn hợp lệ: những vai trò còn
+    // lại giữ giá trị mặc định đã được áp vào bối cảnh trước khi gọi hàm này.
+    if (value === null) continue
     if (typeof value !== 'string') throw new Error('Thiếu thông tin người ký giấy đề nghị.')
     const cb = canBo.find(c => c.id === value)
     if (value && !cb) throw new Error(`${vai.ten} không tồn tại hoặc đã ngừng hoạt động.`)

@@ -9,7 +9,9 @@ export async function loaiTepThat(file: File): Promise<string | null> {
   for (const item of CHU_KY) if (item.bytes.every((byte, i) => dau[i] === byte)) {
     if (item.mime !== 'image/webp' || new TextDecoder().decode(dau.slice(8,12)) === 'WEBP') return item.mime
   }
-  const text = new TextDecoder().decode(dau).trimStart()
-  return text.startsWith('<?xml') || text.startsWith('<') ? 'application/xml' : null
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(await file.arrayBuffer()).replace(/^\uFEFF/, '').trimStart()
+  if (!/^<\?xml\b/i.test(text) && !/^<[A-Za-z_][\w.-]*(?:\s|\/?>)/.test(text)) return null
+  if (!text.includes('>') || text.length < 5) return null
+  return 'application/xml'
 }
 export function phanMoRong(mime: string) { return ({ 'application/pdf':'pdf','application/xml':'xml','image/jpeg':'jpg','image/png':'png','image/webp':'webp' } as Record<string,string>)[mime] }

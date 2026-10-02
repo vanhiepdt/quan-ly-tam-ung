@@ -81,20 +81,33 @@ Bản này cần **`011_loai_tep_giay.sql`** (loại tệp tờ trình / giấy 
 
 ### Đọc hóa đơn
 
-1. Cài đặt → Cài đặt AI: bật lớp AI, chọn nhà cung cấp, điền khóa (hoặc khóa trong `.env.local`), bấm **Test API**.
-2. Giao dịch → Thêm giao dịch → **Đọc từ hóa đơn**: chọn PDF.
-3. QR khóa số hóa đơn và tổng tiền. AI điền người mua, dòng hàng, rượu bia. Soát bảng đối chiếu rồi bấm điền form / Lưu.
+1. Cài đặt → Cài đặt AI: bật hai AI, chọn nhà cung cấp/model riêng cho AI 1 và AI 2, điền khóa (hoặc khóa trong `.env.local`), bấm **Test API**.
+2. Giao dịch → Thêm giao dịch → **Đọc từ hóa đơn**: chọn PDF hoặc XML. Hệ thống tự nhận loại tệp từ nội dung, không dựa vào phần mở rộng hay MIME do trình duyệt gửi.
+3. Hai AI đọc độc lập và bảng XML (nếu có) được đối chiếu. Với XML, bộ đọc trên máy trích dữ liệu và dòng hàng; với PDF, model có khả năng đọc ảnh nhận trang đầu. Soát kết quả rồi bấm điền form / Lưu.
 4. File hóa đơn vừa đọc được giữ trong **Hồ sơ tệp** của giao dịch khi lưu thành công.
 
-Không có khóa AI vẫn đọc được lớp QR.
+XML vẫn có thể được trích dữ liệu trên máy khi AI chưa sẵn sàng. PDF cần ít nhất một cấu hình AI có model đọc được ảnh; nếu một AI lỗi, hệ thống vẫn hiển thị kết quả từ nguồn còn lại kèm cảnh báo.
 
 ### Hồ sơ tệp
 
-Mỗi giao dịch một thư mục. Tải lên: hóa đơn, chứng từ chuyển khoản, tờ trình đã ký (PDF), giấy đề nghị thanh toán đã ký (PDF).
+Mỗi giao dịch một thư mục. Tải lên: hóa đơn PDF/XML, chứng từ chuyển khoản, tờ trình đã ký (PDF), giấy đề nghị thanh toán đã ký (PDF).
+
+### Nhập hóa đơn qua Telegram và máy scan Windows
+
+Migration `012_intake_hoa_don.sql` tạo hàng đợi nhận hóa đơn. Chạy `npm run db:migrate` trước khi bật tính năng.
+
+1. Tạo bot mới bằng `@BotFather`, lấy token rồi vào **Cài đặt → Nhập hóa đơn qua Telegram và máy scan** để dán token. Không đưa token vào Git.
+2. Cấu hình `TELEGRAM_WEBHOOK_SECRET` và `INTAKE_TOKEN_ENCRYPTION_KEY` trên VPS, sau đó bấm **Đặt webhook Telegram**. `TELEGRAM_BOT_TOKEN` chỉ là fallback nếu không lưu token trong Cài đặt.
+3. Thêm `user:ID` hoặc `chat:ID` vào allowlist. Timeout mặc định là **180 giây**, có thể chỉnh từ 30 đến 3.600 giây. Mặc định hình thức là **Hoàn tạm ứng**.
+4. Bấm **Tạo/rotate token agent**, chép token một lần vào `agent-windows/config.json`, sửa thư mục scan rồi cài Windows Service theo [agent-windows/README.md](agent-windows/README.md).
+
+File được giữ trong `Hồ sơ tệp` với loại `hoa_don` sau khi giao dịch lưu thành công. Hết timeout, hệ thống tự lưu theo snapshot mặc định nếu bật tùy chọn; nếu tắt thì intake bị hủy và bot báo gửi lại.
 
 ### Giấy Word
 
 Cần Docker. Xem [docs/ONLYOFFICE.md](docs/ONLYOFFICE.md). Không chạy OnlyOffice thì phần còn lại (nhật ký, hóa đơn, hồ sơ tệp) vẫn dùng được.
+
+Trên VPS (`hc.ttdt.site`) app **không** dựng Document Server riêng: dùng container `qlcv-onlyoffice` / `office.ttdt.site` đang có. Không restart, không đổi JWT, không sửa nginx của ứng dụng kia. Khóa phiên giấy của app này có tiền tố `hc-` để không trùng khóa tài liệu bên kia.
 
 ## Biến môi trường
 
@@ -106,4 +119,6 @@ Xem `.env.example`. Khóa AI không được in ra log hay trả về trình duy
 - [docs/THIET-KE-DU-LIEU.md](docs/THIET-KE-DU-LIEU.md) — bảng và bộ tính số dư
 - [docs/BAO-MAT-VA-PHAN-QUYEN.md](docs/BAO-MAT-VA-PHAN-QUYEN.md) — đăng nhập, vai trò, lưu file
 - [docs/ONLYOFFICE.md](docs/ONLYOFFICE.md) — giấy Word
+- [docs/VPS.md](docs/VPS.md) — triển khai `hc.ttdt.site` (nginx, HTTPS, Docker; dùng OnlyOffice sẵn có, không đụng `office.ttdt.site`)
+- [docs/SAO-LUU-GOOGLE-DRIVE.md](docs/SAO-LUU-GOOGLE-DRIVE.md) — backup PostgreSQL và tệp giao dịch lên Google Drive lúc 17:00
 - [docs/VIETQR.md](docs/VIETQR.md) — QR chuyển khoản

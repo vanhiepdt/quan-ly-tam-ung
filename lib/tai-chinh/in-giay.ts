@@ -10,10 +10,36 @@ export async function timGiaoDichTinh(id: string, client?: Pick<import('pg').Poo
   return tinhToan(giaoDich, thamSo).find(r => r.id === id) ?? null
 }
 
+// Giấy của giao dịch mới giữ nguyên toàn bộ người ký đã chọn lúc tạo hoặc lần sửa
+// gần nhất. Giao dịch cũ chưa có snapshot đầy đủ vẫn dùng cấu hình chung cho các
+// vai trò chưa được lưu, để migration không làm đổi giấy đã tồn tại.
+function boiCanhTheoGiaoDich(gd: GiaoDichTinh, ctx: BoiCanhGiay): BoiCanhGiay {
+  const cauHinh = gd.thongTinGiayDaChot
+    ? {
+        ...ctx.cauHinh,
+        nguoiDeNghiId: gd.nguoiDeNghiId ?? null,
+        lanhDaoTiepKhachId: gd.lanhDaoTiepKhachId ?? null,
+        lanhDaoThanhToanId: gd.lanhDaoThanhToanId ?? null,
+        truongPhongId: gd.truongPhongId ?? null,
+        keToanKiemSoatId: gd.keToanKiemSoatId ?? null,
+      }
+    : {
+        ...ctx.cauHinh,
+        // Migration 013 đã có thể lưu riêng người đề nghị. Tôn trọng giá trị đó
+        // trên dữ liệu cũ, còn bốn vai trò kia vẫn theo Cài đặt chung như trước.
+        nguoiDeNghiId: gd.nguoiDeNghiId ?? ctx.cauHinh.nguoiDeNghiId,
+      }
+  const nguoiDeNghi = cauHinh.nguoiDeNghiId
+    ? ctx.canBo.find(cb => cb.id === cauHinh.nguoiDeNghiId)
+    : undefined
+  return { ...ctx, cauHinh, ...(nguoiDeNghi ? { nguoiDeNghi } : {}) }
+}
+
 // Giấy nào được lập cho hình thức này: tạm ứng thêm thì một giấy, hoàn tạm ứng và cơ
 // quan trả thẳng thì hai giấy tiếp khách + thanh toán.
 export function giayCuaGiaoDich(gd: GiaoDichTinh, ctx: BoiCanhGiay): GiayDeNghi[] {
-  return giayChoHinhThuc(gd.hinhThuc).map(loai => dungGiay(loai, gd, ctx))
+  const context = boiCanhTheoGiaoDich(gd, ctx)
+  return giayChoHinhThuc(gd.hinhThuc).map(loai => dungGiay(loai, gd, context))
 }
 
 // Một giấy cụ thể, hoặc null khi hình thức của giao dịch không lập giấy đó. Chặn ở đây
@@ -21,7 +47,7 @@ export function giayCuaGiaoDich(gd: GiaoDichTinh, ctx: BoiCanhGiay): GiayDeNghi[
 export function giayTheoLoai(gd: GiaoDichTinh, ctx: BoiCanhGiay, loai: unknown): GiayDeNghi | null {
   const ds = giayChoHinhThuc(gd.hinhThuc)
   if (typeof loai !== 'string' || !ds.includes(loai as LoaiGiay)) return null
-  return dungGiay(loai as LoaiGiay, gd, ctx)
+  return dungGiay(loai as LoaiGiay, gd, boiCanhTheoGiaoDich(gd, ctx))
 }
 
 // Tệp mẫu Word cho từng loại giấy. Hai giấy tiếp khách và thanh toán nằm chung một tệp.

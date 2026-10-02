@@ -1,0 +1,14 @@
+{
+  "name": "quan-ly-tam-ung-agent-windows",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Windows Service theo doi thu muc scan",
+  "main": "src/agent.cjs",
+  "scripts": {
+    "start": "node src/agent.cjs",
+    "install-service": "node src/install-service.cjs",
+    "uninstall-service": "node src/uninstall-service.cjs"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "node-windows": "^1.0.0" }
+}

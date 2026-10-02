@@ -32,12 +32,12 @@ export default async function Dashboard() {
       ['Đã hoàn ứng', k.thuyDaHoan, 'Hóa đơn hợp lệ theo hình thức hoàn tạm ứng'], ['Còn lại', k.thuyDu, 'Tiền chị Thúy đang giữ theo sổ'],
     ] },
     { tieuDe: 'Chi tiếp khách', moTa: 'Tổng hợp chi phí hóa đơn và phần cơ quan thanh toán trực tiếp.', muc: [
-      ['Tổng hóa đơn', k.tongBill, 'Tất cả giá trị hóa đơn đã ghi nhận'], ['Rượu bia loại trừ', k.tongRuouBia, 'Phần không được hoàn ứng'],
+      ['Tổng hóa đơn', k.tongBill, 'Tất cả giá trị hóa đơn đã ghi nhận'], ['Tiền không được thanh toán', k.tongRuouBia, 'Phần không được hoàn ứng'],
       ['CQ trả thẳng', k.cqTraThang, 'Hóa đơn hợp lệ cơ quan thanh toán trực tiếp'], ['Chi thực tế', k.tongChiThucTe, 'Phí đã trả và khoản chị Thúy đã hoàn ứng'],
     ] },
     { tieuDe: 'Chờ xử lý', moTa: 'Các khoản cần bổ sung hóa đơn hoặc đối chiếu thanh toán.', muc: [
       ['Chờ hoàn ứng', k.choHd, 'Hóa đơn chờ theo hình thức hoàn tạm ứng'], ['Chờ CQ trả thẳng', k.choCqTraThang, 'Hóa đơn chờ theo hình thức CQ trả thẳng'],
-      ['Số dư thực tế', k.duThucTe, 'Trừ toàn bộ phí tính theo lý thuyết'], ['Tiền đang cầm', k.duDangCam, 'Chỉ trừ phí đã thanh toán'],
+      ['Số dư thực tế', k.duThucTe, 'Trừ toàn bộ phí tính theo lý thuyết'], ['Tiền đang cầm', k.duDangCam, 'Số dư đang cầm tại giao dịch cuối cùng'],
     ] },
   ]
   const ve = k.tonQuyCoQuan + k.tongChiThucTe + k.quyToiNopTra

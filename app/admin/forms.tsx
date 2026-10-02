@@ -1,7 +1,7 @@
 'use client'
-import { useActionState, useState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import { quanLyTaiKhoan, themNguoiLayHd, suaNguoiLayHd, voHieuHoaNguoiLayHd, kichHoatNguoiLayHd, type KetQua } from './actions'
-import { themDonVi, suaDonVi, voHieuHoaDonVi, kichHoatDonVi } from './don-vi-actions'
+import { themDonVi, suaDonVi, voHieuHoaDonVi, voHieuHoaNhieuDonVi, kichHoatDonVi, nhapDonViExcel } from './don-vi-actions'
 import { themCanBo, suaCanBo, voHieuHoaCanBo, kichHoatCanBo } from './can-bo-actions'
 import { GIOI_TINH } from '@/lib/validation/can-bo'
 import { TaiKhoanNganHang } from './tai-khoan-ngan-hang'
@@ -92,6 +92,18 @@ export function TaoDonVi() {
   </form>
 }
 
+export function NhapDonViExcel() {
+  const [state, action, pending] = useActionState(nhapDonViExcel, initial)
+  return <form action={action} encType="multipart/form-data" className="mt-5 grid grid-cols-1 gap-5 border-t border-slate-200 pt-5 sm:grid-cols-2">
+    <label className="field sm:col-span-2">Nhập danh sách bằng Excel
+      <input name="tep_excel" type="file" required accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" />
+      <small>Tệp tối đa 5 MB. Dùng trang tính đầu tiên, có cột “Tên đơn vị” (hoặc <code>ten</code>/<code>ten_don_vi</code>); cột “Ghi chú” là tùy chọn. Tối đa 5.000 dòng.</small>
+    </label>
+    <div className="flex flex-wrap items-center gap-4 sm:col-span-2 [&_span]:text-xs [&_span]:text-slate-500"><button disabled={pending} className="btn btn-secondary">{pending ? 'Đang nhập…' : 'Nhập từ Excel'}</button><span>Đơn vị đã có sẽ được bỏ qua; đơn vị đã vô hiệu hóa sẽ được kích hoạt lại.</span></div>
+    <ThongBao state={state} />
+  </form>
+}
+
 export function SuaDonVi({ donVi }: { donVi: { id: string; ten: string; ghi_chu: string | null } }) {
   const [state, action, pending] = useActionState(suaDonVi, initial)
   return <form action={action} className="grid grid-cols-1 gap-5 py-4 sm:grid-cols-2">
@@ -110,6 +122,34 @@ export function ThaoTacDonVi({ id, ten, active }: { id: string; ten: string; act
     <button disabled={pending} className={active ? 'btn btn-danger' : 'btn btn-secondary'}>{active ? 'Vô hiệu hóa' : 'Kích hoạt lại'}</button>
     <ThongBao state={state} />
   </form>
+}
+
+export type DonViAdmin = { id: string; ten: string; ghi_chu: string | null; dang_hoat_dong: boolean }
+
+export function QuanLyDanhSachDonVi({ donVi }: { donVi: DonViAdmin[] }) {
+  const [chon, setChon] = useState<string[]>([])
+  const [state, action, pending] = useActionState(voHieuHoaNhieuDonVi, initial)
+  const dangHoatDong = donVi.filter(item => item.dang_hoat_dong)
+  const idsDangHoatDong = dangHoatDong.map(item => item.id)
+  const tatCaDaChon = idsDangHoatDong.length > 0 && idsDangHoatDong.every(id => chon.includes(id))
+
+  useEffect(() => {
+    setChon(current => current.filter(id => idsDangHoatDong.includes(id)))
+  }, [donVi])
+
+  function doiChon(id: string, checked: boolean) {
+    setChon(current => checked ? [...new Set([...current, id])] : current.filter(item => item !== id))
+  }
+
+  return <section className="card mx-auto mb-6 max-w-7xl p-4 sm:p-6"><div className="mb-6 flex flex-wrap items-start justify-between gap-4 [&_p]:mt-2 [&_p]:text-sm [&_p]:text-slate-500"><div><h2>Danh sách đơn vị</h2><p>Quản lý các đơn vị được tiếp. Xóa khỏi danh sách sẽ giữ nguyên giao dịch và lịch sử cũ.</p></div><span className="badge neutral">{donVi.length} đơn vị</span></div>
+    <form action={action} onSubmit={event => { if (!chon.length || !window.confirm(`Xóa ${chon.length} đơn vị đã chọn khỏi danh sách đang sử dụng? Giao dịch và lịch sử cũ vẫn được giữ lại.`)) event.preventDefault() }} className="mb-4 flex flex-wrap items-center gap-3">
+      {chon.map(id => <input key={id} type="hidden" name="id" value={id} />)}
+      <button type="submit" disabled={pending || !chon.length} className="btn btn-danger">{pending ? 'Đang xóa…' : `Xóa đơn vị đã chọn${chon.length ? ` (${chon.length})` : ''}`}</button>
+      <span className="text-xs text-slate-500">Chỉ các đơn vị đang hoạt động mới có thể chọn.</span>
+    </form>
+    <ThongBao state={state} />
+    {donVi.length ? <div className="overflow-x-auto [&_table]:w-full [&_table]:text-left [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-slate-200 [&_th]:bg-slate-50 [&_th]:px-4 [&_th]:py-3 [&_th]:text-xs [&_th]:font-semibold [&_th]:text-slate-600 [&_td]:min-w-36 [&_td]:border-b [&_td]:border-slate-100 [&_td]:p-4 [&_td]:align-top [&_tr:last-child_td]:border-0"><table><thead><tr><th><input type="checkbox" className="size-4 accent-indigo-600" aria-label="Chọn tất cả đơn vị đang hoạt động" checked={tatCaDaChon} disabled={!idsDangHoatDong.length} onChange={event => setChon(event.target.checked ? idsDangHoatDong : [])} /></th><th>Tên đơn vị</th><th>Ghi chú</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{donVi.map(dv => <tr key={dv.id}><td><input type="checkbox" className="size-4 accent-indigo-600" aria-label={`Chọn ${dv.ten}`} checked={chon.includes(dv.id)} disabled={!dv.dang_hoat_dong} onChange={event => doiChon(dv.id, event.target.checked)} /></td><td><strong>{dv.ten}</strong></td><td>{dv.ghi_chu || <span className="text-slate-500">—</span>}</td><td><span className={`badge neutral ${dv.dang_hoat_dong ? 'good' : ''}`}>{dv.dang_hoat_dong ? 'Đang hoạt động' : 'Đã vô hiệu hóa'}</span></td><td><details><summary>Quản lý</summary><SuaDonVi donVi={dv} /><ThaoTacDonVi id={dv.id} ten={dv.ten} active={dv.dang_hoat_dong} /></details></td></tr>)}</tbody></table></div> : <p className="py-6 text-sm text-slate-500">Chưa có đơn vị nào.</p>}
+  </section>
 }
 
 // Giới tính, chức danh và phòng là những chữ in thẳng lên giấy đề nghị. Lãnh đạo vừa là

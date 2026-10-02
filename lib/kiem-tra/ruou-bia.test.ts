@@ -41,15 +41,15 @@ describe('nhận diện dòng rượu bia', () => {
     expect(dong.map(d => d.laRuouBia)).toEqual([true, false])
   })
 
-  it('số rượu bia của lớp: khóa JSON thắng, không thì cộng dòng rượu bia', () => {
-    expect(tienRuouBiaCuaLop({ tienRuouBia: 80_000, dongHang: [{ ten: 'Bia Tiger', thanhTien: 50_000 }] })).toBe(80_000)
+  it('số rượu bia của lớp: có dòng hàng thì cộng dòng, không thì dùng tổng riêng', () => {
+    expect(tienRuouBiaCuaLop({ tienRuouBia: 80_000, dongHang: [{ ten: 'Bia Tiger', thanhTien: 50_000 }] })).toBe(50_000)
     expect(tienRuouBiaCuaLop({
       dongHang: [
         { ten: 'Bia Tiger', thanhTien: 280_000, tienThue: 28_000, laRuouBia: true },
         { ten: 'Bia Hà Nội', thanhTien: 286_000, tienThue: 28_600, laRuouBia: true },
       ],
     }, 'gtgt', 'truoc_thue')).toBe(622_600)
-    expect(tienRuouBiaCuaLop({ dongHang: [{ ten: 'Cơm rang', thanhTien: 120_000, laRuouBia: false }] })).toBeUndefined()
+    expect(tienRuouBiaCuaLop({ dongHang: [{ ten: 'Cơm rang', thanhTien: 120_000, laRuouBia: false }] })).toBe(0)
     expect(tienRuouBiaCuaLop({ tienRuouBia: 0 })).toBe(0)
     expect(tienRuouBiaCuaLop(null)).toBeUndefined()
   })

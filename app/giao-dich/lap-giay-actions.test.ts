@@ -1,10 +1,10 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-const m = vi.hoisted(() => ({ query: vi.fn(), transaction: vi.fn(), create: vi.fn(), find: vi.fn(), papers: vi.fn(), warning: vi.fn(), gan: vi.fn() }))
+const m = vi.hoisted(() => ({ query: vi.fn(), transaction: vi.fn(), create: vi.fn(), find: vi.fn(), papers: vi.fn(), warning: vi.fn(), gan: vi.fn(), context: vi.fn() }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/lib/db/pool', () => ({ db: {}, trongTransaction: m.transaction }))
 vi.mock('@/lib/xac-thuc/bao-ve', () => ({ batBuocVaiTro: vi.fn(async () => ({ id: 'actor', ho_ten: 'Test' })) }))
 vi.mock('@/lib/tai-chinh/in-giay', () => ({ timGiaoDichTinh: m.find, giayCuaGiaoDich: m.papers, MAU_WORD: { tam_ung: 'Tam ung tien.docx' } }))
-vi.mock('@/lib/tai-chinh/cau-hinh-giay', () => ({ boiCanhGiay: vi.fn(async () => ({})) }))
+vi.mock('@/lib/tai-chinh/cau-hinh-giay', () => ({ boiCanhGiay: m.context }))
 vi.mock('@/lib/onlyoffice/tai-lieu', () => ({ taoHoacLayTaiLieu: m.create, docMau: vi.fn() }))
 vi.mock('@/lib/tai-chinh/xac-nhan-hoan-ung', () => ({ khoaSoTaiChinh: vi.fn(), kiemTraHoanTamUng: m.warning }))
 vi.mock('@/lib/tep/gan', () => ({ ganTepVaoGiaoDich: m.gan }))
@@ -19,7 +19,17 @@ const form = (lap = true, hinhThuc = 'Tạm ứng thêm') => {
 beforeEach(() => {
   vi.resetAllMocks()
   m.transaction.mockImplementation(async (_: string, fn: (c: unknown) => unknown) => fn(client))
-  m.query.mockImplementation(async (sql: string) => ({ rows: sql.includes('max(so_thu_tu)') ? [{ so_thu_tu: 1 }] : sql.startsWith('insert into giao_dich') ? [{ id: 'gd-id' }] : [] }))
+  m.context.mockResolvedValue({
+    nguoiDeNghi: { id: 'cb-account', hoTen: 'Cán bộ tài khoản', gioiTinh: null, chucDanh: null, phong: null, laLanhDao: false, dangHoatDong: true },
+    canBo: [
+      { id: 'cb-default', hoTen: 'Người mặc định', gioiTinh: null, chucDanh: null, phong: null, laLanhDao: false, dangHoatDong: true },
+      { id: 'cb-account', hoTen: 'Cán bộ tài khoản', gioiTinh: null, chucDanh: null, phong: null, laLanhDao: false, dangHoatDong: true },
+      { id: 'cb-other', hoTen: 'Người được chọn', gioiTinh: null, chucDanh: null, phong: null, laLanhDao: false, dangHoatDong: true },
+    ],
+    cauHinh: { nguoiDeNghiId: 'cb-default', lanhDaoTiepKhachId: null, lanhDaoThanhToanId: null, truongPhongId: null, keToanKiemSoatId: null },
+    taiKhoanTheoNguoiLayHd: {},
+  })
+  m.query.mockImplementation(async (sql: string, params: unknown[]) => ({ rows: sql.includes('max(so_thu_tu)') ? [{ so_thu_tu: 1 }] : sql.startsWith('insert into giao_dich') ? [{ id: 'gd-id' }] : sql.includes('from can_bo') ? (Array.isArray(params?.[0]) ? params[0].map(id => ({ id })) : []) : sql.includes('from don_vi') ? [{ ten: 'Phòng Kế hoạch' }] : [] }))
   m.find.mockResolvedValue({})
   m.papers.mockReturnValue([{ loai: 'tam_ung', thayThe: {}, thayCoDinh: [] }])
   m.create.mockResolvedValue({ id: 'doc-id' })
@@ -28,6 +38,42 @@ it('không chọn thì chỉ thêm giao dịch, không tạo giấy hay savepoin
   expect(await themGiaoDich({}, form(false))).toMatchObject({ giaoDichId: 'gd-id', thanhCong: 'Đã thêm giao dịch.' })
   expect(m.create).not.toHaveBeenCalled()
   expect(m.query.mock.calls.some(c => c[0].includes('savepoint'))).toBe(false)
+})
+it('lưu người đề nghị mặc định trong thông tin giấy dù không bấm lập giấy', async () => {
+  const result = await themGiaoDich({}, form(false))
+  expect(result.giaoDichId).toBe('gd-id')
+  const insert = m.query.mock.calls.find(c => String(c[0]).startsWith('insert into giao_dich'))
+  expect(insert?.[1][17]).toBe('cb-default')
+})
+it('lưu người đề nghị được chọn trong thông tin giấy', async () => {
+  const f = form(false)
+  f.set('giay_nguoiDeNghiId', 'cb-other')
+  const result = await themGiaoDich({}, f)
+  expect(result.giaoDichId).toBe('gd-id')
+  const insert = m.query.mock.calls.find(c => String(c[0]).startsWith('insert into giao_dich'))
+  expect(insert?.[1][17]).toBe('cb-other')
+})
+it('chốt đủ năm vai trò ký khi tạo giao dịch, kể cả khi không lập Word ngay', async () => {
+  const f = form(false)
+  for (const vai of ['nguoiDeNghiId', 'lanhDaoTiepKhachId', 'lanhDaoThanhToanId', 'truongPhongId', 'keToanKiemSoatId']) {
+    f.set(`giay_${vai}`, 'cb-other')
+  }
+  expect((await themGiaoDich({}, f)).giaoDichId).toBe('gd-id')
+  const insert = m.query.mock.calls.find(c => String(c[0]).startsWith('insert into giao_dich'))
+  expect(insert?.[1].slice(17, 23)).toEqual(['cb-other', 'cb-other', 'cb-other', 'cb-other', 'cb-other', true])
+})
+it('lưu snapshot tài khoản nhập riêng cho giao dịch chuyển khoản', async () => {
+  const f = form(false, 'Cơ quan trả thẳng')
+  f.set('don_vi_id', '22222222-2222-4222-8222-222222222222')
+  f.set('hinh_thuc_thanh_toan', 'chuyen_khoan')
+  f.set('dung_tai_khoan_mac_dinh', '0')
+  f.set('tai_khoan_nhan_so', '000123')
+  f.set('tai_khoan_nhan_ngan_hang', 'Ngân hàng khác')
+  f.set('tai_khoan_nhan_chi_nhanh', 'Chi nhánh B')
+  f.set('tai_khoan_nhan_ten_chu_tk', 'Người nhận khác')
+  expect((await themGiaoDich({}, f)).giaoDichId).toBe('gd-id')
+  const insert = m.query.mock.calls.find(c => String(c[0]).startsWith('insert into giao_dich'))
+  expect(insert?.[1].slice(29, 33)).toEqual(['000123', 'Ngân hàng khác', 'Chi nhánh B', 'Người nhận khác'])
 })
 it('lập giấy bằng chính client transaction và trả id sau commit', async () => {
   const result = await themGiaoDich({}, form())
@@ -74,14 +120,28 @@ it('hình thức không có giấy bị từ chối nếu ép checkbox', async (
   expect((await themGiaoDich({}, form(true, 'Giao tiền chị Thúy'))).loi).toBeDefined()
   expect(m.transaction).not.toHaveBeenCalled()
 })
-it.each(['Tạm ứng thêm', 'Giao tiền chị Thúy', 'Nộp hoàn CQ'] as const)('lưu nội dung đúng tên hình thức %s, bỏ nội dung client', async hinhThuc => {
+it.each(['Tạm ứng thêm', 'Giao tiền chị Thúy', 'Đưa tiền CQ trả thẳng cho Chị Thúy', 'Nộp hoàn CQ'] as const)('lưu nội dung đúng tên hình thức %s, bỏ nội dung client', async hinhThuc => {
   const f = form(false, hinhThuc)
   f.set('noi_dung', 'nội dung giả')
   if (hinhThuc === 'Giao tiền chị Thúy') f.set('giao_tien_chi_thuy', '100000')
+  if (hinhThuc === 'Đưa tiền CQ trả thẳng cho Chị Thúy') {
+    f.set('tam_ung_tu_cq', '0')
+    f.set('dua_tien_cq_tra_thang_cho_chi_thuy', '100000')
+  }
   if (hinhThuc === 'Nộp hoàn CQ') f.set('hoan_ung_tien_mat', '100000')
   expect((await themGiaoDich({}, f)).giaoDichId).toBe('gd-id')
   const insert = m.query.mock.calls.find(c => String(c[0]).startsWith('insert into giao_dich'))
   expect(insert?.[1][2]).toBe(hinhThuc)
+})
+it.each(['tien_mat', 'chuyen_khoan'] as const)('lưu riêng khoản CQ trả thẳng được đưa bằng %s', async hinhThucThanhToan => {
+  const f = form(false, 'Đưa tiền CQ trả thẳng cho Chị Thúy')
+  f.set('tam_ung_tu_cq', '0')
+  f.set('dua_tien_cq_tra_thang_cho_chi_thuy', '2500000')
+  f.set('hinh_thuc_thanh_toan', hinhThucThanhToan)
+  expect((await themGiaoDich({}, f)).giaoDichId).toBe('gd-id')
+  const insert = m.query.mock.calls.find(c => String(c[0]).startsWith('insert into giao_dich'))
+  expect(insert?.[1].slice(13, 17)).toEqual([0, 0, 2_500_000, 0])
+  expect(insert?.[1][28]).toBe(hinhThucThanhToan)
 })
 it('không gắn tệp khi form không có file hóa đơn', async () => {
   expect(await themGiaoDich({}, form(false))).toMatchObject({ giaoDichId: 'gd-id', thanhCong: 'Đã thêm giao dịch.' })

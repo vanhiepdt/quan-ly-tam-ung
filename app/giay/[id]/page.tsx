@@ -31,7 +31,7 @@ export default async function XemGiayPage({ params }: { params: Promise<{ id: st
         ? <p className="notice error">Hình thức của giao dịch này không lập giấy đề nghị.</p>
         : <>
           <p>Mở giấy trong OnlyOffice để chỉnh sửa và in đúng định dạng Word, hoặc tải DOCX về máy. Không in trang web này.</p>
-          <p className="notice">Bản chỉnh sửa trực tuyến được lưu riêng theo giao dịch, không tự thay đổi khi sửa số liệu nhật ký. Bản sửa bằng Word trên máy không tự gửi lại ứng dụng.</p>
+          <p className="notice">Lưu Thông tin giấy đề nghị từ nhật ký sẽ làm mới bản Word hiện hành. Các thay đổi khác trong nhật ký và bản sửa bằng Word trên máy không tự gửi lại ứng dụng.</p>
           {giay.map(loai => <section className="card flex flex-wrap items-center justify-between gap-4 p-5" key={loai}>
             <h2 className="text-lg font-semibold">{TEN_GIAY[loai]}</h2>
             <a className="btn btn-primary" href={`/giay/${id}/${loai}`} download aria-label={`Tải .docx — ${TEN_GIAY[loai]}`}>Tải .docx</a>

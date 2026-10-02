@@ -283,7 +283,7 @@ export async function kiemThuApi(cauHinh: CauHinhAi): Promise<KetQuaKiemThuAi> {
       nhatKy,
     }
   }
-  const them = nhaDocAnh(nha) ? '' : ' Nhà này không đọc ảnh hóa đơn — lớp AI chỉ đối chiếu chữ OCR trên PDF.'
+  const them = nhaDocAnh(nha) ? '' : ' Nhà này đọc được XML nhưng không hỗ trợ ảnh PDF.'
   return {
     thanhCong: `Kết nối ${nha.ten} thành công. Có ${ds.moHinh.length} model. Chat trả “${ping.traLoi}”.${them}`,
     moHinh: ds.moHinh,

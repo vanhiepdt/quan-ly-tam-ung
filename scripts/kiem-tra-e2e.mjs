@@ -198,7 +198,7 @@ try {
   await dialog.locator('[name="nguoi_lay_hd_id"]').selectOption(collector.id)
   await dialog.locator('[name="trang_thai_tt_phi"]').selectOption('Chưa thanh toán')
   await dialog.getByRole('button', { name: 'Lưu giao dịch', exact: true }).click()
-  const warning = page.getByRole('dialog', { name: 'Hoàn ứng vượt dư lý thuyết' })
+  const warning = page.getByRole('dialog', { name: /Hoàn ứng vượt dư(?: TƯ)? lý thuyết/ })
   await expect(warning).toBeVisible()
   const countRefund = async () => (await pool.query('select count(*)::int n from giao_dich where so_hd=$1', ['E2E01'])).rows[0].n
   assert.equal(await countRefund(), 0)

@@ -3,7 +3,7 @@
 import { batBuocVaiTro } from '@/lib/xac-thuc/bao-ve'
 import { db } from '@/lib/db/pool'
 import { schemaGiaoDich } from '@/lib/validation/giao-dich'
-import { canDonVi, hinhThucThanhToanMacDinh } from '@/lib/tai-chinh/hinh-thuc'
+import { canDonVi, HINH_THUC_THANH_TOAN, hinhThucThanhToanMacDinh, lamTronXuongHangNghinMacDinh } from '@/lib/tai-chinh/hinh-thuc'
 import { dungGiay, giayChoHinhThuc } from '@/lib/tai-chinh/giay'
 import { boiCanhGiay } from '@/lib/tai-chinh/cau-hinh-giay'
 import { MAU_WORD } from '@/lib/tai-chinh/in-giay'
@@ -12,6 +12,7 @@ import { dienMauDocx } from '@/lib/van-ban/docx'
 import { taoBanXem } from '@/lib/onlyoffice/xem-truoc'
 
 import { apDungNguoiKy, luaChonNguoiKy } from '@/lib/tai-chinh/chon-nguoi-ky'
+import { taiKhoanTuNhap } from '@/lib/tai-chinh/tai-khoan'
 
 export async function taiNguoiKyGiay() {
   const phien = await batBuocVaiTro('admin', 'nhap_lieu')
@@ -36,11 +37,23 @@ export async function xemGiayNhap(form: FormData, loai: string) {
       if (!rows.length) return { loi: 'Đơn vị tiếp khách không tồn tại hoặc đã bị vô hiệu hóa.' }
       donViTen = rows[0].ten
     }
+    const hinhThucThanhToan = d.hinh_thuc_thanh_toan ?? hinhThucThanhToanMacDinh(d.hinh_thuc)
+    const lamTronXuongHangNghin = d.lam_tron_xuong_hang_nghin
+      ?? lamTronXuongHangNghinMacDinh(d.hinh_thuc, hinhThucThanhToan)
     const giay = dungGiay(giayLoai, {
-      ngay: d.ngay, hinhThuc: d.hinh_thuc,
-      hinhThucThanhToan: d.hinh_thuc_thanh_toan ?? hinhThucThanhToanMacDinh(d.hinh_thuc),
+      ngay: d.ngay, ngayDeNghi: d.ngay_de_nghi, hinhThuc: d.hinh_thuc,
+      hinhThucThanhToan,
       tamUngTuCq: d.tam_ung_tu_cq, tongTien: d.tong_tien, tienRuouBia: d.tien_ruou_bia,
+      tienDuocThanhToan: d.tien_duoc_thanh_toan, lamTronXuongHangNghin,
       donViTen, nguoiLayHdId: d.nguoi_lay_hd_id, kyHieuHd: d.ky_hieu_hd, soHd: d.so_hd,
+      taiKhoanNhanGhiDe: d.hinh_thuc_thanh_toan === HINH_THUC_THANH_TOAN.CHUYEN_KHOAN && d.dung_tai_khoan_mac_dinh === false
+        ? taiKhoanTuNhap({
+            soTaiKhoan: d.tai_khoan_nhan_so,
+            nganHang: d.tai_khoan_nhan_ngan_hang,
+            chiNhanh: d.tai_khoan_nhan_chi_nhanh,
+            tenChuTk: d.tai_khoan_nhan_ten_chu_tk,
+          })
+        : null,
     }, apDungNguoiKy(await boiCanhGiay(phien), form))
     const docx = dienMauDocx(await docMau(MAU_WORD[giayLoai]), giay.thayThe, giay.thayCoDinh).duLieu
     return { viewer: await taoBanXem(docx, `${giay.tieuDe}.docx`) }

@@ -8,10 +8,12 @@ const DON_VI = '11111111-1111-4111-8111-111111111111'
 const DON_VI_KHAC = '22222222-2222-4222-8222-222222222222'
 const NGUOI_LAY = '33333333-3333-4333-8333-333333333333'
 const NGUOI_DUNG = '44444444-4444-4444-8444-444444444444'
+const CAN_BO = '55555555-5555-4555-8555-555555555555'
 
 const boCanh = {
   donVi: { [DON_VI]: 'Phòng Kế hoạch', [DON_VI_KHAC]: 'Phòng Tổ chức' },
   nguoiLayHd: { [NGUOI_LAY]: 'Trần Thị Thúy' },
+  canBo: { [CAN_BO]: 'Nguyễn Văn B' },
   nguoiDung: { [NGUOI_DUNG]: 'Nguyễn Văn A' },
 }
 
@@ -48,6 +50,7 @@ describe('hiển thị một giá trị trong lịch sử', () => {
   it('khóa ngoại được tra sang tên đọc được', () => {
     expect(hienThiGiaTri('don_vi_id', DON_VI, boCanh)).toBe('Phòng Kế hoạch')
     expect(hienThiGiaTri('nguoi_lay_hd_id', NGUOI_LAY, boCanh)).toBe('Trần Thị Thúy')
+    expect(hienThiGiaTri('nguoi_de_nghi_id', CAN_BO, boCanh)).toBe('Nguyễn Văn B')
   })
 
   it('bản ghi đã bị xóa cứng thì lùi về mã rút gọn, không hiện uuid trần', () => {
@@ -173,13 +176,14 @@ describe('dựng một mục lịch sử từ dòng lich_su', () => {
 })
 
 describe('gom mã tham chiếu để tra tên một lượt', () => {
-  it('gom đủ ba loại khóa ngoại từ cả bản cũ lẫn bản mới, không trùng lặp', () => {
+  it('gom đủ các loại khóa ngoại từ cả bản cũ lẫn bản mới, không trùng lặp', () => {
     const ma = gomMaThamChieu([
-      { gia_tri_cu: ban(), gia_tri_moi: ban({ don_vi_id: DON_VI_KHAC }) },
+      { gia_tri_cu: ban(), gia_tri_moi: ban({ don_vi_id: DON_VI_KHAC, nguoi_de_nghi_id: CAN_BO }) },
       { gia_tri_cu: null, gia_tri_moi: ban({ nguoi_lay_hd_id: null }) },
     ])
     expect(ma.donVi.sort()).toEqual([DON_VI, DON_VI_KHAC].sort())
     expect(ma.nguoiLayHd).toEqual([NGUOI_LAY])
+    expect(ma.canBo).toEqual([CAN_BO])
     expect(ma.nguoiDung).toEqual([NGUOI_DUNG])
   })
 
@@ -190,11 +194,18 @@ describe('gom mã tham chiếu để tra tên một lượt', () => {
 
   it('chịu được dòng không có jsonb', () => {
     const ma = gomMaThamChieu([{ gia_tri_cu: null, gia_tri_moi: null }, { gia_tri_cu: 'chuoi', gia_tri_moi: 5 }])
-    expect(ma).toEqual({ donVi: [], nguoiLayHd: [], nguoiDung: [] })
+    expect(ma).toEqual({ donVi: [], nguoiLayHd: [], canBo: [], nguoiDung: [] })
   })
 
   it('bối cảnh rỗng dùng được ngay, không cần khởi tạo ở nơi gọi', () => {
-    expect(boCanhRong()).toEqual({ donVi: {}, nguoiLayHd: {}, nguoiDung: {} })
+    expect(boCanhRong()).toEqual({ donVi: {}, nguoiLayHd: {}, canBo: {}, nguoiDung: {} })
     expect(hienThiGiaTri('don_vi_id', DON_VI)).toBe('11111111…')
   })
+})
+
+
+it('ghi nhận Chi thực tế bằng nhãn dễ đọc khi tạo và sửa giao dịch', () => {
+  const thayDoi = { cot: 'chi_thuc_te', nhan: 'Chi thực tế', cu: 'Không', moi: 'Có' }
+  expect(soSanhThayDoi({ chi_thuc_te: false }, { chi_thuc_te: true })).toEqual([thayDoi])
+  expect(soSanhThayDoi(null, { chi_thuc_te: true })).toEqual([{ ...thayDoi, cu: TRONG }])
 })

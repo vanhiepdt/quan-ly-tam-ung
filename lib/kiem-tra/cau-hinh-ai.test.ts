@@ -23,6 +23,10 @@ describe('đọc cấu hình AI', () => {
     }))).toEqual({
       dangHoatDong: false, nhaCungCap: 'openai', moHinh: 'gpt-4o',
       khoaApi: 'sk-live', urlCoSo: '',
+      ai2: {
+        nhaCungCap: 'google', moHinh: 'gemini-2.5-flash',
+        khoaApi: '', urlCoSo: '',
+      },
     })
   })
 

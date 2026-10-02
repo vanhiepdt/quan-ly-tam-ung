@@ -1,8 +1,11 @@
-import type { DonViDoiChieu, DuLieuDocTuHoaDon, KetQuaDocHoaDon, PhatHien, TrangThaiKiemTra } from './giao-dien'
-import { TRUONG_KHOA_QR } from './giao-dien'
+import type { DonViDoiChieu, DuLieuDocTuHoaDon, DongHang, KetQuaDocHoaDon, PhatHien, TrangThaiKiemTra } from './giao-dien'
 import { doanCotTienHang, doanLoaiHoaDon, nhanLoaiHoaDon } from './loai-hoa-don'
-import { giongChuoi, giongMst, giongTien, hienThiMst } from './qr-hoa-don'
-import { congTienRuouBia, ganCoRuouBiaTuAi, tienRuouBiaCuaLop } from './ruou-bia'
+import { giongChuoi, giongMst, giongTien, hienThiMst } from './so-sanh'
+import { congTienRuouBia, tienRuouBiaCuaLop } from './ruou-bia'
+import { laSoTienHopLe } from './tien'
+
+type Nguon = 'ai1' | 'ai2' | 'xml'
+type Lop = { id: Nguon; nhan: string; doc: DuLieuDocTuHoaDon | null }
 
 const NHAN: Record<string, string> = {
   kyHieuHd: 'ký hiệu hóa đơn',
@@ -22,7 +25,7 @@ const TRUONG_DIEN = [
   'mstMuaHang', 'tenMuaHang', 'diaChiMuaHang', 'tongTien', 'tienThue',
 ] as const
 
-const KHOA_QR = new Set<string>(TRUONG_KHOA_QR)
+const TRUONG_TIEN = new Set<keyof DuLieuDocTuHoaDon>(['tongTien', 'tongCong', 'tienThue', 'tienRuouBia'])
 
 function giaTri(doc: DuLieuDocTuHoaDon, khoa: keyof DuLieuDocTuHoaDon): unknown {
   return doc[khoa]
@@ -32,90 +35,47 @@ function coGiaTri(value: unknown): boolean {
   return value !== undefined && value !== ''
 }
 
-function giongTruong(khoa: keyof DuLieuDocTuHoaDon, a?: DuLieuDocTuHoaDon, b?: DuLieuDocTuHoaDon): boolean {
-  if (!a || !b) return true
-  const x = giaTri(a, khoa), y = giaTri(b, khoa)
-  if (!coGiaTri(x) || !coGiaTri(y)) return true
-  if (khoa === 'mstBanHang' || khoa === 'mstMuaHang') return giongMst(String(x), String(y))
-  if (khoa === 'tongTien' || khoa === 'tongCong' || khoa === 'tienThue' || khoa === 'tienRuouBia') {
-    return giongTien(Number(x), Number(y))
-  }
-  if (khoa === 'tenMuaHang' || khoa === 'tenBanHang') return tenGanDung(String(x), String(y))
-  if (khoa === 'diaChiMuaHang') return diaChiGanDung(String(x), String(y))
-  return giongChuoi(String(x), String(y))
+function coGiaTriTruong(khoa: keyof DuLieuDocTuHoaDon, value: unknown): boolean {
+  return TRUONG_TIEN.has(khoa) ? laSoTienHopLe(value) : coGiaTri(value)
 }
 
-function canhBaoLech(ma: string, khoa: string, thongDiep: string): PhatHien {
-  return { muc: 'canh_bao', ma, truong: khoa, thongDiep }
+function soHdChuan(value: unknown): string | undefined {
+  if (typeof value !== 'string') return
+  const s = value.trim()
+  if (!/^\d+$/.test(s)) return
+  return s.replace(/^0+/, '') || '0'
 }
 
-function chonGiaTri(
-  khoa: (typeof TRUONG_DIEN)[number],
-  qr: DuLieuDocTuHoaDon | null,
-  ocr: DuLieuDocTuHoaDon | null,
-  ai: DuLieuDocTuHoaDon | null,
-): { giaTri: unknown; phat: PhatHien[] } {
-  const vQr = qr ? giaTri(qr, khoa) : undefined
-  const vOcr = ocr ? giaTri(ocr, khoa) : undefined
-  const vAi = ai ? giaTri(ai, khoa) : undefined
-  const phat: PhatHien[] = []
-  const nhan = NHAN[khoa] ?? khoa
-
-  if (KHOA_QR.has(khoa) && coGiaTri(vQr)) {
-    if (qr && ai && coGiaTri(vAi) && !giongTruong(khoa, qr, ai)) {
-      phat.push(canhBaoLech('ai_lech_qr', khoa, `AI đọc ${nhan} khác QR. Giữ giá trị QR.`))
-    }
-    if (qr && ocr && coGiaTri(vOcr) && !giongTruong(khoa, qr, ocr)) {
-      phat.push(canhBaoLech('ocr_lech_qr', khoa, `OCR đọc ${nhan} khác QR. Giữ giá trị QR.`))
-    }
-    return { giaTri: vQr, phat }
-  }
-
-  if (coGiaTri(vOcr) && coGiaTri(vAi)) {
-    if (ocr && ai && !giongTruong(khoa, ocr, ai)) {
-      phat.push(canhBaoLech('ocr_lech_ai', khoa, `OCR và AI đọc ${nhan} khác nhau. Giữ chữ trên trang hóa đơn.`))
-    }
-    return { giaTri: vOcr, phat }
-  }
-  if (coGiaTri(vOcr)) {
-    if (ai) {
-      phat.push(canhBaoLech('ai_thieu_truong', khoa, `AI không đọc được ${nhan}. Lấy từ chữ trên hóa đơn (OCR).`))
-    }
-    return { giaTri: vOcr, phat }
-  }
-  if (coGiaTri(vAi)) {
-    if (ocr) {
-      phat.push(canhBaoLech('ocr_thieu_truong', khoa, `OCR không đọc được ${nhan}. Lấy từ AI.`))
-    }
-    return { giaTri: vAi, phat }
-  }
-  if (coGiaTri(vQr)) return { giaTri: vQr, phat }
-  return { giaTri: undefined, phat }
+function soHdCungGiaTri(a: unknown, b: unknown): boolean {
+  const x = soHdChuan(a), y = soHdChuan(b)
+  return x !== undefined && y !== undefined && x === y
 }
 
-function boDau(value: string): string {
-  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+function soHdUuTienSoKhong(...values: unknown[]): string | undefined {
+  const dau = typeof values[0] === 'string' ? values[0].trim() : ''
+  const goc = soHdChuan(dau)
+  if (goc === undefined) return
+  const ds = values.filter((value): value is string => typeof value === 'string' && soHdChuan(value.trim()) === goc)
+  return ds.sort((a, b) => b.trim().length - a.trim().length)[0]?.trim()
+}
+
+function tenGanDung(a: string, b: string): boolean {
+  const chuan = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
     .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
-}
-
-export function tenGanDung(a?: string, b?: string): boolean {
-  const x = boDau(a ?? ''), y = boDau(b ?? '')
+  const x = chuan(a), y = chuan(b)
   if (!x || !y) return true
   if (x === y) return true
   const ngan = x.length <= y.length ? x : y
   const dai = x.length <= y.length ? y : x
-  // Tên ngắn chỉ được coi là khớp khi chiếm phần lớn tên dài, tránh “Trung tâm Đào tạo”
-  // nuốt hết “Trung tâm Đào tạo Ngân hàng Chính sách xã hội”.
   return dai.startsWith(ngan) && ngan.length >= Math.min(24, Math.floor(dai.length * 0.7))
 }
 
+export { tenGanDung }
+
 function chuanHoaDiaChi(value: string): string {
-  return boDau(value)
-    .replace(/\bviet nam\b/g, ' ')
-    .replace(/\bthanh pho\b/g, 'tp')
-    .replace(/\bso\b/g, ' ')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
+  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .toLowerCase().replace(/\bviet nam\b/g, ' ').replace(/\bthanh pho\b/g, 'tp').replace(/\bso\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
 export function diaChiGanDung(a?: string, b?: string): boolean {
@@ -155,7 +115,7 @@ export function doiChieuNguoiMua(deXuat: DuLieuDocTuHoaDon, donVi: DonViDoiChieu
   } else if (!deXuat.tenMuaHang) {
     phatHien.push({
       muc: 'canh_bao', ma: 'ten_mua_thieu', truong: 'tenMuaHang',
-      thongDiep: `Không đọc được tên đơn vị mua hàng. Tên đơn vị phải là “${tenDonVi}” (hoa/thường chữ đầu không ảnh hưởng).`,
+      thongDiep: `Không đọc được tên đơn vị mua hàng. Tên đơn vị phải là “${tenDonVi}”.`,
     })
   } else if (!tenGanDung(deXuat.tenMuaHang, tenDonVi)) {
     phatHien.push({
@@ -184,114 +144,160 @@ export function doiChieuNguoiMua(deXuat: DuLieuDocTuHoaDon, donVi: DonViDoiChieu
   return phatHien
 }
 
-function hopDongHang(
-  ocr: DuLieuDocTuHoaDon | null,
-  ai: DuLieuDocTuHoaDon | null,
-): DuLieuDocTuHoaDon['dongHang'] {
-  const ocrDong = ocr?.dongHang ?? []
-  const aiDong = ai?.dongHang ?? []
-  if (ocrDong.length) return ocrDong
-  if (aiDong.length) return aiDong
+function giongTruong(khoa: keyof DuLieuDocTuHoaDon, a: DuLieuDocTuHoaDon, b: DuLieuDocTuHoaDon): boolean {
+  const x = giaTri(a, khoa), y = giaTri(b, khoa)
+  if (!coGiaTriTruong(khoa, x) || !coGiaTriTruong(khoa, y)) return true
+  if (khoa === 'soHd' && soHdCungGiaTri(x, y)) return true
+  if (khoa === 'mstBanHang' || khoa === 'mstMuaHang') return giongMst(String(x), String(y))
+  if (khoa === 'tongTien' || khoa === 'tongCong' || khoa === 'tienThue' || khoa === 'tienRuouBia') return giongTien(Number(x), Number(y))
+  if (khoa === 'tenMuaHang' || khoa === 'tenBanHang') return tenGanDung(String(x), String(y))
+  if (khoa === 'diaChiMuaHang') return diaChiGanDung(String(x), String(y))
+  return giongChuoi(String(x), String(y))
 }
 
-// QR khóa số in trên mã. OCR đọc chữ trang. AI đối chiếu. Người mua lấy từ OCR∩AI.
-export function hopNhatBaLop(
-  qr: DuLieuDocTuHoaDon | null,
-  ocr: DuLieuDocTuHoaDon | null,
-  ai: DuLieuDocTuHoaDon | null,
-): KetQuaDocHoaDon {
+function canhBaoLech(khoa: string, lopA: string, lopB: string): PhatHien {
+  return {
+    muc: 'canh_bao', ma: 'ai_lech', truong: khoa,
+    thongDiep: `${lopA} và ${lopB} đọc ${NHAN[khoa] ?? khoa} khác nhau. Hãy soát lại bản gốc.`,
+  }
+}
+
+function cacLop(ai1: DuLieuDocTuHoaDon | null, ai2: DuLieuDocTuHoaDon | null, xml: DuLieuDocTuHoaDon | null): Lop[] {
+  return [
+    { id: 'ai1', nhan: 'AI 1', doc: ai1 },
+    { id: 'ai2', nhan: 'AI 2', doc: ai2 },
+    { id: 'xml', nhan: 'XML', doc: xml },
+  ]
+}
+
+function chonGiaTri(
+  khoa: (typeof TRUONG_DIEN)[number],
+  lop: readonly Lop[],
+): { giaTri: unknown; phat: PhatHien[] } {
+  const co = lop.filter(l => l.doc && coGiaTriTruong(khoa, giaTri(l.doc, khoa))) as Array<Lop & { doc: DuLieuDocTuHoaDon }>
+  if (!co.length) return { giaTri: undefined, phat: [] }
+  const phat: PhatHien[] = []
+  for (let i = 0; i < co.length; i++) {
+    for (let j = i + 1; j < co.length; j++) {
+      if (!giongTruong(khoa, co[i].doc, co[j].doc)) phat.push(canhBaoLech(khoa, co[i].nhan, co[j].nhan))
+    }
+  }
+  const ai1 = co.find(l => l.id === 'ai1')
+  const ai2 = co.find(l => l.id === 'ai2')
+  const xml = co.find(l => l.id === 'xml')
+  const xmlKhớpAi = xml && (ai1 && giongTruong(khoa, xml.doc, ai1.doc) || ai2 && giongTruong(khoa, xml.doc, ai2.doc))
+  const uuTien = xmlKhớpAi ? xml : ai1 ?? xml ?? ai2
+  const values = co.map(l => giaTri(l.doc, khoa))
+  const giaTriChon = khoa === 'soHd' ? soHdUuTienSoKhong(giaTri(uuTien!.doc, khoa), ...values) ?? giaTri(uuTien!.doc, khoa) : giaTri(uuTien!.doc, khoa)
+  return { giaTri: giaTriChon, phat }
+}
+
+function chonDongHang(lop: readonly Lop[]): { dong?: DongHang[]; nguon?: Nguon } {
+  for (const id of ['xml', 'ai1', 'ai2'] as const) {
+    const doc = lop.find(l => l.id === id)?.doc
+    if (doc?.dongHang?.length) return { dong: doc.dongHang, nguon: id }
+  }
+  return {}
+}
+
+function canhBaoDongHang(lop: readonly Lop[], selected: Nguon | undefined): PhatHien[] {
+  if (!selected || selected === 'xml') return []
+  const chon = lop.find(l => l.id === selected)?.doc?.dongHang ?? []
+  const phat: PhatHien[] = []
+  for (const other of lop.filter(l => l.id !== selected)) {
+    for (const dong of chon) {
+      const ten = dong.ten.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+      const match = other.doc?.dongHang?.find(d => {
+        const tenKhac = d.ten.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+        return ten && tenKhac && (ten === tenKhac || ten.includes(tenKhac) || tenKhac.includes(ten))
+      })
+      if (match?.laRuouBia !== undefined && dong.laRuouBia !== undefined && match.laRuouBia !== dong.laRuouBia) {
+        phat.push({ muc: 'canh_bao', ma: 'dong_hang_lech', truong: 'dongHang', thongDiep: `Hai nguồn xác định khoản không được thanh toán của dòng “${dong.ten}” khác nhau. Dùng kết quả đã chọn và soát lại.` })
+      }
+    }
+  }
+  return phat
+}
+
+function hopNhatNoiBo(ai1: DuLieuDocTuHoaDon | null, ai2: DuLieuDocTuHoaDon | null, xml: DuLieuDocTuHoaDon | null): KetQuaDocHoaDon {
+  const lop = cacLop(ai1, ai2, xml)
   const phatHien: PhatHien[] = []
-  const soNguon = [qr, ocr, ai].filter(Boolean).length
-  if (!qr) phatHien.push({
-    muc: 'canh_bao', ma: 'qr_khong_doc_duoc',
-    thongDiep: 'Không đọc được QR hóa đơn điện tử. Đối chiếu bằng OCR và AI, hãy soát kỹ hơn.',
-  })
-  if (!ocr) phatHien.push({
-    muc: 'canh_bao', ma: 'ocr_khong_doc_duoc',
-    thongDiep: 'Không đọc được chữ trên trang hóa đơn (OCR). Đối chiếu bằng QR và AI.',
-  })
-  if (!ai) phatHien.push({
-    muc: 'canh_bao', ma: 'ai_khong_chay',
-    thongDiep: 'Lớp AI không chạy được. Đối chiếu bằng QR và OCR (có thể thiếu tiền rượu bia).',
-  })
-  if (soNguon === 1) phatHien.push({
-    muc: 'canh_bao', ma: 'mot_nguon',
-    thongDiep: 'Chỉ một lớp đọc được hóa đơn nên không đối chiếu chéo được. Hãy soát kỹ hơn.',
-  })
+  if (!ai1) phatHien.push({ muc: 'canh_bao', ma: 'ai1_khong_chay', thongDiep: 'AI 1 không trả được kết quả.' })
+  if (!ai2) phatHien.push({ muc: 'canh_bao', ma: 'ai2_khong_chay', thongDiep: 'AI 2 không trả được kết quả.' })
+  const soNguon = lop.filter(l => l.doc).length
+  if (soNguon === 1) phatHien.push({ muc: 'canh_bao', ma: 'mot_nguon', thongDiep: 'Chỉ một nguồn đọc được hóa đơn nên chưa có đối chiếu chéo đầy đủ.' })
 
   const deXuat: DuLieuDocTuHoaDon = {}
   for (const khoa of TRUONG_DIEN) {
-    const { giaTri: value, phat } = chonGiaTri(khoa, qr, ocr, ai)
-    phatHien.push(...phat)
-    if (coGiaTri(value)) (deXuat as Record<string, unknown>)[khoa] = value
+    const result = chonGiaTri(khoa, lop)
+    phatHien.push(...result.phat)
+    if (coGiaTriTruong(khoa, result.giaTri)) (deXuat as Record<string, unknown>)[khoa] = result.giaTri
   }
   if (deXuat.tongTien !== undefined) deXuat.tongCong = deXuat.tongTien
 
-  let dongHang = hopDongHang(ocr, ai)
-  if (dongHang?.length && ai?.dongHang?.length) dongHang = ganCoRuouBiaTuAi(dongHang, ai.dongHang)
+  const { dong, nguon } = chonDongHang(lop)
   const loaiHd = doanLoaiHoaDon({
-    loaiHd: ocr?.loaiHd, loaiHdPhu: ai?.loaiHd,
-    kyHieuHd: deXuat.kyHieuHd ?? qr?.kyHieuHd ?? ocr?.kyHieuHd ?? ai?.kyHieuHd,
+    loaiHd: deXuat.loaiHd,
+    loaiHdPhu: xml?.loaiHd ?? ai1?.loaiHd ?? ai2?.loaiHd,
+    kyHieuHd: deXuat.kyHieuHd,
   })
   const cotTienHang = doanCotTienHang({
-    cotTienHang: ocr?.cotTienHang, cotTienHangPhu: ai?.cotTienHang,
-    dongHang, loaiHd,
+    cotTienHang: xml?.cotTienHang ?? ai1?.cotTienHang ?? ai2?.cotTienHang,
+    cotTienHangPhu: ai1?.cotTienHang ?? ai2?.cotTienHang,
+    dongHang: dong,
+    loaiHd,
   })
   if (loaiHd) deXuat.loaiHd = loaiHd
   if (cotTienHang) deXuat.cotTienHang = cotTienHang
   const tenLoai = nhanLoaiHoaDon(loaiHd)
-  if (tenLoai) {
-    phatHien.push({
-      muc: 'thong_tin', ma: loaiHd === 'gtgt' ? 'loai_hd_gtgt' : 'loai_hd_ban_hang',
-      thongDiep: `Nhận ${tenLoai}${cotTienHang === 'sau_thue' ? ', cột thành tiền đã gồm thuế GTGT' : cotTienHang === 'truoc_thue' ? ', cột thành tiền chưa gồm thuế GTGT' : ''}.`,
-    })
-  }
+  if (tenLoai) phatHien.push({
+    muc: 'thong_tin', ma: loaiHd === 'gtgt' ? 'loai_hd_gtgt' : 'loai_hd_ban_hang',
+    thongDiep: `Nhận ${tenLoai}${cotTienHang === 'sau_thue' ? ', cột thành tiền đã gồm thuế GTGT' : cotTienHang === 'truoc_thue' ? ', cột thành tiền chưa gồm thuế GTGT' : ''}.`,
+  })
 
-  let tienDong: number | undefined
-  if (dongHang?.length) {
-    const { tien, dong } = congTienRuouBia(dongHang, loaiHd, cotTienHang)
-    deXuat.dongHang = dong
-    tienDong = tien
+  if (dong?.length) {
+    const tinh = congTienRuouBia(dong, loaiHd, cotTienHang)
+    deXuat.dongHang = tinh.dong
+    deXuat.tienRuouBia = tinh.tien
+    const baoCao = lop.map(l => ({ lop: l.nhan, tien: tienRuouBiaCuaLop(l.doc, loaiHd, cotTienHang) }))
+      .filter(x => x.tien !== undefined)
+    const tongRiengLech = lop.some(l => l.doc?.tienRuouBia !== undefined && !giongTien(l.doc.tienRuouBia, tinh.tien))
+    if (tongRiengLech || baoCao.some(x => x.tien !== tinh.tien)) {
+      phatHien.push({
+        muc: 'canh_bao', ma: 'ruou_bia_lech', truong: 'tienRuouBia',
+        thongDiep: `Tiền không được thanh toán được tính lại từ toàn bộ dòng hàng sau thuế là ${tinh.tien.toLocaleString('vi-VN')}đ; số riêng do nguồn đọc trả về đã được bỏ qua.`,
+      })
+    }
+  } else {
+    const baoCao = lop.map(l => ({ lop: l.nhan, tien: tienRuouBiaCuaLop(l.doc, loaiHd, cotTienHang) }))
+      .filter(x => x.tien !== undefined)
+    if (baoCao.length) {
+      const first = baoCao[0].tien!
+      if (baoCao.some(x => !giongTien(x.tien, first))) phatHien.push({ muc: 'canh_bao', ma: 'ruou_bia_lech', truong: 'tienRuouBia', thongDiep: 'Hai nguồn đọc tiền không được thanh toán khác nhau. Đã ưu tiên AI 1; hãy soát lại hóa đơn.' })
+      deXuat.tienRuouBia = first
+    }
   }
-
-  // AI kiểm rượu bia: khóa JSON, không thì cộng dòng AI, không thì cộng dòng đã gắn (danh mục).
-  // Không bịa số khi AI không chạy — bảng đối chiếu hiện “không đọc được”.
-  const tienAi = tienRuouBiaCuaLop(ai, loaiHd, cotTienHang)
-  if (tienAi !== undefined && tienDong !== undefined && !giongTien(tienAi, tienDong)) {
-    phatHien.push({
-      muc: 'canh_bao', ma: 'ruou_bia_lech', truong: 'tienRuouBia',
-      thongDiep: `AI ghi tiền rượu bia ${tienAi.toLocaleString('vi-VN')}đ, cộng dòng hàng được ${tienDong.toLocaleString('vi-VN')}đ. Lấy số AI.`,
-    })
-  }
-  if (tienAi !== undefined) deXuat.tienRuouBia = tienAi
-  else if (ocr?.tienRuouBia !== undefined) deXuat.tienRuouBia = ocr.tienRuouBia
-  else if (ai && tienDong !== undefined && deXuat.dongHang?.some(d => d.laRuouBia)) {
-    deXuat.tienRuouBia = tienDong
-  }
+  phatHien.push(...canhBaoDongHang(lop, nguon))
 
   if (deXuat.tienRuouBia !== undefined && deXuat.tongTien !== undefined && deXuat.tienRuouBia > deXuat.tongTien) {
-    phatHien.push({
-      muc: 'loi', ma: 'ruou_bia_vuot_tong', truong: 'tienRuouBia',
-      thongDiep: 'Tiền rượu bia lớn hơn tổng tiền. Không điền số rượu bia, hãy nhập tay.',
-    })
+    phatHien.push({ muc: 'loi', ma: 'ruou_bia_vuot_tong', truong: 'tienRuouBia', thongDiep: 'Tiền không được thanh toán lớn hơn tổng tiền. Không điền số này, hãy nhập tay.' })
     delete deXuat.tienRuouBia
   }
 
-  const aiKetQua = ai && tienAi !== undefined && ai.tienRuouBia === undefined
-    ? { ...ai, tienRuouBia: tienAi }
-    : ai
-
   let trangThai: TrangThaiKiemTra
-  if (!qr && !ocr && !ai) trangThai = 'loi_ky_thuat'
+  if (!soNguon) trangThai = 'loi_ky_thuat'
   else if (phatHien.some(p => p.muc === 'loi')) trangThai = 'khong_hop_le'
   else if (phatHien.some(p => p.muc === 'canh_bao')) trangThai = 'co_canh_bao'
   else trangThai = 'hop_le'
-
-  return { trangThai, deXuat, qr, ocr, ai: aiKetQua, phatHien }
+  return { trangThai, deXuat, ai1, ai2, xml, phatHien }
 }
 
-export function hopNhatHaiLop(qr: DuLieuDocTuHoaDon | null, ai: DuLieuDocTuHoaDon | null): KetQuaDocHoaDon {
-  return hopNhatBaLop(qr, null, ai)
+export function hopNhatHaiAi(ai1: DuLieuDocTuHoaDon | null, ai2: DuLieuDocTuHoaDon | null, xml: DuLieuDocTuHoaDon | null = null): KetQuaDocHoaDon {
+  return hopNhatNoiBo(ai1, ai2, xml)
+}
+
+export function hopNhatHaiLop(ai1: DuLieuDocTuHoaDon | null, ai2: DuLieuDocTuHoaDon | null): KetQuaDocHoaDon {
+  return hopNhatHaiAi(ai1, ai2)
 }
 
 export function ganTrangThai(ketQua: KetQuaDocHoaDon, them: PhatHien[]): KetQuaDocHoaDon {

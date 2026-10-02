@@ -7,16 +7,16 @@ const row = {
   id: 'g1', ngay: '2026-01-15', soThuTu: 1, taoLuc: '2026-01-15T00:00:00.000Z',
   noiDung: 'Tiếp Phòng Kế hoạch', kyHieuHd: '1C26MTT', soHd: '00123456', loaiHd: 'Hóa đơn Giá trị gia tăng',
   trangThaiHd: TRANG_THAI.HOP_LE, hinhThuc: HINH_THUC.HOAN_TAM_UNG, tongTien: 5_647_000, tienRuouBia: 500_000,
-  tamUngTuCq: 0, giaoTienChiThuy: 0, hoanUngTienMat: 0, nguoiLayHdId: null, nguoiLayHdTen: null,
-  phiLayHdGhiDe: null, trangThaiTtPhi: 'Chưa thanh toán', ghiChu: null,
+  tamUngTuCq: 0, giaoTienChiThuy: 0, duaTienCqTraThangChoChiThuy: 0, hoanUngTienMat: 0, nguoiDeNghiId: null, nguoiDeNghiTen: null, nguoiLayHdId: null, nguoiLayHdTen: null,
+  phiLayHdGhiDe: null, coTinhPhi: true, trangThaiTtPhi: 'Chưa thanh toán', ghiChu: null,
   donViId: DON_VI, donViTen: 'Phòng Kế hoạch', hinhThucThanhToan: null, taiKhoanNhan: null, coHoaDon: true, coChuyenKhoan: false,
-  hoanTamUng: 5_147_000, cqTraThang: 0, phiLayHd: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0,
+  hoanTamUng: 5_147_000, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0,
 }
 
 describe('danh sách trường được sửa theo vai trò và hình thức', () => {
   it('nhap_lieu chỉ thấy ngày, trường chứng từ, đơn vị, hình thức thanh toán và ghi chú', () => {
     const ids = truongSuaCho('nhap_lieu', HINH_THUC.HOAN_TAM_UNG).map(t => t.id)
-    expect(ids).toEqual(['ngay', 'ky_hieu_hd', 'so_hd', 'loai_hd', 'trang_thai_hd', 'don_vi_id', 'hinh_thuc_thanh_toan', 'ghi_chu'])
+    expect(ids).toEqual(['ngay', 'ngay_de_nghi', 'ky_hieu_hd', 'so_hd', 'loai_hd', 'trang_thai_hd', 'don_vi_id', 'hinh_thuc_thanh_toan', 'ghi_chu'])
     expect(ids).not.toContain('tong_tien')
     expect(ids).not.toContain('trang_thai_tt_phi')
   })
@@ -24,7 +24,7 @@ describe('danh sách trường được sửa theo vai trò và hình thức', (
   it('ngày phát sinh sửa được ở mọi hình thức, kể cả hình thức không gắn đơn vị', () => {
     // Ngày là thuộc tính của cả giao dịch, không phụ thuộc hình thức, nên không
     // được giới hạn theo hinhThuc như các trường tiền.
-    for (const hinhThuc of [HINH_THUC.HOAN_TAM_UNG, HINH_THUC.TAM_UNG_THEM, HINH_THUC.GIAO_CHI_THUY, HINH_THUC.NOP_HOAN_CQ, HINH_THUC.CQ_TRA_THANG]) {
+    for (const hinhThuc of [HINH_THUC.HOAN_TAM_UNG, HINH_THUC.TAM_UNG_THEM, HINH_THUC.GIAO_CHI_THUY, HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY, HINH_THUC.NOP_HOAN_CQ, HINH_THUC.CQ_TRA_THANG]) {
       expect(truongSuaCho('nhap_lieu', hinhThuc).map(t => t.id)).toContain('ngay')
     }
     expect(timTruongSua('ngay')!.kieu).toBe('ngay')
@@ -40,7 +40,7 @@ describe('danh sách trường được sửa theo vai trò và hình thức', (
     expect(hoanTamUng).not.toContain('hoan_ung_tien_mat')
 
     const tamUng = truongSuaCho('admin', HINH_THUC.TAM_UNG_THEM).map(t => t.id)
-    expect(tamUng).toEqual(['ngay', 'ky_hieu_hd', 'so_hd', 'loai_hd', 'trang_thai_hd', 'tam_ung_tu_cq', 'hinh_thuc_thanh_toan', 'ghi_chu'])
+    expect(tamUng).toEqual(['ngay', 'hinh_thuc', 'ky_hieu_hd', 'so_hd', 'loai_hd', 'trang_thai_hd', 'tam_ung_tu_cq', 'hinh_thuc_thanh_toan', 'ghi_chu'])
   })
 
   it('mỗi hình thức chỉ mở đúng một trường dòng tiền', () => {
@@ -48,6 +48,7 @@ describe('danh sách trường được sửa theo vai trò và hình thức', (
       .filter(t => t.nhom === 'dongTien').map(t => t.id)
     expect(dongTien(HINH_THUC.TAM_UNG_THEM)).toEqual(['tam_ung_tu_cq'])
     expect(dongTien(HINH_THUC.GIAO_CHI_THUY)).toEqual(['giao_tien_chi_thuy'])
+    expect(dongTien(HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY)).toEqual(['dua_tien_cq_tra_thang_cho_chi_thuy'])
     expect(dongTien(HINH_THUC.NOP_HOAN_CQ)).toEqual(['hoan_ung_tien_mat'])
     expect(dongTien(HINH_THUC.CQ_TRA_THANG)).toEqual([])
   })
@@ -148,6 +149,7 @@ describe('chuẩn hóa giá trị khi sửa', () => {
     expect(giaTriHienTai(row, 'so_hd')).toBe('00123456')
     expect(giaTriHienTai(row, 'phi_lay_hd_ghi_de')).toBe('')
     expect(giaTriHienTai(row, 'tong_tien')).toBe('5647000')
+    expect(giaTriHienTai({ ...row, duaTienCqTraThangChoChiThuy: 2_500_000 }, 'dua_tien_cq_tra_thang_cho_chi_thuy')).toBe('2500000')
     expect(giaTriHienTai(row, 'don_vi_id')).toBe(DON_VI)
     expect(giaTriHienTai(row, 'ghi_chu')).toBe('')
     expect(giaTriHienTai(row, 'khong_ton_tai')).toBe('')
@@ -155,7 +157,7 @@ describe('chuẩn hóa giá trị khi sửa', () => {
 
   it('mọi trường sửa đều có nhóm hợp lệ và mã không trùng', () => {
     expect(new Set(TRUONG_SUA.map(t => t.id)).size).toBe(TRUONG_SUA.length)
-    const nhom = new Set(['ngayPhatSinh', 'chungTu', 'tienHd', 'dongTien', 'donVi', 'giay', 'ghiChu'])
+    const nhom = new Set(['ngayPhatSinh', 'hinhThuc', 'chungTu', 'tienHd', 'dongTien', 'donVi', 'giay', 'ghiChu'])
     for (const t of TRUONG_SUA) expect(nhom.has(t.nhom)).toBe(true)
   })
 
@@ -166,4 +168,16 @@ describe('chuẩn hóa giá trị khi sửa', () => {
       expect(TRUONG_SUA.filter(t => t.nhom === n.id).length).toBeGreaterThan(0)
     }
   })
+})
+
+
+it('Chi thực tế chỉ có trên hai hình thức hóa đơn và đọc đúng lựa chọn đã lưu', () => {
+  const truong = timTruongSua('chi_thuc_te')!
+  expect(apDungChoHinhThuc(truong, HINH_THUC.HOAN_TAM_UNG)).toBe(true)
+  expect(apDungChoHinhThuc(truong, HINH_THUC.CQ_TRA_THANG)).toBe(true)
+  expect(apDungChoHinhThuc(truong, HINH_THUC.TAM_UNG_THEM)).toBe(false)
+  expect(giaTriHienTai(row, 'chi_thuc_te')).toBe('0')
+  expect(giaTriHienTai({ ...row, chiThucTe: true }, 'chi_thuc_te')).toBe('1')
+  expect(chuanHoaGiaTri(truong, '1')).toEqual({ ok: true, giaTri: '1' })
+  expect(chuanHoaGiaTri(truong, 'khong_hop_le')).toMatchObject({ ok: false })
 })

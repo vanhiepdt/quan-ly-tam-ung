@@ -22,6 +22,9 @@ export async function kiemTraVaLuuTep(tep: File, loaiChu: string, giaoDichId: st
   if (LOAI_TEP_CHI_PDF.has(loaiChu) && mime !== 'application/pdf') {
     return { ok: false, loi: 'Tờ trình và giấy đề nghị đã ký chỉ nhận PDF.' }
   }
+  if (loaiChu === 'hoa_don' && mime !== 'application/pdf' && mime !== 'application/xml') {
+    return { ok: false, loi: 'Hóa đơn chỉ nhận PDF hoặc XML.' }
+  }
   const ten = `${randomUUID()}.${ext}`
   const tuongDoi = `${giaoDichId}/${ten}`
   const goc = path.resolve(GOC_TEP) + path.sep

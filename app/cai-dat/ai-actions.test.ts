@@ -71,6 +71,10 @@ describe('luuCauHinhAi', () => {
     expect(giaTri).toEqual({
       dangHoatDong: true, nhaCungCap: 'openai', moHinh: 'gpt-4o',
       khoaApi: 'sk-moi', urlCoSo: '',
+      ai2: {
+        nhaCungCap: 'google', moHinh: 'gemini-2.5-flash',
+        khoaApi: '', urlCoSo: '',
+      },
     })
     expect(revalidatePath).toHaveBeenCalledExactlyOnceWith('/cai-dat')
   })

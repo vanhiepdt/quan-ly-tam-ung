@@ -16,11 +16,18 @@ const NHAN_COT: Record<string, string> = {
   loai_hd: 'Loại chứng từ',
   trang_thai_hd: 'Trạng thái hóa đơn',
   hinh_thuc: 'Hình thức',
+  chi_thuc_te: 'Chi thực tế',
   tong_tien: 'Tổng tiền',
-  tien_ruou_bia: 'Tiền rượu bia loại trừ',
+  tien_ruou_bia: 'Tiền không được thanh toán',
   tam_ung_tu_cq: 'Tạm ứng từ cơ quan',
-  giao_tien_chi_thuy: 'Giao tiền chị Thúy',
+  giao_tien_chi_thuy: 'Giao tiền TƯ cho Chị Thúy',
+  dua_tien_cq_tra_thang_cho_chi_thuy: 'Đưa tiền CQ trả thẳng cho Chị Thúy',
   hoan_ung_tien_mat: 'Nộp lại tiền mặt',
+  nguoi_de_nghi_id: 'Người đề nghị',
+  lanh_dao_tiep_khach_id: 'Lãnh đạo duyệt giấy tiếp khách',
+  lanh_dao_thanh_toan_id: 'Lãnh đạo duyệt giấy thanh toán',
+  truong_phong_id: 'Trưởng phòng',
+  ke_toan_kiem_soat_id: 'Kế toán kiểm soát',
   nguoi_lay_hd_id: 'Người lấy hóa đơn',
   phi_lay_hd_ghi_de: 'Phí ghi đè',
   trang_thai_tt_phi: 'Trạng thái thanh toán phí',
@@ -35,25 +42,26 @@ const NHAN_COT: Record<string, string> = {
 
 // Cột tiền: hiển thị theo định dạng tiền Việt Nam thay vì chuỗi số thô.
 const COT_TIEN = new Set([
-  'tong_tien', 'tien_ruou_bia', 'tam_ung_tu_cq', 'giao_tien_chi_thuy',
+  'tong_tien', 'tien_ruou_bia', 'tam_ung_tu_cq', 'giao_tien_chi_thuy', 'dua_tien_cq_tra_thang_cho_chi_thuy',
   'hoan_ung_tien_mat', 'phi_lay_hd_ghi_de',
 ])
 // Cột mốc thời gian tự đổi mỗi lần ghi nên không phải là nội dung người dùng sửa.
 // Người thao tác đã hiển thị riêng ở đầu mỗi mục, không lặp lại trong bảng thay đổi.
 const COT_BO_QUA = new Set([
   'id', 'tao_luc', 'sua_luc', 'nguoi_tao', 'nguoi_sua',
-  'trang_thai_kiem_tra', 'ket_qua_kiem_tra',
+  'trang_thai_kiem_tra', 'ket_qua_kiem_tra', 'thong_tin_giay_da_chot',
 ])
 // Lần tạo giao dịch không có giá trị cũ để so, nên chỉ tóm tắt các cột cốt lõi.
-const COT_TOM_TAT_TAO = ['ngay', 'noi_dung', 'don_vi_id', 'so_hd', 'hinh_thuc', 'trang_thai_hd', 'tong_tien']
+const COT_TOM_TAT_TAO = ['ngay', 'noi_dung', 'don_vi_id', 'so_hd', 'hinh_thuc', 'chi_thuc_te', 'trang_thai_hd', 'tong_tien']
 
 export type BoCanh = {
   donVi: Record<string, string>
   nguoiLayHd: Record<string, string>
+  canBo?: Record<string, string>
   nguoiDung: Record<string, string>
 }
 
-export const boCanhRong = (): BoCanh => ({ donVi: {}, nguoiLayHd: {}, nguoiDung: {} })
+export const boCanhRong = (): BoCanh => ({ donVi: {}, nguoiLayHd: {}, canBo: {}, nguoiDung: {} })
 
 export type ThayDoiCot = { cot: string; nhan: string; cu: string; moi: string }
 export type MucLichSu = {
@@ -88,10 +96,13 @@ export function hienThiGiaTri(cot: string, giaTri: unknown, boCanh: BoCanh = boC
     const so = Number(giaTri)
     return Number.isSafeInteger(so) ? vnd.format(so) : hienThiChuoi(giaTri)
   }
-  if (cot === 'da_xoa') return giaTri === true ? 'Có' : 'Không'
+  if (cot === 'da_xoa' || cot === 'chi_thuc_te') return giaTri === true ? 'Có' : 'Không'
   const khoa = String(giaTri)
   if (cot === 'don_vi_id') return boCanh.donVi[khoa] ?? rut(khoa)
   if (cot === 'nguoi_lay_hd_id') return boCanh.nguoiLayHd[khoa] ?? rut(khoa)
+  if (['nguoi_de_nghi_id', 'lanh_dao_tiep_khach_id', 'lanh_dao_thanh_toan_id', 'truong_phong_id', 'ke_toan_kiem_soat_id'].includes(cot)) {
+    return boCanh.canBo?.[khoa] ?? rut(khoa)
+  }
   if (cot === 'nguoi_tao' || cot === 'nguoi_sua' || cot === 'nguoi_xoa') return boCanh.nguoiDung[khoa] ?? rut(khoa)
   return hienThiChuoi(giaTri)
 }
@@ -159,7 +170,7 @@ export function dungMucLichSu(
 
 // Gom mọi mã tham chiếu xuất hiện trong lịch sử để tra tên một lần duy nhất.
 export function gomMaThamChieu(cacDong: ReadonlyArray<{ gia_tri_cu: unknown; gia_tri_moi: unknown }>) {
-  const donVi = new Set<string>(), nguoiLayHd = new Set<string>(), nguoiDung = new Set<string>()
+  const donVi = new Set<string>(), nguoiLayHd = new Set<string>(), canBo = new Set<string>(), nguoiDung = new Set<string>()
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   for (const dong of cacDong) {
     for (const ban of [dong.gia_tri_cu, dong.gia_tri_moi]) {
@@ -170,8 +181,10 @@ export function gomMaThamChieu(cacDong: ReadonlyArray<{ gia_tri_cu: unknown; gia
         if (typeof giaTri === 'string' && UUID.test(giaTri)) dich.add(giaTri)
       }
       lay('don_vi_id', donVi); lay('nguoi_lay_hd_id', nguoiLayHd)
+      lay('nguoi_de_nghi_id', canBo); lay('lanh_dao_tiep_khach_id', canBo)
+      lay('lanh_dao_thanh_toan_id', canBo); lay('truong_phong_id', canBo); lay('ke_toan_kiem_soat_id', canBo)
       lay('nguoi_tao', nguoiDung); lay('nguoi_sua', nguoiDung); lay('nguoi_xoa', nguoiDung)
     }
   }
-  return { donVi: [...donVi], nguoiLayHd: [...nguoiLayHd], nguoiDung: [...nguoiDung] }
+  return { donVi: [...donVi], nguoiLayHd: [...nguoiLayHd], canBo: [...canBo], nguoiDung: [...nguoiDung] }
 }

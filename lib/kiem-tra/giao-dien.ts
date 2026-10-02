@@ -46,14 +46,11 @@ export interface PhatHien {
 export interface KetQuaDocHoaDon {
   trangThai: TrangThaiKiemTra
   deXuat: DuLieuDocTuHoaDon
-  qr: DuLieuDocTuHoaDon | null
-  ocr: DuLieuDocTuHoaDon | null
-  ai: DuLieuDocTuHoaDon | null
+  ai1: DuLieuDocTuHoaDon | null
+  ai2: DuLieuDocTuHoaDon | null
+  xml: DuLieuDocTuHoaDon | null
   phatHien: PhatHien[]
   nhatKy?: string[]
 }
-
-export const TRUONG_KHOA_QR = ['kyHieuHd', 'soHd', 'ngay', 'mstBanHang', 'tongTien'] as const
-export type TruongKhoaQr = typeof TRUONG_KHOA_QR[number]
 
 export type DonViDoiChieu = { mst: string; ten: string; diaChi: string }

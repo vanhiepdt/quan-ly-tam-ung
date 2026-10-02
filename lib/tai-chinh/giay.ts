@@ -1,8 +1,11 @@
 import { docSoTien } from './doc-so'
-import { canTaiKhoanNhan, hinhThucThanhToanMacDinh, NHAN_HINH_THUC_THANH_TOAN, oVuongTamUng } from './hinh-thuc'
+import { canTaiKhoanNhan, hinhThucThanhToanMacDinh, NHAN_HINH_THUC_THANH_TOAN, noiDungHinhThucTamUng } from './hinh-thuc'
 import { HINH_THUC, type GiaoDichTinh, type TaiKhoanNhan } from './kieu'
 import { dongTaiKhoan } from './tai-khoan'
+import { lamTronXuongHangNghin, soTienThanhToan } from './tien-thanh-toan'
 import type { ThayTheCoDinh } from '@/lib/van-ban/docx'
+
+export { lamTronXuongHangNghin, soTienThanhToan } from './tien-thanh-toan'
 
 // Ba giấy đề nghị in ra từ mẫu trong thư mục Mau/. Giấy nào dùng cho hình thức nào:
 // tạm ứng thêm thì lập giấy đề nghị tạm ứng; hoàn tạm ứng và cơ quan trả thẳng thì
@@ -79,11 +82,6 @@ export function kinhPhiDuKien(tongTien: number): number {
   return Math.ceil(tongTien / BAC_LAM_TRON) * BAC_LAM_TRON
 }
 
-// Số tiền đề nghị thanh toán đúng bằng số hoàn ứng: tổng tiền trừ phần rượu bia loại trừ.
-export function soTienThanhToan(gd: Pick<GiaoDichTinh, 'tongTien' | 'tienRuouBia'>): number {
-  return Math.max(0, gd.tongTien - gd.tienRuouBia)
-}
-
 const vnd = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 })
 
 export type OChuKy = { tieuDe: string; hoTen: string | null; chucDanh: string | null }
@@ -149,7 +147,7 @@ export type BoiCanhGiay = {
 }
 
 // Thiếu liên kết hoặc có nhiều tài khoản cùng cán bộ thì không tự đoán tài khoản nhận.
-export type DuLieuGiay = Pick<GiaoDichTinh, 'ngay' | 'hinhThuc' | 'hinhThucThanhToan' | 'tamUngTuCq' | 'tongTien' | 'tienRuouBia' | 'donViTen' | 'nguoiLayHdId' | 'kyHieuHd' | 'soHd'>
+export type DuLieuGiay = Pick<GiaoDichTinh, 'ngay' | 'ngayDeNghi' | 'hinhThuc' | 'hinhThucThanhToan' | 'tamUngTuCq' | 'tongTien' | 'tienRuouBia' | 'tienDuocThanhToan' | 'lamTronXuongHangNghin' | 'donViTen' | 'nguoiLayHdId' | 'kyHieuHd' | 'soHd' | 'taiKhoanNhanGhiDe'>
 
 export function taiKhoanNhan(gd: DuLieuGiay, ctx: BoiCanhGiay): TaiKhoanNhan | null {
   const ds = Object.values(ctx.taiKhoanTheoNguoiLayHd).filter(tk => tk.canBoId === ctx.nguoiDeNghi.id)
@@ -169,6 +167,7 @@ export function vietTatPhong(ten: string): string {
 export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): GiayDeNghi {
   const { cauHinh } = ctx
   const { ngay, thang, nam } = phanNgay(gd.ngay)
+  const { ngay: ngayDeNghi, thang: thangDeNghi, nam: namDeNghi } = phanNgay(gd.ngayDeNghi ?? gd.ngay)
   const tenDonVi = cauHinh.tenDonVi
   const phong = ctx.nguoiDeNghi.phong ?? ''
   const phongHoa = vietTatPhong(phong)
@@ -180,27 +179,39 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
 
   const sotien = gd.tamUngTuCq
   const sotientt = soTienThanhToan(gd)
-  const kinhPhi = kinhPhiDuKien(gd.tongTien)
+  // Hai giấy của cùng một giao dịch phải dùng cùng giá trị: người dùng sửa số
+  // tiền được hoàn/thanh toán một lần, cả nhật ký và hai giấy cùng đổi.
+  const kinhPhi = kinhPhiDuKien(sotientt)
   const donViTiepKhach = gd.donViTen ?? ''
-  const oVuong = oVuongTamUng(gd.hinhThucThanhToan)
   // Nhãn in ở dòng "Hình thức thanh toán". Dòng nào chưa có thì in theo mặc định của
   // hình thức giao dịch để giấy không bao giờ trống ô này.
+  const hinhThucThanhToan = gd.hinhThucThanhToan ?? hinhThucThanhToanMacDinh(gd.hinhThuc)
   const nhanThanhToan = NHAN_HINH_THUC_THANH_TOAN[
-    (gd.hinhThucThanhToan ?? hinhThucThanhToanMacDinh(gd.hinhThuc) ?? '') as keyof typeof NHAN_HINH_THUC_THANH_TOAN
+    (hinhThucThanhToan ?? '') as keyof typeof NHAN_HINH_THUC_THANH_TOAN
   ] ?? gd.hinhThuc
-  const tk = canTaiKhoanNhan(gd.hinhThucThanhToan) ? taiKhoanNhan(gd, ctx) : null
+  const tk = canTaiKhoanNhan(hinhThucThanhToan)
+    ? gd.taiKhoanNhanGhiDe ?? taiKhoanNhan(gd, ctx)
+    : null
   // Dòng "3. Hình thức thanh toán" của giấy thanh toán. Chuyển khoản thì số tài khoản
   // nhận tiền in ngay trên cùng dòng, vì mẫu Word chỉ có một dòng cho mục này.
   const dongHinhThucTt = tk ? `${nhanThanhToan} – ${dongTaiKhoan(tk)}` : nhanThanhToan
-  const dungThayCoDinh = thayCoDinh({
-    phong, tenDonVi, diaDanh: cauHinh.diaDanh, ngay, nguoiDeNghi: ctx.nguoiDeNghi.hoTen,
-    truongPhong: truongPhong?.hoTen ?? null,
-    lyDoTamUng: cauHinh.lyDoTamUng, thoiHanThanhToan: cauHinh.thoiHanThanhToan,
-    hinhThucThanhToan: dongHinhThucTt,
-  })
+  const dungChuyenKhoan = canTaiKhoanNhan(hinhThucThanhToan)
+  const noiDungTamUng = noiDungHinhThucTamUng(hinhThucThanhToan, tk ? dongTaiKhoan(tk) : null)
+  const dungThayCoDinh = [
+    ...thayCoDinh({
+      phong, tenDonVi, diaDanh: cauHinh.diaDanh, ngay, nguoiDeNghi: ctx.nguoiDeNghi.hoTen,
+      truongPhong: truongPhong?.hoTen ?? null,
+      lyDoTamUng: cauHinh.lyDoTamUng, thoiHanThanhToan: cauHinh.thoiHanThanhToan,
+      hinhThucThanhToan: dongHinhThucTt,
+    }),
+    // Mẫu đặt [[CK]] và [[TM]] cạnh nhau. Giữ đúng một chỗ trống được chọn để Word
+    // không để lại khoảng trắng thừa trước dấu chấm khi phương thức còn lại rỗng.
+    { mau: /\[\[CK\]\]\s+\[\[TM\]\]\./g, thay: `${dungChuyenKhoan ? '[[CK]]' : '[[TM]]'}.` },
+  ]
 
   const chung: Record<string, string> = {
     ngay, thang, nam, ngaytk: ngay, thangtk: thang, namtk: nam,
+    ngaydntk: ngayDeNghi, thangdntk: thangDeNghi, namdntk: namDeNghi,
     gioi_tinh: ctx.nguoiDeNghi.gioiTinh ?? '', bangiamdoc: lanhDaoTk?.hoTen ?? '', chucdanh: lanhDaoTk?.chucDanh ?? '',
     gioi_tinhtk: lanhDaoTk?.gioiTinh ?? '', bangiamdoctk: lanhDaoTk?.hoTen ?? '', chucdanhtk: lanhDaoTk?.chucDanh ?? '',
     gioi_tinhtt: lanhDaoTt?.gioiTinh ?? '', bangiamdoctt: lanhDaoTt?.hoTen ?? '', chucdanhtt: lanhDaoTt?.chucDanh ?? '',
@@ -212,7 +223,7 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
     sotientt: vnd.format(sotientt), sotienttbangchu: docSoTien(sotientt),
     sotiendukien: vnd.format(kinhPhi), sotiendukienbangchu: docSoTien(kinhPhi),
     mahoadon: gd.kyHieuHd ?? '', sohoadon: gd.soHd ?? '',
-    CK: oVuong.CK, TM: oVuong.TM,
+    CK: noiDungTamUng.CK, TM: noiDungTamUng.TM,
     // Hình thức thanh toán in thành chữ ở giấy thanh toán, kèm số tài khoản nhận tiền
     // khi chuyển khoản. Tài khoản lấy từ người lấy hóa đơn — cùng tài khoản dùng để trả
     // phí lấy hóa đơn — nên hai chỗ không bao giờ lệch nhau.
@@ -227,12 +238,13 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
   // đúng như mẫu Word.
   const dauTrangTamUng = ['NGÂN HÀNG CHÍNH SÁCH XÃ HỘI', tenDonVi.toLocaleUpperCase('vi'), phongHoa || tenDonVi.toLocaleUpperCase('vi')]
   const dauTrangPhong = [phongHoa || tenDonVi.toLocaleUpperCase('vi')]
-  const dongNgay = `${cauHinh.diaDanh}, ngày ${ngay} tháng ${thang} năm ${nam}`
+  const dongNgayHoaDon = `${cauHinh.diaDanh}, ngày ${ngay} tháng ${thang} năm ${nam}`
+  const dongNgayDeNghi = `${cauHinh.diaDanh}, ngày ${ngayDeNghi} tháng ${thangDeNghi} năm ${namDeNghi}`
 
   if (loai === LOAI_GIAY.TAM_UNG) {
     return {
       loai, tieuDe: TEN_GIAY[loai], tenDonVi, phong, ngayLap: gd.ngay, diaDanh: cauHinh.diaDanh,
-      dongNgay, dauTrang: dauTrangTamUng,
+      dongNgay: dongNgayHoaDon, dauTrang: dauTrangTamUng,
       kinhGui: dungKinhGui(lanhDaoTk, tenDonVi),
       than: [
         `Họ và tên: ${ctx.nguoiDeNghi.hoTen}`,
@@ -240,7 +252,7 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
         `Lý do tạm ứng: ${cauHinh.lyDoTamUng}.`,
         `Số tiền đề nghị tạm ứng: ${vnd.format(sotien)} đ`,
         `Bằng chữ: ${docSoTien(sotien)}./`,
-        `Hình thức tạm ứng: ${chung.CK}  ${chung.TM}.`,
+        `Hình thức tạm ứng: ${noiDungTamUng.noiDung}.`,
         `Thời hạn thanh toán: ${cauHinh.thoiHanThanhToan}.`,
       ],
       chuKy: [[{ tieuDe: 'DUYỆT CỦA LÃNH ĐẠO', hoTen: hoTen(lanhDaoTk), chucDanh: lanhDaoTk?.chucDanh ?? null }],
@@ -251,6 +263,7 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
   }
 
   const thoiGian = `${ngay}/${thang}/${nam}`
+  const thoiGianDeNghi = `${ngayDeNghi}/${thangDeNghi}/${namDeNghi}`
   const canCu = [
     'Căn cứ văn bản 3358/NHCS-KTTC ngày 01/9/2016 của Tổng Giám đốc về việc Hướng dẫn thực hiện Quy chế quản lý tài chính trong hệ thống Ngân hàng Chính sách xã hội (NHCSXH) và văn bản số 5486/NHCS-KTTC ngày 09/6/2025 sửa đổi một số nội dung của văn bản 3358/NHCS-KTTC.',
   ]
@@ -258,7 +271,7 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
   if (loai === LOAI_GIAY.TIEP_KHACH) {
     return {
       loai, tieuDe: TEN_GIAY[loai], tenDonVi, phong, ngayLap: gd.ngay, diaDanh: cauHinh.diaDanh,
-      dongNgay, dauTrang: dauTrangPhong,
+      dongNgay: dongNgayDeNghi, dauTrang: dauTrangPhong,
       kinhGui: dungKinhGui(lanhDaoTk, tenDonVi),
       than: [
         ...canCu,
@@ -277,10 +290,10 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
 
   return {
     loai, tieuDe: TEN_GIAY[loai], tenDonVi, phong, ngayLap: gd.ngay, diaDanh: cauHinh.diaDanh,
-    dongNgay, dauTrang: dauTrangPhong,
+    dongNgay: dongNgayHoaDon, dauTrang: dauTrangPhong,
     kinhGui: dungKinhGui(lanhDaoTt, tenDonVi),
     than: [
-      `Căn cứ Giấy đề nghị tiếp khách đã được phê duyệt ngày ${thoiGian} của ${phong || tenDonVi}, nay bộ phận được giao tiếp khách đề nghị thanh toán chi phí tiếp khách với nội dung như sau:`,
+      `Căn cứ Giấy đề nghị tiếp khách đã được phê duyệt ngày ${thoiGianDeNghi} của ${phong || tenDonVi}, nay bộ phận được giao tiếp khách đề nghị thanh toán chi phí tiếp khách với nội dung như sau:`,
       '1. Nội dung thanh toán: Tiếp khách cơ quan',
       `2. Số tiền đề nghị thanh toán: ${vnd.format(sotientt)} đồng`,
       `(Bằng chữ: ${docSoTien(sotientt)} đồng)`,

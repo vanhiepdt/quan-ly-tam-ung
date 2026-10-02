@@ -1,26 +1,33 @@
 import { z } from 'zod'
 
 // kieu: 'so' để so sánh theo số khi sắp xếp và cộng vào hàng tổng.
-// congDon: chỉ bật cho các cột tiền thật sự cộng được. Ba cột dư là số dư luỹ kế
+// congDon: chỉ bật cho các cột tiền thật sự cộng được. Các cột dư là số dư luỹ kế
 // nên cộng chúng lại không có ý nghĩa kế toán.
 export const cotNhatKy = [
   { id: 'ngay', ten: 'Ngày', rong: 130, kieu: 'chuoi', congDon: false },
   { id: 'noiDung', ten: 'Nội dung', rong: 260, kieu: 'chuoi', congDon: false },
   { id: 'donVi', ten: 'Đơn vị tiếp khách', rong: 200, kieu: 'chuoi', congDon: false },
+  { id: 'nguoiDeNghi', ten: 'Người đề nghị', rong: 200, kieu: 'chuoi', congDon: false },
+  { id: 'nguoiLayHd', ten: 'Người lấy hóa đơn', rong: 200, kieu: 'chuoi', congDon: false },
   { id: 'chungTu', ten: 'Chứng từ', rong: 150, kieu: 'chuoi', congDon: false },
-  { id: 'trangThai', ten: 'Trạng thái', rong: 190, kieu: 'chuoi', congDon: false },
+  { id: 'trangThaiHd', ten: 'Trạng thái hóa đơn', rong: 170, kieu: 'chuoi', congDon: false },
+  { id: 'trangThaiTtPhi', ten: 'Thanh toán phí', rong: 170, kieu: 'chuoi', congDon: false },
   { id: 'hinhThuc', ten: 'Hình thức', rong: 170, kieu: 'chuoi', congDon: false },
   { id: 'tongTien', ten: 'Tổng tiền', rong: 170, kieu: 'so', congDon: true },
-  { id: 'tienRuouBia', ten: 'Rượu bia', rong: 170, kieu: 'so', congDon: true },
+  { id: 'tienRuouBia', ten: 'Tiền không được thanh toán', rong: 240, kieu: 'so', congDon: true },
   { id: 'hoanTamUng', ten: 'Hoàn ứng', rong: 170, kieu: 'so', congDon: true },
   { id: 'cqTraThang', ten: 'CQ trả thẳng', rong: 170, kieu: 'so', congDon: true },
+  { id: 'duaTienCqTraThangChoChiThuy', ten: 'Đưa tiền CQ trả thẳng cho Chị Thúy', rong: 260, kieu: 'so', congDon: true },
+  { id: 'duTienCqTraThang', ten: 'Dư tiền CQ trả thẳng', rong: 200, kieu: 'so', congDon: false },
   { id: 'phiLayHd', ten: 'Phí HĐ', rong: 170, kieu: 'so', congDon: true },
   { id: 'tamUngTuCq', ten: 'Tạm ứng', rong: 170, kieu: 'so', congDon: true },
-  { id: 'giaoTienChiThuy', ten: 'Giao chị Thúy', rong: 170, kieu: 'so', congDon: true },
+  { id: 'giaoTienChiThuy', ten: 'Giao tiền TƯ cho Chị Thúy', rong: 210, kieu: 'so', congDon: true },
+  { id: 'tongTienDuaChiThuy', ten: 'Tổng Tiền đưa chị Thúy', rong: 210, kieu: 'so', congDon: true },
   { id: 'hoanUngTienMat', ten: 'Nộp lại', rong: 170, kieu: 'so', congDon: true },
-  { id: 'duLyThuyet', ten: 'Dư lý thuyết', rong: 170, kieu: 'so', congDon: false },
-  { id: 'duThucTe', ten: 'Dư thực tế', rong: 170, kieu: 'so', congDon: false },
-  { id: 'duDangCam', ten: 'Đang cầm', rong: 170, kieu: 'so', congDon: false },
+  { id: 'duLyThuyet', ten: 'Dư TƯ lý thuyết', rong: 180, kieu: 'so', congDon: false },
+  { id: 'duThucTe', ten: 'Dư TƯ thực tế', rong: 180, kieu: 'so', congDon: false },
+  { id: 'duDangCam', ten: 'Dư TƯ đang cầm', rong: 180, kieu: 'so', congDon: false },
+  { id: 'duHiepDangCam', ten: 'Dư Hiệp đang cầm', rong: 190, kieu: 'so', congDon: false },
   { id: 'tep', ten: 'Tệp', rong: 120, kieu: 'chuoi', congDon: false },
   // Cột Thao tác chứa tới bốn nút (Sửa, Giấy, Lịch sử, Xóa) nên rộng hơn các cột chữ khác;
   // hẹp quá thì flex-wrap đẩy nút xuống dòng và hàng nhật ký cao lên trông thấy.
@@ -36,6 +43,38 @@ export const soDongTrangMacDinh: SoDongTrang = 20
 const cotId = z.enum(cotNhatKy.map(c => c.id) as [CotId, ...CotId[]])
 const thuTuMacDinh = cotNhatKy.map(c => c.id)
 const soDongTrangSchema = z.union([z.literal(10), z.literal(20), z.literal(50), z.literal(100)])
+
+// Bản cũ dùng một cột "trangThai" chứa cả trạng thái hóa đơn và thanh toán phí.
+// Chuyển đổi ngay lúc đọc để bố cục đã lưu không bị mất khi nâng cấp.
+export function chuyenTuyChonCu(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return value
+  const cu = value as Record<string, unknown>
+  const thayCotCu = (ids: unknown[]): unknown[] => {
+    const moi: unknown[] = []
+    for (const id of ids) {
+      if (id === 'trangThai') {
+        moi.push('trangThaiHd', 'trangThaiTtPhi')
+      } else {
+        moi.push(id)
+      }
+    }
+    return [...new Set(moi)]
+  }
+
+  const moi: Record<string, unknown> = { ...cu }
+  if (Array.isArray(cu.an)) moi.an = thayCotCu(cu.an)
+  if (Array.isArray(cu.thuTu)) moi.thuTu = thayCotCu(cu.thuTu)
+  if (typeof cu.rong === 'object' && cu.rong !== null && !Array.isArray(cu.rong)) {
+    const rong = { ...(cu.rong as Record<string, unknown>) }
+    if ('trangThai' in rong) {
+      if (!('trangThaiHd' in rong)) rong.trangThaiHd = rong.trangThai
+      if (!('trangThaiTtPhi' in rong)) rong.trangThaiTtPhi = rong.trangThai
+      delete rong.trangThai
+    }
+    moi.rong = rong
+  }
+  return moi
+}
 
 export const tuyChonSchema = z.object({
   an: z.array(cotId).max(cotNhatKy.length).refine(ids => new Set(ids).size === ids.length),

@@ -36,4 +36,15 @@ describe('lưu tệp đính kèm', () => {
     expect(kq.tuongDoi.replaceAll('\\', '/')).toMatch(/^aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\/.+\.pdf$/)
     expect(writeFile).toHaveBeenCalled()
   })
+
+  it('ghi hóa đơn XML vào thư mục theo giao dịch dù mime của trình duyệt là text/xml', async () => {
+    mkdir.mockResolvedValue(undefined)
+    writeFile.mockResolvedValue(undefined)
+    const xml = '<?xml version="1.0"?><HDon><SHDon>1</SHDon></HDon>'
+    const kq = await kiemTraVaLuuTep(new File([xml], 'a.xml', { type: 'text/xml' }), 'hoa_don', 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+    expect(kq.ok).toBe(true)
+    if (!kq.ok) return
+    expect(kq.mime).toBe('application/xml')
+    expect(kq.tuongDoi.replaceAll('\\', '/')).toMatch(/^aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\/.+\.xml$/)
+  })
 })

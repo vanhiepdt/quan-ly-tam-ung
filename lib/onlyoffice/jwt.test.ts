@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { docJwt, kyJwt, docUrl, kyUrl } from './jwt'
+import { docJwt, kyJwt, docUrl, kyUrl, docJwtTuYeuCau } from './jwt'
 import { kiemTraDocx, duongDanTaiLieu } from './tai-lieu'
 import { docZip, ghiZip } from '@/lib/van-ban/zip'
 vi.mock('@/lib/db/pool', () => ({ db: {}, trongTransaction: vi.fn() }))
@@ -20,6 +20,18 @@ it('token URL tách miền khỏi callback và bắt buộc hết hạn', () => 
   expect(docUrl(t).purpose).toBe('file')
   expect(() => docJwt(t)).toThrow()
   expect(() => docUrl(kyJwt({ purpose: 'file' }))).toThrow()
+})
+it('đọc JWT callback từ Authorization hoặc body', () => {
+  vi.stubEnv('ONLYOFFICE_JWT_SECRET', secret)
+  const claims = { key: 'hc-doc', status: 2, url: 'http://onlyoffice/cache/file.docx' }
+  const headerReq = new Request('http://localhost/api/onlyoffice/goi-lai', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${kyJwt({ payload: claims })}` },
+    body: '{}',
+  })
+  expect(docJwtTuYeuCau(headerReq, '{}')).toEqual(claims)
+  const bodyReq = new Request('http://localhost/api/onlyoffice/goi-lai', { method: 'POST', body: JSON.stringify({ token: kyJwt(claims) }) })
+  expect(docJwtTuYeuCau(bodyReq, JSON.stringify({ token: kyJwt(claims) }))).toEqual(claims)
 })
 it('không chấp nhận đường dẫn thay UUID', () => {
   expect(() => duongDanTaiLieu('../private')).toThrow()

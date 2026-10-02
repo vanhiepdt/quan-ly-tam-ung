@@ -32,7 +32,7 @@ const duLieuTamUng = {
 
 const duLieuTiepKhach = {
   PHONGTK: 'P. HÀNH CHÍNH TỔ CHỨC', PHONGTKVT: 'Phòng Hành chính Tổ chức',
-  ngaytk: '20', thangtk: '9', namtk: '2026', thang: '9', nam: '2026',
+  ngaytk: '20', thangtk: '9', namtk: '2026', ngaydntk: '20', thangdntk: '9', namdntk: '2026', thang: '9', nam: '2026',
   gioi_tinhtk: 'Ông', bangiamdoctk: 'Nguyễn Văn A', chucdanhtk: 'Giám đốc',
   gioi_tinhtt: 'Bà', bangiamdoctt: 'Trần Thị B', chucdanhtt: 'Phó Giám đốc',
   donvitiepkhac: 'Phòng Tổ chức', sotiendukien: '2.000.000', sotiendukienbangchu: 'Hai triệu đồng',

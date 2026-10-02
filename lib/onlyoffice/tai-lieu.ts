@@ -49,12 +49,79 @@ export async function taoHoacLayTaiLieu(user: string, gd: string | null, loai: s
   }
   return client ? run(client) : trongTransaction(user, run)
 }
+
+export class LoiTaiLieuDangMo extends Error {
+  constructor() {
+    super('Tài liệu đang được mở trong OnlyOffice.')
+    this.name = 'LoiTaiLieuDangMo'
+  }
+}
+
+type GiayCanCapNhat = { loai: string; sinh: () => Promise<Buffer> }
+
+// Làm mới bản DOCX hiện hành nhưng giữ nguyên tất cả bản trước trong lịch sử. Khóa
+// advisory trùng với taoHoacLayTaiLieu() để thao tác mở/tải giấy không thể xen vào
+// lúc đang thay tài liệu. Nếu ai đó đang soạn trực tuyến, phải để họ đóng phiên trước.
+export async function capNhatTaiLieuGiay(
+  user: string,
+  giaoDichId: string,
+  giay: readonly GiayCanCapNhat[],
+  client?: PoolClient,
+): Promise<TaiLieu[]> {
+  const run = async (c: PoolClient) => {
+    const sapXep = [...giay].sort((a, b) => a.loai.localeCompare(b.loai))
+    if (new Set(sapXep.map(g => g.loai)).size !== sapXep.length) throw new Error('Loại giấy bị trùng.')
+
+    for (const g of sapXep) {
+      await c.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [`giay:${giaoDichId}:${g.loai}`])
+    }
+    if (!sapXep.length) return []
+
+    const { rows: cu } = await c.query<TaiLieu>(
+      'select * from tai_lieu where giao_dich_id=$1 and loai = any($2::text[]) order by loai for update',
+      [giaoDichId, sapXep.map(g => g.loai)],
+    )
+    if (cu.some(t => t.khoa)) throw new LoiTaiLieuDangMo()
+    const theoLoai = new Map(cu.map(t => [t.loai, t]))
+    const ketQua: TaiLieu[] = []
+
+    for (const g of sapXep) {
+      const { tep, hash } = await ghiTep(await g.sinh())
+      const taiLieuCu = theoLoai.get(g.loai)
+      if (taiLieuCu) {
+        const phienBan = taiLieuCu.phien_ban + 1
+        await c.query(
+          'insert into tai_lieu_phien_ban(tai_lieu_id,phien_ban,tep,sha256,nguoi_luu) values($1,$2,$3,$4,$5)',
+          [taiLieuCu.id, phienBan, tep, hash, user],
+        )
+        const { rows } = await c.query<TaiLieu>(
+          'update tai_lieu set tep=$1, phien_ban=$2, sua_luc=now() where id=$3 returning *',
+          [tep, phienBan, taiLieuCu.id],
+        )
+        ketQua.push(rows[0])
+      } else {
+        const { rows } = await c.query<TaiLieu>(
+          'insert into tai_lieu(giao_dich_id,loai,ten_mau,tep,nguoi_tao) values($1,$2,null,$3,$4) returning *',
+          [giaoDichId, g.loai, tep, user],
+        )
+        await c.query(
+          'insert into tai_lieu_phien_ban(tai_lieu_id,phien_ban,tep,sha256,nguoi_luu) values($1,1,$2,$3,$4)',
+          [rows[0].id, tep, hash, user],
+        )
+        ketQua.push(rows[0])
+      }
+    }
+    return ketQua
+  }
+  return client ? run(client) : trongTransaction(user, run)
+}
 export async function moPhien(t: TaiLieu, user: string) {
   return trongTransaction(user, async c => {
     const { rows } = await c.query<TaiLieu>('select * from tai_lieu where id=$1 for update', [t.id])
     const current = rows[0]
     if (!current.khoa) {
-      current.khoa = `${current.id}-${current.phien_ban}-${randomUUID()}`
+      // Tiền tố hc- để khóa phiên không trùng Document Server đang phục vụ ttdt.site.
+      current.khoa = `hc-${current.id}-${current.phien_ban}-${randomUUID()}`
       await c.query('insert into tai_lieu_phien(khoa,tai_lieu_id,tep_ban_dau) values($1,$2,$3)', [current.khoa, t.id, current.tep])
       await c.query('update tai_lieu set khoa=$1 where id=$2', [current.khoa, t.id])
     }
