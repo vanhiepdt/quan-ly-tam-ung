@@ -7,6 +7,11 @@ const url = process.env.DATABASE_URL
 if (!url) throw new Error('Thiếu DATABASE_URL trong .env.local.')
 const pool = new pg.Pool({ connectionString: url })
 const checksum = (text) => createHash('sha256').update(text).digest('hex')
+const checksumCandidates = (text) => {
+  const lf = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const crlf = lf.replace(/\n/g, '\r\n')
+  return new Set([checksum(text), checksum(lf), checksum(crlf)])
+}
 
 try {
   await pool.query('select 1')
@@ -21,9 +26,10 @@ try {
   for (const file of files) {
     const sql = await readFile(path.join(folder, file), 'utf8')
     const hash = checksum(sql)
+    const hashes = checksumCandidates(sql)
     const { rows } = await pool.query('select checksum from _lich_su_migration where ten=$1', [file])
     if (rows[0]) {
-      if (rows[0].checksum !== hash) throw new Error(`Migration ${file} đã chạy nhưng nội dung đã bị thay đổi. Hãy tạo migration mới thay vì sửa migration cũ.`)
+      if (!hashes.has(rows[0].checksum)) throw new Error(`Migration ${file} đã chạy nhưng nội dung đã bị thay đổi. Hãy tạo migration mới thay vì sửa migration cũ.`)
       console.log(`Bỏ qua ${file} (đã chạy).`)
       continue
     }
