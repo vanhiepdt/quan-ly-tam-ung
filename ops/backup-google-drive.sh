@@ -78,7 +78,7 @@ b64url() {
 }
 JWT_HEADER="$(printf '%s' '{"alg":"RS256","typ":"JWT"}' | b64url)"
 NOW="$(date +%s)"
-JWT_CLAIMS="$(jq -cn --arg iss "$CLIENT_EMAIL" --arg scope 'https://www.googleapis.com/auth/drive.file' --arg aud "$TOKEN_URI" --argjson iat "$NOW" --argjson exp "$((NOW + 3600))" '{iss:$iss,scope:$scope,aud:$aud,iat:$iat,exp:$exp}')"
+JWT_CLAIMS="$(jq -cn --arg iss "$CLIENT_EMAIL" --arg scope 'https://www.googleapis.com/auth/drive' --arg aud "$TOKEN_URI" --argjson iat "$NOW" --argjson exp "$((NOW + 3600))" '{iss:$iss,scope:$scope,aud:$aud,iat:$iat,exp:$exp}')"
 JWT_CLAIMS_B64="$(printf '%s' "$JWT_CLAIMS" | b64url)"
 JWT_UNSIGNED="$JWT_HEADER.$JWT_CLAIMS_B64"
 JWT_SIGNATURE="$(printf '%s' "$JWT_UNSIGNED" | openssl dgst -sha256 -sign "$KEY_PATH" | b64url)"

@@ -55,8 +55,9 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       UPLOAD_DIR: /var/lib/tam-ung/tep
       BACKUP_DIR: /var/lib/tam-ung/backup
-      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID:-}
-      GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE: /etc/quan-ly-tam-ung/google-drive-service-account.json
+      GOOGLE_DRIVE_OAUTH_CLIENT_FILE: /etc/quan-ly-tam-ung/google-oauth-client.json
+      GOOGLE_DRIVE_OAUTH_REDIRECT_URI: https://hc.ttdt.site/api/sao-luu/google-drive/callback
+      GOOGLE_DRIVE_TOKEN_KEY: ${GOOGLE_DRIVE_TOKEN_KEY:-}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
       # Browser: office.ttdt.site. DS↔app: Docker DNS trên mạng sẵn có — không restart OnlyOffice.
       ONLYOFFICE_PUBLIC_URL: https://office.ttdt.site

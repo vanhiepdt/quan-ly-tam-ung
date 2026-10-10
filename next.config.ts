@@ -9,6 +9,13 @@ const nextConfig: NextConfig = {
     },
   },
   serverExternalPackages: ['pdfjs-dist', '@napi-rs/canvas'],
+  // Dynamic file access must never package local secrets into standalone output.
+  outputFileTracingExcludes: {
+    '/*': [
+      './.env', './.env.*', './deploy/.env', './ops/backup.env',
+      './**/client_secret_*.json', './**/*service-account*.json',
+    ],
+  },
   // Worker pdfjs không tải file://; font/cmap phải có trong ảnh Docker standalone.
   outputFileTracingIncludes: {
     '/*': [

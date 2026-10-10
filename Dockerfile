@@ -22,7 +22,12 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     UPLOAD_DIR=/var/lib/tam-ung/tep
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates wget postgresql-client tar gzip \
+    && apt-get install -y --no-install-recommends ca-certificates wget tar gzip \
+    && mkdir -p /usr/share/postgresql-common/pgdg \
+    && wget -qO /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    && printf '%s\n' 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main' > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /var/lib/tam-ung/tep /var/lib/tam-ung/backup
 COPY --from=builder /app/.next/standalone ./

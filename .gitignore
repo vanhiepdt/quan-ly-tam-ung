@@ -29,3 +29,6 @@ agent-windows/*.log
 # Google Drive backup credentials
 ops/backup.env
 *service-account*.json
+
+# OAuth client Google (không đưa khóa bí mật lên Git)
+client_secret_*.json

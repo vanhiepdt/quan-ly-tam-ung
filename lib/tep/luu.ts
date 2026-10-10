@@ -27,7 +27,7 @@ export async function kiemTraVaLuuTep(tep: File, loaiChu: string, giaoDichId: st
   }
   const ten = `${randomUUID()}.${ext}`
   const tuongDoi = `${giaoDichId}/${ten}`
-  const goc = path.resolve(GOC_TEP) + path.sep
+  const goc = path.resolve(/* turbopackIgnore: true */ GOC_TEP) + path.sep
   const dich = path.resolve(GOC_TEP, ...tuongDoi.split('/'))
   if (!dich.startsWith(goc)) return { ok: false, loi: 'Đường dẫn không hợp lệ.' }
   await mkdir(path.dirname(dich), { recursive: true })
@@ -36,7 +36,7 @@ export async function kiemTraVaLuuTep(tep: File, loaiChu: string, giaoDichId: st
 }
 
 export async function xoaTepVatLy(tuongDoi: string) {
-  const goc = path.resolve(GOC_TEP) + path.sep
+  const goc = path.resolve(/* turbopackIgnore: true */ GOC_TEP) + path.sep
   const duongDan = path.resolve(GOC_TEP, ...tuongDoi.split('/').filter(Boolean))
   if (!duongDan.startsWith(goc)) return
   try { await unlink(duongDan) } catch { /* tệp có thể chưa tồn tại */ }

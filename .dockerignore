@@ -27,3 +27,6 @@ coverage
 docs
 **/*.test.ts
 **/*.test.tsx
+
+client_secret_*.json
+*service-account*.json

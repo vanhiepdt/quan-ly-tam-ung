@@ -1,7 +1,7 @@
 import { TarArchive } from 'archiver'
-import { createSign } from 'node:crypto'
+import { taiLenGoogleDrive } from './google-drive'
 import { createWriteStream } from 'node:fs'
-import { access, mkdir, mkdtemp, readFile, readdir, rm, stat, unlink } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, stat, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { db } from '@/lib/db/pool'
@@ -9,13 +9,10 @@ import { GOC_TEP } from '@/lib/tep/luu'
 import { docCauHinhSaoLuu, KHOA_MUI_GIO_SAO_LUU, tachNgayGio, type LoaiSaoLuu } from './cau-hinh'
 
 type Job = { id: string; loai: LoaiSaoLuu; ngayLich: string | null }
-type ServiceAccount = { client_email?: string; private_key?: string; token_uri?: string }
 
 const DEFAULT_BACKUP_DIR = '/var/lib/tam-ung/backup'
 
 function backupDir() { return process.env.BACKUP_DIR?.trim() || DEFAULT_BACKUP_DIR }
-function serviceAccountFile() { return process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE?.trim() || '/etc/quan-ly-tam-ung/google-drive-service-account.json' }
-function folderId() { return process.env.GOOGLE_DRIVE_FOLDER_ID?.trim() || '' }
 
 function thongBaoLoi(error: unknown): string {
   const text = error instanceof Error ? error.message : 'Lỗi không xác định.'
@@ -64,61 +61,6 @@ function taoTarGzip(outputPath: string, databaseDump: string, attachments: strin
   })
 }
 
-function b64(value: string | object) {
-  const text = typeof value === 'string' ? value : JSON.stringify(value)
-  return Buffer.from(text).toString('base64url')
-}
-
-async function accessToken(account: ServiceAccount): Promise<string> {
-  if (!account.client_email || !account.private_key) throw new Error('Thông tin Service Account Google Drive chưa đầy đủ.')
-  const tokenUri = account.token_uri || 'https://oauth2.googleapis.com/token'
-  const now = Math.floor(Date.now() / 1000)
-  const unsigned = b64({ alg: 'RS256', typ: 'JWT' }) + '.' + b64({
-    iss: account.client_email, scope: 'https://www.googleapis.com/auth/drive.file', aud: tokenUri,
-    iat: now, exp: now + 3600,
-  })
-  const signer = createSign('RSA-SHA256')
-  signer.update(unsigned)
-  const assertion = unsigned + '.' + signer.sign(account.private_key).toString('base64url')
-  const body = new URLSearchParams({
-    grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion,
-  })
-  const response = await fetch(tokenUri, {
-    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body,
-    signal: AbortSignal.timeout(30_000),
-  })
-  if (!response.ok) throw new Error('Google Drive không cấp được quyền truy cập.')
-  const data = await response.json() as { access_token?: string }
-  if (!data.access_token) throw new Error('Google Drive không trả về access token.')
-  return data.access_token
-}
-
-async function taiLenGoogleDrive(filePath: string, name: string): Promise<string> {
-  const parent = folderId()
-  if (!parent) throw new Error('Chưa cấu hình GOOGLE_DRIVE_FOLDER_ID trên VPS.')
-  const keyFile = serviceAccountFile()
-  let account: ServiceAccount
-  try { account = JSON.parse(await readFile(keyFile, 'utf8')) as ServiceAccount } catch { throw new Error('Không đọc được file Service Account Google Drive trên VPS.') }
-  const token = await accessToken(account)
-  const data = await readFile(filePath)
-  const boundary = 'tamung-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)
-  const metadata = Buffer.from(JSON.stringify({ name, parents: [parent] }), 'utf8')
-  const body = Buffer.concat([
-    Buffer.from('--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'), metadata,
-    Buffer.from('\r\n--' + boundary + '\r\nContent-Type: application/gzip\r\n\r\n'), data,
-    Buffer.from('\r\n--' + boundary + '--\r\n'),
-  ])
-  const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'multipart/related; boundary=' + boundary, 'Content-Length': String(body.length) },
-    body, signal: AbortSignal.timeout(300_000),
-  })
-  if (!response.ok) throw new Error('Google Drive từ chối tải bản sao lưu.')
-  const result = await response.json() as { id?: string }
-  if (!result.id) throw new Error('Google Drive không trả về mã tệp.')
-  return result.id
-}
-
 async function donDep(dir: string) {
   const keepDays = Number(process.env.BACKUP_KEEP_DAYS || 14)
   const tuoi = Number.isFinite(keepDays) && keepDays >= 1 ? keepDays : 14
@@ -135,7 +77,6 @@ export async function thucHienSaoLuu(): Promise<{ file: string; driveFileId: str
   const dir = backupDir()
   await mkdir(dir, { recursive: true })
   await mkdir(GOC_TEP, { recursive: true })
-  await access(serviceAccountFile()).catch(() => { throw new Error('Không tìm thấy file Service Account Google Drive trên VPS.') })
   const connection = thongTinKetNoi()
   const runId = tachNgayGio()
   const id = runId.ngay.replaceAll('-', '') + '-' + runId.gio.replace(':', '') + '00'

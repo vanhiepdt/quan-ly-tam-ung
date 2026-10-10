@@ -60,3 +60,27 @@ export async function yeuCauSaoLuuNgay(_: KetQuaSaoLuu, _formData: FormData): Pr
     return { loi: 'Không gửi được yêu cầu sao lưu. Vui lòng thử lại.' }
   }
 }
+
+export async function kiemTraSaoLuuGoogleDrive(_: KetQuaSaoLuu, _formData: FormData): Promise<KetQuaSaoLuu> {
+  await batBuocVaiTro('admin')
+  try {
+    const { kiemTraKetNoiGoogleDrive } = await import('@/lib/sao-luu/google-drive')
+    const email = await kiemTraKetNoiGoogleDrive()
+    revalidatePath('/cai-dat')
+    return { thanhCong: `Kết nối Google Drive thành công (${email}). Thư mục sao lưu có quyền ghi.` }
+  } catch (error) {
+    return { loi: error instanceof Error ? error.message : 'Không kiểm tra được kết nối Google Drive.' }
+  }
+}
+
+export async function ngatKetNoiSaoLuuGoogleDrive(_: KetQuaSaoLuu, _formData: FormData): Promise<KetQuaSaoLuu> {
+  await batBuocVaiTro('admin')
+  try {
+    const { ngatKetNoiGoogleDrive } = await import('@/lib/sao-luu/google-drive')
+    await ngatKetNoiGoogleDrive()
+    revalidatePath('/cai-dat')
+    return { thanhCong: 'Đã ngắt kết nối Google Drive. Lịch tự động sẽ không tải bản sao lưu lên Drive đến khi kết nối lại.' }
+  } catch {
+    return { loi: 'Không ngắt được kết nối Google Drive. Vui lòng thử lại.' }
+  }
+}

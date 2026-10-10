@@ -54,4 +54,4 @@ Không commit `.env`. Không in khóa JWT / mật khẩu.
 
 ## Backup Google Drive
 
-Xem [SAO-LUU-GOOGLE-DRIVE.md](SAO-LUU-GOOGLE-DRIVE.md) để cấu hình Service Account và đặt lịch backup trong **Cài đặt → Sao lưu dữ liệu**. Không lưu khóa JSON trong repo.
+Xem [SAO-LUU-GOOGLE-DRIVE.md](SAO-LUU-GOOGLE-DRIVE.md) để cấu hình OAuth Google Drive cá nhân và đặt lịch backup trong **Cài đặt → Sao lưu dữ liệu**. Không lưu khóa JSON trong repo.

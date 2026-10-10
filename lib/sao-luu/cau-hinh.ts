@@ -1,4 +1,4 @@
-import { access } from 'node:fs/promises'
+import { cauHinhOAuthHopLe, emailDaKetNoi } from './google-drive'
 import { db } from '@/lib/db/pool'
 
 export const KHOA_MUI_GIO_SAO_LUU = 'Asia/Ho_Chi_Minh'
@@ -27,7 +27,9 @@ export type LanChaySaoLuu = {
 export type DuLieuCaiDatSaoLuu = {
   cauHinh: CauHinhSaoLuu
   lanChay: LanChaySaoLuu | null
+  lichSu: LanChaySaoLuu[]
   googleDriveDaCauHinh: boolean
+  googleDriveEmail: string | null
 }
 
 type RowCauHinh = { bat_tu_dong: boolean; gio_chay: string | null }
@@ -84,13 +86,18 @@ export async function docLanChaySaoLuu(client: Pick<typeof db, 'query'> = db): P
 }
 
 export async function docDuLieuCaiDatSaoLuu(client: Pick<typeof db, 'query'> = db): Promise<DuLieuCaiDatSaoLuu> {
-  const [config, run] = await Promise.all([docCauHinhSaoLuu(client), docLanChaySaoLuu(client)])
-  const folder = process.env.GOOGLE_DRIVE_FOLDER_ID?.trim()
-  const account = process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE?.trim()
-  const readable = account ? await access(account).then(() => true, () => false) : false
-  return { cauHinh: config, lanChay: run, googleDriveDaCauHinh: Boolean(folder && readable) }
+  const [config, run, history, email, ready] = await Promise.all([
+    docCauHinhSaoLuu(client), docLanChaySaoLuu(client),
+    client.query<RowLanChay>(`select id, loai, trang_thai, ngay_lich, tao_luc, bat_dau_luc,
+      ket_thuc_luc, drive_file_id, loi from sao_luu_lan_chay
+      where trang_thai in ('thanh_cong','that_bai') order by tao_luc desc limit 30`),
+    emailDaKetNoi(), cauHinhOAuthHopLe(),
+  ])
+  return {
+    cauHinh: config, lanChay: run, lichSu: history.rows.map(row => lanChaySaoLuuTuRow(row)!),
+    googleDriveDaCauHinh: Boolean(email && ready), googleDriveEmail: email,
+  }
 }
-
 export function tachNgayGio(value: Date = new Date(), timeZone = KHOA_MUI_GIO_SAO_LUU) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',

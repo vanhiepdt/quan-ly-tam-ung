@@ -16,7 +16,8 @@ import { docDuLieuCauHinhIntake } from './intake-actions'
 import { CaiDatSaoLuu } from './cai-dat-sao-luu'
 import { docDuLieuSaoLuu } from './backup-actions'
 
-export default async function CaiDatPage() {
+export default async function CaiDatPage({ searchParams }: { searchParams: Promise<{ drive?: string }> }) {
+  const oauthStatus = (await searchParams).drive
   const phien = await layPhien()
   if (!phien) redirect('/dang-nhap')
   const tuyChon = await docTuyChonCot()
@@ -93,7 +94,7 @@ export default async function CaiDatPage() {
         {saoLuu && <div className="card mb-6 p-5 sm:p-6" data-panel="backup">
           <h2 className="mb-2 text-lg font-semibold">Sao lưu dữ liệu</h2>
           <p className="mb-5 text-slate-500">Cài đặt giờ sao lưu tự động hoặc gửi yêu cầu sao lưu thủ công. Dữ liệu được đóng gói gồm PostgreSQL và toàn bộ tệp giao dịch.</p>
-          <CaiDatSaoLuu banDau={saoLuu} />
+          <CaiDatSaoLuu banDau={saoLuu} oauthStatus={oauthStatus} />
         </div>}
 
         {intake && <div className="card mb-6 p-5 sm:p-6" data-panel="intake">
