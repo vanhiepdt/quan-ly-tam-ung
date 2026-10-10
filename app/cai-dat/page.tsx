@@ -13,6 +13,8 @@ import { dangXuat } from '@/app/dang-nhap/actions'
 import { MAU_WORD } from '@/lib/tai-chinh/in-giay'
 import { CaiDatIntake } from './cai-dat-intake'
 import { docDuLieuCauHinhIntake } from './intake-actions'
+import { CaiDatSaoLuu } from './cai-dat-sao-luu'
+import { docDuLieuSaoLuu } from './backup-actions'
 
 export default async function CaiDatPage() {
   const phien = await layPhien()
@@ -24,19 +26,22 @@ export default async function CaiDatPage() {
   let giay = null
   let ai = null
   let intake = null
+  let saoLuu = null
   let canBo: Array<{ id: string; ten: string }> = []
   let nguoiLayHd: Array<{ id: string; ten: string }> = []
   if (laAdmin) {
-    const [duLieu, duLieuAi, dsCanBo, { rows: dsNguoiLayHd }, duLieuIntake] = await Promise.all([
+    const [duLieu, duLieuAi, dsCanBo, { rows: dsNguoiLayHd }, duLieuIntake, duLieuSaoLuu] = await Promise.all([
       docDuLieuCauHinhGiay(),
       docDuLieuCauHinhAi(),
       docCanBo(),
       db.query<{ id: string; ten: string }>('select id, ten from nguoi_lay_hd where dang_hoat_dong order by ten'),
       docDuLieuCauHinhIntake(),
+      docDuLieuSaoLuu(),
     ])
     giay = duLieu
     ai = duLieuAi
     intake = duLieuIntake
+    saoLuu = duLieuSaoLuu
     canBo = dsCanBo.filter(cb => cb.dangHoatDong).map(cb => ({ id: cb.id, ten: cb.hoTen }))
     nguoiLayHd = dsNguoiLayHd
   }
@@ -83,6 +88,12 @@ export default async function CaiDatPage() {
           <h2 className="mb-2 text-lg font-semibold">Cài đặt AI đọc hóa đơn</h2>
           <p className="mb-5 text-slate-500">Hai cấu hình AI đọc độc lập hóa đơn PDF/XML và đối chiếu người bán, người mua, dòng hàng. Chọn nhà cung cấp hoặc trỏ API ngoài tương thích OpenAI.</p>
           <CaiDatAi banDau={ai} />
+        </div>}
+
+        {saoLuu && <div className="card mb-6 p-5 sm:p-6" data-panel="backup">
+          <h2 className="mb-2 text-lg font-semibold">Sao lưu dữ liệu</h2>
+          <p className="mb-5 text-slate-500">Cài đặt giờ sao lưu tự động hoặc gửi yêu cầu sao lưu thủ công. Dữ liệu được đóng gói gồm PostgreSQL và toàn bộ tệp giao dịch.</p>
+          <CaiDatSaoLuu banDau={saoLuu} />
         </div>}
 
         {intake && <div className="card mb-6 p-5 sm:p-6" data-panel="intake">

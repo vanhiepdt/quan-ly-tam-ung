@@ -22,9 +22,9 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     UPLOAD_DIR=/var/lib/tam-ung/tep
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates wget \
+    && apt-get install -y --no-install-recommends ca-certificates wget postgresql-client tar gzip \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /var/lib/tam-ung/tep
+    && mkdir -p /var/lib/tam-ung/tep /var/lib/tam-ung/backup
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public

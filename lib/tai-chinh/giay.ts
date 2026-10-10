@@ -119,6 +119,10 @@ function phanNgay(ngay: string): { ngay: string; thang: string; nam: string } {
   return { ngay: String(Number(khop[3])), thang: String(Number(khop[2])), nam: khop[1] }
 }
 
+function ngayHaiChu(value: string): string {
+  return value.length === 1 ? '0' + value : value
+}
+
 function goiCanBo(ds: readonly CanBo[], id: string | null): CanBo | null {
   return id === null ? null : ds.find(cb => cb.id === id) ?? null
 }
@@ -210,8 +214,11 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
   ]
 
   const chung: Record<string, string> = {
-    ngay, thang, nam, ngaytk: ngay, thangtk: thang, namtk: nam,
-    ngaydntk: ngayDeNghi, thangdntk: thangDeNghi, namdntk: namDeNghi,
+    ngay, thang, nam, ngaytk: ngayHaiChu(ngay), thangtk: ngayHaiChu(thang), namtk: nam,
+    ngaydntk: ngayHaiChu(ngayDeNghi), thangdntk: ngayHaiChu(thangDeNghi),
+    // Mẫu dùng ngày đề nghị ở cả dòng hành chính và ngày phê duyệt. Dòng hành chính
+    // giữ dạng văn xuôi; ngày trong nội dung dùng đủ hai chữ số.
+    thangdntkVanXuoi: thangDeNghi, namdntk: namDeNghi,
     gioi_tinh: ctx.nguoiDeNghi.gioiTinh ?? '', bangiamdoc: lanhDaoTk?.hoTen ?? '', chucdanh: lanhDaoTk?.chucDanh ?? '',
     gioi_tinhtk: lanhDaoTk?.gioiTinh ?? '', bangiamdoctk: lanhDaoTk?.hoTen ?? '', chucdanhtk: lanhDaoTk?.chucDanh ?? '',
     gioi_tinhtt: lanhDaoTt?.gioiTinh ?? '', bangiamdoctt: lanhDaoTt?.hoTen ?? '', chucdanhtt: lanhDaoTt?.chucDanh ?? '',
@@ -262,8 +269,8 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
     }
   }
 
-  const thoiGian = `${ngay}/${thang}/${nam}`
-  const thoiGianDeNghi = `${ngayDeNghi}/${thangDeNghi}/${namDeNghi}`
+  const thoiGian = `${ngayHaiChu(ngay)}/${ngayHaiChu(thang)}/${nam}`
+  const thoiGianDeNghi = `${ngayHaiChu(ngayDeNghi)}/${ngayHaiChu(thangDeNghi)}/${namDeNghi}`
   const canCu = [
     'Căn cứ văn bản 3358/NHCS-KTTC ngày 01/9/2016 của Tổng Giám đốc về việc Hướng dẫn thực hiện Quy chế quản lý tài chính trong hệ thống Ngân hàng Chính sách xã hội (NHCSXH) và văn bản số 5486/NHCS-KTTC ngày 09/6/2025 sửa đổi một số nội dung của văn bản 3358/NHCS-KTTC.',
   ]
@@ -345,9 +352,12 @@ function thayCoDinh(c: {
     // Tên đơn vị in ở đầu trang và trong dòng "Kính gửi" đều gõ cứng, phải theo cấu hình.
     { mau: mauChuoi('TRUNG TÂM ĐÀO TẠO'), thay: c.tenDonVi.toLocaleUpperCase('vi') },
     { mau: mauChuoi('Trung tâm Đào tạo'), thay: c.tenDonVi },
-    // Địa danh in ở đầu dòng ngày tháng cũng gõ cứng "Hà Nội". Chỉ thay khi nó đứng ngay
-    // trước chữ "ngày" của dòng đó, để không đụng vào chỗ khác có cùng hai chữ này.
-    { mau: mauChuoi('Hà Nội, ngày'), thay: `${c.diaDanh}, ngày` },
+    // Địa danh ở đầu dòng ngày tháng được gõ cứng trong mẫu. Chỉ thay phần địa danh,
+    // để phép thay ngày ở ngay sau đó vẫn áp dụng được.
+    { mau: mauChuoi('Hà Nội,'), thay: `${c.diaDanh},` },
+    // Mẫu tiếp khách dùng chung chỗ trống tháng cho dòng hành chính và ngày phê duyệt.
+    // Đổi riêng dòng hành chính sang tháng không đệm số 0.
+    { mau: /\[\[ngaydntk\]\]\s+tháng\s+\[\[thangdntk\]\]\s+năm\s+\[\[namdntk\]\]/g, thay: '[[ngaydntk]] tháng [[thangdntkVanXuoi]] năm [[namdntk]]' },
     // Giấy thanh toán để trống ngày ở dòng "Hà Nội, ngày ... tháng [[thang]]": in theo
     // ngày phát sinh, giống mọi chỗ ngày khác trên giấy.
     { mau: /(ngày)\s+tháng/g, thay: `$1 ${c.ngay} tháng` },

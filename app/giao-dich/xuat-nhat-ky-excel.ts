@@ -7,6 +7,17 @@ type CotXuat = Omit<Cot, 'id'> & { id: CotXuatId }
 type GiaTriExcel = string | number | Date
 type ThuVienXlsx = typeof import('xlsx')
 
+export type TepXuatNhatKy = {
+  id: string
+  giaoDichId: string
+  loai: string
+  tenGoc: string
+  mime: string
+  duongDan: string
+  zipPath: string
+  tonTai: boolean
+}
+
 export const DINH_DANG_NGAY_EXCEL = 'dd/mm/yyyy'
 export const DINH_DANG_TIEN_VND_EXCEL = '#,##0 "VND"'
 
@@ -22,13 +33,13 @@ function ngayExcel(value: string): Date {
 // Một ô bắt đầu bằng =, +, - hoặc @ có thể bị Excel hiểu là công thức. Nhật ký
 // có nội dung người dùng nhập nên luôn ghi những giá trị này dưới dạng văn bản.
 function vanBanExcel(value: string): string {
-  return /^[=+\-@]/.test(value) ? `'${value}` : value
+  return /^[=+\-@]/.test(value) ? "'" + value : value
 }
 
 function chungTu(row: GiaoDichTinh): string {
   const phan = [
-    row.kyHieuHd ? `Ký hiệu: ${row.kyHieuHd}` : '',
-    row.soHd ? `Số HĐ: ${row.soHd}` : '',
+    row.kyHieuHd ? 'Ký hiệu: ' + row.kyHieuHd : '',
+    row.soHd ? 'Số HĐ: ' + row.soHd : '',
   ].filter(Boolean)
   return phan.join('\n') || '—'
 }
@@ -36,13 +47,13 @@ function chungTu(row: GiaoDichTinh): string {
 export function giaTriXuatNhatKy(row: GiaoDichTinh, id: CotXuatId): GiaTriExcel {
   switch (id) {
     case 'ngay': return ngayExcel(row.ngay)
-    case 'noiDung': return vanBanExcel(row.ghiChu ? `${row.noiDung}\nGhi chú: ${row.ghiChu}` : row.noiDung)
+    case 'noiDung': return vanBanExcel(row.ghiChu ? row.noiDung + '\nGhi chú: ' + row.ghiChu : row.noiDung)
     case 'donVi': return vanBanExcel(row.donViTen ?? '—')
     case 'nguoiDeNghi': return vanBanExcel(row.nguoiDeNghiTen ?? '—')
     case 'nguoiLayHd': return vanBanExcel(row.nguoiLayHdTen ?? '—')
     case 'chungTu': return vanBanExcel(chungTu(row))
     case 'trangThaiHd': return vanBanExcel(canDonVi(row.hinhThuc)
-      ? `${row.trangThaiHd}\n${row.chiThucTe ? 'Chi thực tế' : 'Không chi thực tế'}`
+      ? row.trangThaiHd + '\n' + (row.chiThucTe ? 'Chi thực tế' : 'Không chi thực tế')
       : row.trangThaiHd)
     case 'trangThaiTtPhi': return vanBanExcel(row.trangThaiTtPhi)
     case 'hinhThuc': return vanBanExcel(row.hinhThuc)
@@ -61,7 +72,7 @@ export function giaTriXuatNhatKy(row: GiaoDichTinh, id: CotXuatId): GiaTriExcel 
     case 'duThucTe': return row.duThucTe
     case 'duDangCam': return row.duDangCam
     case 'duHiepDangCam': return row.duHiepDangCam
-    case 'tep': return vanBanExcel(`Hóa đơn: ${row.coHoaDon ? 'Có' : 'Chưa có'}; Chuyển khoản: ${row.coChuyenKhoan ? 'Có' : 'Chưa có'}`)
+    case 'tep': return vanBanExcel('Hóa đơn: ' + (row.coHoaDon ? 'Có' : 'Chưa có') + '; Chuyển khoản: ' + (row.coChuyenKhoan ? 'Có' : 'Chưa có'))
   }
 }
 
@@ -77,17 +88,24 @@ export function taoWorkbookNhatKy(XLSX: ThuVienXlsx, rows: readonly GiaoDichTinh
     cellDates: true,
     dateNF: DINH_DANG_NGAY_EXCEL,
   })
+  for (let cot = 0; cot < cotXuatNhatKy.length; cot += 1) {
+    const header = sheet[XLSX.utils.encode_cell({ r: 0, c: cot })]
+    if (header) header.s = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1F4E78' } }, alignment: { wrapText: true, vertical: 'center' } }
+  }
   for (let hang = 1; hang <= rows.length; hang += 1) {
     for (let cot = 0; cot < cotXuatNhatKy.length; cot += 1) {
       const cell = sheet[XLSX.utils.encode_cell({ r: hang, c: cot })]
       if (!cell) continue
       if (cotXuatNhatKy[cot].id === 'ngay') cell.z = DINH_DANG_NGAY_EXCEL
       if (cotXuatNhatKy[cot].kieu === 'so') cell.z = DINH_DANG_TIEN_VND_EXCEL
+      cell.s = { ...(cell.s ?? {}), alignment: { wrapText: true, vertical: 'center' } }
+      if (hang % 2 === 0) cell.s.fill = { fgColor: { rgb: 'F8FAFC' } }
     }
   }
   sheet['!cols'] = cotXuatNhatKy.map(c => ({ wch: Math.max(12, Math.min(45, Math.round(c.rong / 8))) }))
+  sheet['!rows'] = [{ hpt: 32 }, ...rows.map(() => ({ hpt: 30 }))]
   sheet['!autofilter'] = {
-    ref: `A1:${XLSX.utils.encode_cell({ r: Math.max(0, rows.length), c: cotXuatNhatKy.length - 1 })}`,
+    ref: 'A1:' + XLSX.utils.encode_cell({ r: Math.max(0, rows.length), c: cotXuatNhatKy.length - 1 }),
   }
 
   const workbook = XLSX.utils.book_new()
@@ -96,14 +114,32 @@ export function taoWorkbookNhatKy(XLSX: ThuVienXlsx, rows: readonly GiaoDichTinh
 }
 
 export function tenTepNhatKy(now = new Date()): string {
-  const ngay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  return `nhat-ky-giao-dich-${ngay}.xlsx`
+  const ngay = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
+  return 'nhat-ky-giao-dich-' + ngay + '.zip'
+}
+
+function tenTuHeader(value: string | null): string | null {
+  if (!value) return null
+  const match = /filename\*=UTF-8''([^;]+)/i.exec(value)
+  if (match?.[1]) return decodeURIComponent(match[1])
+  const fallback = /filename="?([^";]+)"?/i.exec(value)
+  return fallback?.[1] ?? null
 }
 
 export async function xuatNhatKyExcel(rows: readonly GiaoDichTinh[]): Promise<void> {
-  const XLSX = await import('xlsx')
-  XLSX.writeFile(taoWorkbookNhatKy(XLSX, rows), tenTepNhatKy(), {
-    bookType: 'xlsx',
-    compression: true,
+  const response = await fetch('/api/giao-dich/xuat-excel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: rows.map(row => row.id) }),
   })
+  if (!response.ok) throw new Error('Không thể xuất Excel.')
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = tenTuHeader(response.headers.get('content-disposition')) ?? tenTepNhatKy()
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
 }

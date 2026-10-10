@@ -172,11 +172,11 @@ describe('giấy tiếp khách và giấy thanh toán', () => {
     expect(tiepKhach.dongNgay).toBe('Hà Nội, ngày 18 tháng 9 năm 2026')
     expect(tiepKhach.thayThe.ngaydntk).toBe('18')
     expect(tiepKhach.thayThe.ngaytk).toBe('20')
-    expect(tiepKhach.than).toContain('Ngày tiếp khách: 20/9/2026')
+    expect(tiepKhach.than).toContain('Ngày tiếp khách: 20/09/2026')
 
     const thanhToan = dungGiay(LOAI_GIAY.THANH_TOAN, g, ctx())
-    expect(thanhToan.than[0]).toContain('đã được phê duyệt ngày 18/9/2026')
-    expect(thanhToan.than).toContain('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/9/2026;')
+    expect(thanhToan.than[0]).toContain('đã được phê duyệt ngày 18/09/2026')
+    expect(thanhToan.than).toContain('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/09/2026;')
   })
 
   it('giấy tiếp khách và thanh toán cùng lấy tiền được hoàn/thanh toán đã nhập', () => {
@@ -418,7 +418,7 @@ describe('điền vào tệp Word thật', () => {
     expect(chu).toContain('3. Hình thức thanh toán: Chuyển khoản – Số tài khoản: 123456789 – Ngân hàng: NHCSXH – Chi nhánh: Hà Nội – Chủ tài khoản: Vũ Văn E.')
     expect(chu).toContain('2. Số tiền đề nghị thanh toán: 1.500.000 đồng')
     expect(chu).toContain('Kính gửi: Bà Trần Thị B – Phó Giám đốc Trung tâm Tin học')
-    expect(chu).toContain('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/9/2026;')
+    expect(chu).toContain('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/09/2026;')
   })
 
   it('mau Word dung ngay de nghi cho phan dau va ngay hoa don cho noi dung', () => {
@@ -429,12 +429,12 @@ describe('điền vào tệp Word thật', () => {
     expect(tiepKhach.thieu).toEqual([])
     expect(tiepKhach.chu).not.toContain('[[')
     expect(tiepKhach.chu).toContain('Đà Nẵng, ngày 18 tháng 9 năm 2026')
-    expect(tiepKhach.chu).toContain('Ngày tiếp khách: 20/9/2026')
+    expect(tiepKhach.chu).toContain('Ngày tiếp khách: 20/09/2026')
 
     const thanhToan = giayThat(LOAI_GIAY.THANH_TOAN, g, ctxRieng())
     expect(thanhToan.thieu).toEqual([])
-    expect(thanhToan.chu).toContain('đã được phê duyệt ngày 18/9/2026')
-    expect(thanhToan.chu).toContain('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/9/2026;')
+    expect(thanhToan.chu).toContain('đã được phê duyệt ngày 18/09/2026')
+    expect(thanhToan.chu).toContain('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/09/2026;')
   })
   it('hoàn tạm ứng không in tài khoản, và giấy tiếp khách làm tròn kinh phí dự kiến', () => {
     const hoan = giayThat(LOAI_GIAY.THANH_TOAN, gd({ hinhThuc: HINH_THUC.HOAN_TAM_UNG, tongTien: 1_200_000 }), ctxRieng())
@@ -448,7 +448,7 @@ describe('điền vào tệp Word thật', () => {
     expect(tiepKhach.chu).toContain('Kinh phí dự kiến: 1.500.000đ')
     // Mẫu đã có sẵn chữ " đồng)" sau chỗ trống nên phần đọc số chỉ điền tới "nghìn".
     expect(tiepKhach.chu).toContain('(Bằng chữ: Một triệu năm trăm nghìn đồng)')
-    expect(tiepKhach.chu).toContain('Ngày tiếp khách: 20/9/2026')
+    expect(tiepKhach.chu).toContain('Ngày tiếp khách: 20/09/2026')
     // Mẫu tiếp khách để phòng trần ở chỗ trống [[PHONGTK]], không kèm chữ "P." như mẫu tạm ứng.
     expect(tiepKhach.chu).toContain('PHÒNG HCTC')
   })

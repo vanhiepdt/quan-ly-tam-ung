@@ -54,6 +54,10 @@ services:
       DATABASE_SSL: 'false'
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       UPLOAD_DIR: /var/lib/tam-ung/tep
+      BACKUP_DIR: /var/lib/tam-ung/backup
+      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID:-}
+      GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE: /etc/quan-ly-tam-ung/google-drive-service-account.json
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
       # Browser: office.ttdt.site. DS↔app: Docker DNS trên mạng sẵn có — không restart OnlyOffice.
       ONLYOFFICE_PUBLIC_URL: https://office.ttdt.site
       ONLYOFFICE_INTERNAL_URL: http://onlyoffice
@@ -62,6 +66,8 @@ services:
       - '127.0.0.1:3002:3000'
     volumes:
       - tep:/var/lib/tam-ung/tep
+      - backups:/var/lib/tam-ung/backup
+      - ${BACKUP_CONFIG_DIR:-/etc/quan-ly-tam-ung}:/etc/quan-ly-tam-ung:ro
     depends_on:
       db:
         condition: service_healthy
@@ -73,6 +79,7 @@ services:
 volumes:
   pgdata:
   tep:
+  backups:
 
 networks:
   quanlycongviec_default:

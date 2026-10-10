@@ -54,4 +54,4 @@ Không commit `.env`. Không in khóa JWT / mật khẩu.
 
 ## Backup Google Drive
 
-Xem [SAO-LUU-GOOGLE-DRIVE.md](SAO-LUU-GOOGLE-DRIVE.md) để cấu hình Service Account và cron 17:00 theo múi giờ Asia/Bangkok. Không lưu khóa JSON trong repo.
+Xem [SAO-LUU-GOOGLE-DRIVE.md](SAO-LUU-GOOGLE-DRIVE.md) để cấu hình Service Account và đặt lịch backup trong **Cài đặt → Sao lưu dữ liệu**. Không lưu khóa JSON trong repo.

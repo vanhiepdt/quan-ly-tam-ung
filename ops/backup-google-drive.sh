@@ -3,7 +3,7 @@
 #
 # Script nay chay tren host VPS, doc cau hinh tu BACKUP_CONFIG_FILE (mac dinh:
 # /etc/quan-ly-tam-ung/backup.env). Khong dat khoa tai khoan dich vu vao Git.
-# Cron duoc cai theo mui gio Asia/Bangkok luc 17:00 moi ngay.
+# Phuong an du phong; ban production uu tien worker trong container.
 set -euo pipefail
 
 CONFIG_FILE="${BACKUP_CONFIG_FILE:-/etc/quan-ly-tam-ung/backup.env}"

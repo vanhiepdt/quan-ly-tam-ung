@@ -32,7 +32,7 @@ const duLieuTamUng = {
 
 const duLieuTiepKhach = {
   PHONGTK: 'P. HÀNH CHÍNH TỔ CHỨC', PHONGTKVT: 'Phòng Hành chính Tổ chức',
-  ngaytk: '20', thangtk: '9', namtk: '2026', ngaydntk: '20', thangdntk: '9', namdntk: '2026', thang: '9', nam: '2026',
+  ngaytk: '20', thangtk: '09', namtk: '2026', ngaydntk: '20', thangdntk: '09', namdntk: '2026', thang: '9', nam: '2026',
   gioi_tinhtk: 'Ông', bangiamdoctk: 'Nguyễn Văn A', chucdanhtk: 'Giám đốc',
   gioi_tinhtt: 'Bà', bangiamdoctt: 'Trần Thị B', chucdanhtt: 'Phó Giám đốc',
   donvitiepkhac: 'Phòng Tổ chức', sotiendukien: '2.000.000', sotiendukienbangchu: 'Hai triệu đồng',
@@ -122,12 +122,12 @@ describe('dienMauDocx trên tệp mẫu thật', () => {
     expect(doan).toContain('P. HÀNH CHÍNH TỔ CHỨC')
     expect(doan).toContain('Hà Nội, ngày 20 tháng 9 năm 2026')
     expect(doan).toContain('Đối tượng tiếp khách: Phòng Tổ chức.')
-    expect(doan).toContain('Ngày tiếp khách: 20/9/2026')
+    expect(doan).toContain('Ngày tiếp khách: 20/09/2026')
     expect(doan).toContain('Kinh phí dự kiến: 2.000.000đ')
     expect(doan).toContain('(Bằng chữ: Hai triệu đồng đồng)')
     expect(doan).toContain('2. Số tiền đề nghị thanh toán: 1.700.000 đồng')
-    expect(doan).toContain('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/9/2026;')
-    expect(doan).toContain('Căn cứ Giấy đề nghị tiếp khách đã được phê duyệt ngày 20/9/2026 của Phòng Hành chính Tổ chức, nay bộ phận được giao tiếp khách đề nghị thanh toán chi phí tiếp khách với nội dung như sau:')
+    expect(doan).toContain('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/09/2026;')
+    expect(doan).toContain('Căn cứ Giấy đề nghị tiếp khách đã được phê duyệt ngày 20/09/2026 của Phòng Hành chính Tổ chức, nay bộ phận được giao tiếp khách đề nghị thanh toán chi phí tiếp khách với nội dung như sau:')
     expect(doan).toContain('Trần Thị B')
     expect(doan).toContain('Lê Thị C')
     expect(doan).toContain('Phạm Văn Hiệp')
