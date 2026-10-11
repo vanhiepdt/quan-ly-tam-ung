@@ -15,7 +15,7 @@ import { dienMauDocx } from '@/lib/van-ban/docx'
 import { ganTepVaoGiaoDich } from '@/lib/tep/gan'
 import { taiKhoanTuNhap } from './tai-khoan'
 import { soTienThanhToan, tienTheoHoaDon } from './tien-thanh-toan'
-import { HINH_THUC } from './kieu'
+import { CO_SO_TINH_PHI, HINH_THUC } from './kieu'
 
 export type KetQuaTaoGiaoDich = {
   loi?: string
@@ -95,6 +95,7 @@ export async function taoGiaoDichDaParse(
   const coTinhPhi = canDonVi(d.hinh_thuc) && (d.co_tinh_phi_lay_hd ?? coTinhPhiMacDinh(d.hinh_thuc, d.trang_thai_tt_phi, chiThucTe))
   const trangThaiTtPhi = coTinhPhi ? (d.trang_thai_tt_phi || 'Không phát sinh') : 'Không phát sinh'
   const phiLayHdGhiDe = coTinhPhi ? d.phi_lay_hd_ghi_de : null
+  const coSoTinhPhi = canDonVi(d.hinh_thuc) ? d.co_so_tinh_phi_lay_hd : CO_SO_TINH_PHI.TONG_TIEN
   const hinhThucThanhToan = d.hinh_thuc_thanh_toan ?? hinhThucThanhToanMacDinh(d.hinh_thuc)
   const lamTronXuongHangNghin = canDonVi(d.hinh_thuc)
     && (d.lam_tron_xuong_hang_nghin ?? lamTronXuongHangNghinMacDinh(d.hinh_thuc, hinhThucThanhToan))
@@ -184,8 +185,8 @@ export async function taoGiaoDichDaParse(
         nguoi_de_nghi_id, lanh_dao_tiep_khach_id, lanh_dao_thanh_toan_id, truong_phong_id, ke_toan_kiem_soat_id, thong_tin_giay_da_chot,
         nguoi_lay_hd_id, phi_lay_hd_ghi_de, co_tinh_phi_lay_hd, trang_thai_tt_phi, ghi_chu,
         hinh_thuc_thanh_toan, tai_khoan_nhan_so, tai_khoan_nhan_ngan_hang, tai_khoan_nhan_chi_nhanh,
-        tai_khoan_nhan_ten_chu_tk, nguoi_tao, nguoi_sua, tien_duoc_thanh_toan_goc, ngay_de_nghi, chi_thuc_te
-      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$34,$35,$36,$37) returning id`, [
+        tai_khoan_nhan_ten_chu_tk, nguoi_tao, nguoi_sua, tien_duoc_thanh_toan_goc, ngay_de_nghi, chi_thuc_te, co_so_tinh_phi_lay_hd
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$34,$35,$36,$37,$38) returning id`, [
         d.ngay, rows[0].so_thu_tu, donVi.noiDung, donVi.donViId, d.ky_hieu_hd, d.so_hd, d.loai_hd, trangThaiHd, d.hinh_thuc,
         d.tong_tien, d.tien_ruou_bia, tienDuocThanhToan, lamTronXuongHangNghin,
         dongTien.tam_ung_tu_cq, dongTien.giao_tien_chi_thuy, dongTien.dua_tien_cq_tra_thang_cho_chi_thuy, dongTien.hoan_ung_tien_mat,
@@ -193,7 +194,7 @@ export async function taoGiaoDichDaParse(
         canDonVi(d.hinh_thuc) ? d.nguoi_lay_hd_id : null, phiLayHdGhiDe, coTinhPhi, trangThaiTtPhi, d.ghi_chu,
         hinhThucThanhToan, taiKhoanNhanGhiDe?.soTaiKhoan ?? null, taiKhoanNhanGhiDe?.nganHang ?? null,
         taiKhoanNhanGhiDe?.chiNhanh ?? null, taiKhoanNhanGhiDe?.tenChuTk ?? null, options.actorId,
-        tienDuocThanhToanGoc, ngayDeNghi, chiThucTe,
+        tienDuocThanhToanGoc, ngayDeNghi, chiThucTe, coSoTinhPhi,
       ])
       const giaoDichId = inserted.rows[0].id
       const result: KetQuaTaoGiaoDich = { giaoDichId }

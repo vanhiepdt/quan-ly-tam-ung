@@ -159,6 +159,19 @@ describe('suaGiaoDich', () => {
     expect(params).toEqual([false, null, 'Không phát sinh', actor, id])
   })
 
+  it('admin đổi cơ sở tính phí cho hóa đơn, từ chối giá trị lạ và không cho vai trò nhập liệu đổi', async () => {
+    expect((await suaGiaoDich({}, gui('co_so_tinh_phi_lay_hd', 'tien_duoc_thanh_toan'))).thanhCong).toContain('cơ sở tính phí')
+    expect(capNhat()[0]).toEqual([
+      'update giao_dich set co_so_tinh_phi_lay_hd=$1, sua_luc=now(), nguoi_sua=$2 where id=$3',
+      ['tien_duoc_thanh_toan', actor, id],
+    ])
+    vi.clearAllMocks()
+    expect((await suaGiaoDich({}, gui('co_so_tinh_phi_lay_hd', 'khong_hop_le'))).loi).toBeDefined()
+    expect(mocks.transaction).not.toHaveBeenCalled()
+    mocks.phien.mockResolvedValue({ id: actor, vai_tro: 'nhap_lieu' })
+    expect((await suaGiaoDich({}, gui('co_so_tinh_phi_lay_hd', 'tong_tien'))).loi).toContain('quản trị viên')
+  })
+
   it('đổi chuyển khoản sang tiền mặt thì làm tròn theo mặc định và xóa snapshot tài khoản riêng', async () => {
     mocks.query.mockImplementation(async (sql: string) => {
       if (sql.includes('from giao_dich')) return { rows: [{
@@ -445,7 +458,7 @@ describe('sửa Chi thực tế', () => {
   it.each([['Cơ quan trả thẳng', true], ['Tạm ứng thêm', false]] as const)('chuyển hình thức sang %s chuẩn hóa cờ thành %s', async (hinhThucMoi, expected) => {
     mocks.query.mockImplementation(async (sql: string) => {
       if (sql.includes('from giao_dich')) return { rows: [{
-        ngay: '2026-09-30', hinh_thuc: 'Hoàn tạm ứng', chi_thuc_te: true, don_vi_id: donVi,
+        ngay: '2026-09-30', hinh_thuc: 'Hoàn tạm ứng', chi_thuc_te: true, co_so_tinh_phi_lay_hd: 'tien_duoc_thanh_toan', don_vi_id: donVi,
         tong_tien: '1000000', tien_ruou_bia: '100000', tien_duoc_thanh_toan_goc: '876543',
         co_tinh_phi_lay_hd: false, trang_thai_tt_phi: 'Không phát sinh', hinh_thuc_thanh_toan: 'hoan_tam_ung',
       }] }
@@ -455,5 +468,6 @@ describe('sửa Chi thực tế', () => {
     expect((await suaGiaoDich({}, gui('hinh_thuc', hinhThucMoi))).thanhCong).toContain('đổi hình thức')
     expect(capNhat()[0][0]).toContain('chi_thuc_te=$29')
     expect(capNhat()[0][1][28]).toBe(expected)
+    expect(capNhat()[0][1][29]).toBe(expected ? 'tien_duoc_thanh_toan' : 'tong_tien')
   })
 })

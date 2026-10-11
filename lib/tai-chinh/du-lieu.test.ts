@@ -40,6 +40,10 @@ describe('PostgreSQL calendar date normalization', () => {
     expect(chuyenDongGiaoDich({ ...row, hinh_thuc: 'Cơ quan trả thẳng', co_tinh_phi_lay_hd: true })).toMatchObject({ coTinhPhi: true })
     expect(chuyenDongGiaoDich({ ...row, hinh_thuc: 'Cơ quan trả thẳng', co_tinh_phi_lay_hd: false })).toMatchObject({ coTinhPhi: false })
   })
+  it('maps the fee base, defaulting legacy rows to total amount', () => {
+    expect(chuyenDongGiaoDich({ ...row }).coSoTinhPhi).toBe('tong_tien')
+    expect(chuyenDongGiaoDich({ ...row, co_so_tinh_phi_lay_hd: 'tien_duoc_thanh_toan' }).coSoTinhPhi).toBe('tien_duoc_thanh_toan')
+  })
   it('maps the saved payment amount and thousand-rounding choice', () => {
     expect(chuyenDongGiaoDich({
       ...row, hinh_thuc: 'Cơ quan trả thẳng', tien_duoc_thanh_toan: '1234000', lam_tron_xuong_hang_nghin: true,

@@ -3,7 +3,7 @@ import { startTransition, useActionState, useEffect, useId, useMemo, useRef, use
 import { themGiaoDich, type KetQua } from './actions'
 import { unstable_rethrow } from 'next/navigation'
 import { LOAI_HD, LOAI_HD_HOA_DON, TRANG_THAI_HD, TRANG_THAI_PHI } from '@/lib/tai-chinh/danh-muc'
-import { HINH_THUC } from '@/lib/tai-chinh/kieu'
+import { CO_SO_TINH_PHI, HINH_THUC } from '@/lib/tai-chinh/kieu'
 import { canDonVi, coTinhPhiMacDinh, dsHinhThucThanhToan, HINH_THUC_THANH_TOAN, hinhThucThanhToanMacDinh, lamTronXuongHangNghinMacDinh, NHAN_HINH_THUC_THANH_TOAN, noiDungTheoDonVi, noiDungTheoHinhThuc } from '@/lib/tai-chinh/hinh-thuc'
 import { donViMacDinh, type DonViTiepKhach } from '@/lib/tai-chinh/don-vi'
 import type { NguoiLayHdChon } from '@/lib/tai-chinh/tai-khoan'
@@ -77,7 +77,7 @@ function defaultValues(mac?: {
     trang_thai_tt_phi: phi && (TRANG_THAI_PHI as readonly string[]).includes(phi) ? phi : 'Không phát sinh',
     tong_tien: '0', tien_ruou_bia: '0', tien_duoc_thanh_toan: '0', tien_duoc_thanh_toan_goc: '0', lam_tron_xuong_hang_nghin: '0',
     tam_ung_tu_cq: '0', giao_tien_chi_thuy: '0', dua_tien_cq_tra_thang_cho_chi_thuy: '0',
-    hoan_ung_tien_mat: '0', phi_lay_hd_ghi_de: '', co_tinh_phi_lay_hd: '0', chi_thuc_te: '0',
+    hoan_ung_tien_mat: '0', phi_lay_hd_ghi_de: '', co_tinh_phi_lay_hd: '0', co_so_tinh_phi_lay_hd: CO_SO_TINH_PHI.TONG_TIEN, chi_thuc_te: '0',
     nguoi_lay_hd_id: idNguoiLayHdHopLe(mac?.collectors ?? [], mac?.nguoiLayHdMacDinhId),
     dung_tai_khoan_mac_dinh: '1', tai_khoan_nhan_so: '', tai_khoan_nhan_ngan_hang: '',
     tai_khoan_nhan_chi_nhanh: '', tai_khoan_nhan_ten_chu_tk: '',
@@ -227,6 +227,7 @@ export function FormGiaoDich({
           updated.loai_hd = getAutoLoaiHd(newValue) || loaiHdInvoiceOnly[0]
           // Rời khỏi hình thức có đơn vị thì bỏ đơn vị cũ, tránh gắn nhầm vào dòng tiền nội bộ.
           if (!canDonVi(newValue)) {
+            updated.co_so_tinh_phi_lay_hd = CO_SO_TINH_PHI.TONG_TIEN
             updated.chi_thuc_te = '0'
             updated.don_vi_id = ''
             updated.ngay_de_nghi = ''
@@ -613,6 +614,14 @@ export function FormGiaoDich({
                     <input type="hidden" name="co_tinh_phi_lay_hd" value={coTinhPhi ? '1' : '0'} />
                     <span className="text-xs font-normal text-slate-500">Bật để tính theo tỷ lệ hoặc phí ghi đè; có thể dùng cho cả Cơ quan trả thẳng.</span>
                   </div>
+                  <label className={`field${coTinhPhi ? '' : ' opacity-60'}`}>Cơ sở tính phí
+                    <select {...bind('co_so_tinh_phi_lay_hd')} disabled={!coTinhPhi}>
+                      <option value={CO_SO_TINH_PHI.TONG_TIEN}>Tổng tiền</option>
+                      <option value={CO_SO_TINH_PHI.TIEN_DUOC_THANH_TOAN}>Tiền được hoàn/thanh toán (VND)</option>
+                    </select>
+                    {!coTinhPhi && <input type="hidden" name="co_so_tinh_phi_lay_hd" value={values.co_so_tinh_phi_lay_hd} />}
+                    <span className="text-xs font-normal text-slate-500">Dùng cho phí theo tỷ lệ; phí ghi đè vẫn được ưu tiên. Nếu chọn tiền hoàn/thanh toán, máy dùng số tiền sau làm tròn.</span>
+                  </label>
                   <label className={`field${coTinhPhi ? '' : ' opacity-60'}`}>Phí ghi đè (VND)<input type="text" {...bindMoney('phi_lay_hd_ghi_de')} disabled={!coTinhPhi} inputMode="numeric" placeholder="Để trống nếu dùng tỷ lệ" /></label>
                   <input type="hidden" name="phi_lay_hd_ghi_de" value={values.phi_lay_hd_ghi_de || ''} />
                   <label className={`field${coTinhPhi ? '' : ' opacity-60'}`}>Trạng thái thanh toán phí<select {...bind('trang_thai_tt_phi')} disabled={!coTinhPhi}>{trangThaiPhi.map(s => <option key={s} value={s}>{s}</option>)}</select>{!coTinhPhi && <input type="hidden" name="trang_thai_tt_phi" value="Không phát sinh" />}</label>

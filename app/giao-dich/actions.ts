@@ -11,7 +11,7 @@ import { taoGiaoDichDaParse, type KetQuaTaoGiaoDich } from '@/lib/tai-chinh/tao-
 import { LOAI_HD_HOA_DON } from '@/lib/tai-chinh/danh-muc'
 import { canDonVi, coTinhPhiMacDinh, HINH_THUC_THANH_TOAN, hinhThucThanhToanMacDinh, hopLeHinhThucThanhToan, lamTronXuongHangNghinMacDinh, noiDungTheoDonVi, noiDungTheoHinhThuc } from '@/lib/tai-chinh/hinh-thuc'
 import { chuanHoaGiaTri, apDungChoHinhThuc, timTruongSua } from '@/lib/tai-chinh/sua-giao-dich'
-import { HINH_THUC } from '@/lib/tai-chinh/kieu'
+import { CO_SO_TINH_PHI, HINH_THUC, type CoSoTinhPhi } from '@/lib/tai-chinh/kieu'
 import { khoaSoTaiChinh } from '@/lib/tai-chinh/xac-nhan-hoan-ung'
 import { soTienThanhToan, tienTheoHoaDon } from '@/lib/tai-chinh/tien-thanh-toan'
 import { ngayDeNghiMacDinh } from '@/lib/tai-chinh/ngay'
@@ -57,6 +57,7 @@ type DongSua = {
   nguoi_lay_hd_id: string | null
   phi_lay_hd_ghi_de: number | string | null
   co_tinh_phi_lay_hd?: boolean | string | null
+  co_so_tinh_phi_lay_hd?: CoSoTinhPhi | null
   trang_thai_tt_phi: string
   hinh_thuc_thanh_toan: string | null
   tai_khoan_nhan_so: string | null
@@ -150,7 +151,8 @@ function layDuLieu(formData: FormData) {
     tam_ung_tu_cq: get('tam_ung_tu_cq') || 0, giao_tien_chi_thuy: get('giao_tien_chi_thuy') || 0,
     dua_tien_cq_tra_thang_cho_chi_thuy: get('dua_tien_cq_tra_thang_cho_chi_thuy') || 0,
     hoan_ung_tien_mat: get('hoan_ung_tien_mat') || 0, nguoi_lay_hd_id: get('nguoi_lay_hd_id'),
-    phi_lay_hd_ghi_de: get('phi_lay_hd_ghi_de'), co_tinh_phi_lay_hd: get('co_tinh_phi_lay_hd'), trang_thai_tt_phi: get('trang_thai_tt_phi'),
+    phi_lay_hd_ghi_de: get('phi_lay_hd_ghi_de'), co_tinh_phi_lay_hd: get('co_tinh_phi_lay_hd'),
+    co_so_tinh_phi_lay_hd: get('co_so_tinh_phi_lay_hd') ?? undefined, trang_thai_tt_phi: get('trang_thai_tt_phi'),
     ghi_chu: get('ghi_chu'), hinh_thuc_thanh_toan: get('hinh_thuc_thanh_toan'),
     dung_tai_khoan_mac_dinh: get('dung_tai_khoan_mac_dinh'),
     tai_khoan_nhan_so: get('tai_khoan_nhan_so'),
@@ -295,11 +297,12 @@ export async function suaGiaoDich(_: KetQua, formData: FormData): Promise<KetQua
             ? tienNguonCuaDong(row, tien(row.tong_tien), Math.min(tien(row.tien_ruou_bia), tien(row.tong_tien)))
             : 0,
           nguoiLayHdId: coHoaDonCu ? row.nguoi_lay_hd_id : null,
+          coSoTinhPhi: coHoaDonCu ? row.co_so_tinh_phi_lay_hd ?? CO_SO_TINH_PHI.TONG_TIEN : CO_SO_TINH_PHI.TONG_TIEN,
           phiLayHdGhiDe: coTinhPhi && coHoaDonCu ? (row.phi_lay_hd_ghi_de == null ? null : tien(row.phi_lay_hd_ghi_de)) : null,
           trangThaiTtPhi: coTinhPhi && coHoaDonCu ? row.trang_thai_tt_phi || 'Không phát sinh' : 'Không phát sinh',
         } : {
           kyHieuHd: null, soHd: null, loaiHd: loaiHdMacDinh(hinhThucMoi), trangThaiHd: 'Không có',
-          tongTien: 0, tienRuouBia: 0, tienDuocThanhToanGoc: 0, nguoiLayHdId: null, phiLayHdGhiDe: null, trangThaiTtPhi: 'Không phát sinh',
+          tongTien: 0, tienRuouBia: 0, tienDuocThanhToanGoc: 0, nguoiLayHdId: null, coSoTinhPhi: CO_SO_TINH_PHI.TONG_TIEN, phiLayHdGhiDe: null, trangThaiTtPhi: 'Không phát sinh',
         }
         const tienDuocThanhToan = coHoaDonMoi
           ? soTienThanhToan({
@@ -327,14 +330,15 @@ export async function suaGiaoDich(_: KetQua, formData: FormData): Promise<KetQua
           tam_ung_tu_cq=$14, giao_tien_chi_thuy=$15, dua_tien_cq_tra_thang_cho_chi_thuy=$16, hoan_ung_tien_mat=$17,
           nguoi_lay_hd_id=$18, phi_lay_hd_ghi_de=$19, co_tinh_phi_lay_hd=$20, trang_thai_tt_phi=$21,
           hinh_thuc_thanh_toan=$22, tai_khoan_nhan_so=$23, tai_khoan_nhan_ngan_hang=$24,
-          tai_khoan_nhan_chi_nhanh=$25, tai_khoan_nhan_ten_chu_tk=$26, chi_thuc_te=$29, sua_luc=now(), nguoi_sua=$27 where id=$28`, [
+          tai_khoan_nhan_chi_nhanh=$25, tai_khoan_nhan_ten_chu_tk=$26, chi_thuc_te=$29,
+          co_so_tinh_phi_lay_hd=$30, sua_luc=now(), nguoi_sua=$27 where id=$28`, [
           hinhThucMoi, noiDung, donViId, invoiceFields.kyHieuHd, invoiceFields.soHd, invoiceFields.loaiHd, invoiceFields.trangThaiHd,
           invoiceFields.tongTien, invoiceFields.tienRuouBia, tienDuocThanhToan, invoiceFields.tienDuocThanhToanGoc,
           lamTronXuongHangNghin, ngayDeNghi,
           dongTien.tamUngTuCq, dongTien.giaoTienChiThuy, dongTien.duaTienCqTraThangChoChiThuy, dongTien.hoanUngTienMat,
           invoiceFields.nguoiLayHdId, invoiceFields.phiLayHdGhiDe, coTinhPhi, invoiceFields.trangThaiTtPhi,
           hinhThucThanhToan, taiKhoanGhiDe.so, taiKhoanGhiDe.nganHang, taiKhoanGhiDe.chiNhanh, taiKhoanGhiDe.tenChuTk,
-          phien.id, id.data, chiThucTe,
+          phien.id, id.data, chiThucTe, invoiceFields.coSoTinhPhi,
         ])
         await lamMoiGiayDangCo(client, phien.id, id.data, phien)
         return { thanhCong: 'Đã đổi hình thức giao dịch và làm sạch các trường không còn phù hợp.' }

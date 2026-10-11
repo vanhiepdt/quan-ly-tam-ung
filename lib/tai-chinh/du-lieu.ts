@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/pool'
-import type { GiaoDichTho, ThamSoTinh } from './kieu'
+import { CO_SO_TINH_PHI, type GiaoDichTho, type ThamSoTinh } from './kieu'
 import { coTinhPhiMacDinh } from './hinh-thuc'
 import { taiKhoanTu } from './tai-khoan'
 
@@ -44,6 +44,8 @@ export function chuyenDongGiaoDich(g: DongGiaoDich): GiaoDichTho {
     coTinhPhi: g.co_tinh_phi_lay_hd === undefined || g.co_tinh_phi_lay_hd === null
       ? coTinhPhiMacDinh(String(g.hinh_thuc), g.trang_thai_tt_phi == null ? null : String(g.trang_thai_tt_phi), chiThucTe)
       : g.co_tinh_phi_lay_hd === true || g.co_tinh_phi_lay_hd === 'true',
+    coSoTinhPhi: g.co_so_tinh_phi_lay_hd === CO_SO_TINH_PHI.TIEN_DUOC_THANH_TOAN
+      ? CO_SO_TINH_PHI.TIEN_DUOC_THANH_TOAN : CO_SO_TINH_PHI.TONG_TIEN,
     trangThaiTtPhi: String(g.trang_thai_tt_phi),
     hinhThucThanhToan: g.hinh_thuc_thanh_toan === null || g.hinh_thuc_thanh_toan === undefined ? null : String(g.hinh_thuc_thanh_toan),
     // Tài khoản nhận tiền lấy từ chính người lấy hóa đơn của dòng này: một tài khoản

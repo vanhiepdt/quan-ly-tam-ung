@@ -1,4 +1,4 @@
-import { HINH_THUC, TRANG_THAI, type GiaoDichTho, type GiaoDichTinh, type ThamSoTinh } from './kieu'
+import { CO_SO_TINH_PHI, HINH_THUC, TRANG_THAI, type GiaoDichTho, type GiaoDichTinh, type ThamSoTinh } from './kieu'
 import { coTinhPhiMacDinh } from './hinh-thuc'
 import { soTienThanhToan } from './tien-thanh-toan'
 export type { GiaoDichTho, GiaoDichTinh } from './kieu'
@@ -21,9 +21,10 @@ export function tinhToan(ds: readonly GiaoDichTho[], thamSo: ThamSoTinh = { tyLe
     const tyLe=gd.nguoiLayHdId ? thamSo.tyLeTheoNguoi[gd.nguoiLayHdId] ?? thamSo.tyLePhiChung : thamSo.tyLePhiChung
     const coTinhPhi=gd.coTinhPhi ?? coTinhPhiMacDinh(gd.hinhThuc, gd.trangThaiTtPhi, chiThucTe)
     const coHoaDonTinhPhi=gd.hinhThuc===HINH_THUC.HOAN_TAM_UNG || gd.hinhThuc===HINH_THUC.CQ_TRA_THANG
-    // Phí lấy HĐ tính theo toàn bộ cột Tổng tiền. Số tiền được hoàn/thanh toán
-    // có thể đã loại rượu bia hoặc làm tròn nên không được dùng làm cơ sở phí.
-    const phiLayHd=coTinhPhi && coHoaDonTinhPhi ? gd.phiLayHdGhiDe ?? Math.round(gd.tongTien*tyLe) : 0
+    // Mặc định giữ cách tính cũ theo Tổng tiền; chỉ dùng số Hoàn/thanh toán
+    // (đã áp dụng lựa chọn làm tròn) khi giao dịch chọn rõ cơ sở đó.
+    const coSoPhi=gd.coSoTinhPhi===CO_SO_TINH_PHI.TIEN_DUOC_THANH_TOAN?tienRong:gd.tongTien
+    const phiLayHd=coTinhPhi && coHoaDonTinhPhi ? gd.phiLayHdGhiDe ?? Math.round(coSoPhi*tyLe) : 0
     const phiDaTra=gd.trangThaiTtPhi===TRANG_THAI.PHI_DA_TRA?phiLayHd:0
     lyThuyet+=gd.tamUngTuCq-hoanTamUng-gd.hoanUngTienMat
     // Cộng dồn riêng mỗi số dư từ dòng trước, giữ nguyên chênh lệch phí đã có.

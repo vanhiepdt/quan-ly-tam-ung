@@ -34,6 +34,7 @@ describe('danh sách trường được sửa theo vai trò và hình thức', (
     const hoanTamUng = truongSuaCho('admin', HINH_THUC.HOAN_TAM_UNG).map(t => t.id)
     expect(hoanTamUng).toContain('tong_tien')
     expect(hoanTamUng).toContain('phi_lay_hd_ghi_de')
+    expect(hoanTamUng).toContain('co_so_tinh_phi_lay_hd')
     // Hoàn tạm ứng không có khoản tạm ứng hay giao tiền, nên ba trường dòng tiền bị ẩn.
     expect(hoanTamUng).not.toContain('tam_ung_tu_cq')
     expect(hoanTamUng).not.toContain('giao_tien_chi_thuy')
@@ -97,6 +98,8 @@ describe('chuẩn hóa giá trị khi sửa', () => {
     expect(chuanHoaGiaTri(truong('trang_thai_hd'), 'Chờ HĐ')).toEqual({ ok: true, giaTri: 'Chờ HĐ' })
     expect(chuanHoaGiaTri(truong('trang_thai_hd'), 'Sai trạng thái')).toMatchObject({ ok: false })
     expect(chuanHoaGiaTri(truong('trang_thai_tt_phi'), 'Đã thanh toán')).toEqual({ ok: true, giaTri: 'Đã thanh toán' })
+    expect(chuanHoaGiaTri(truong('co_so_tinh_phi_lay_hd'), 'tien_duoc_thanh_toan')).toEqual({ ok: true, giaTri: 'tien_duoc_thanh_toan' })
+    expect(chuanHoaGiaTri(truong('co_so_tinh_phi_lay_hd'), 'sai')).toMatchObject({ ok: false })
   })
 
   it('trạng thái hóa đơn không được để trống', () => {
@@ -148,6 +151,8 @@ describe('chuẩn hóa giá trị khi sửa', () => {
     expect(giaTriHienTai(row, 'ngay')).toBe('2026-01-15')
     expect(giaTriHienTai(row, 'so_hd')).toBe('00123456')
     expect(giaTriHienTai(row, 'phi_lay_hd_ghi_de')).toBe('')
+    expect(giaTriHienTai(row, 'co_so_tinh_phi_lay_hd')).toBe('tong_tien')
+    expect(giaTriHienTai({ ...row, coSoTinhPhi: 'tien_duoc_thanh_toan' }, 'co_so_tinh_phi_lay_hd')).toBe('tien_duoc_thanh_toan')
     expect(giaTriHienTai(row, 'tong_tien')).toBe('5647000')
     expect(giaTriHienTai({ ...row, duaTienCqTraThangChoChiThuy: 2_500_000 }, 'dua_tien_cq_tra_thang_cho_chi_thuy')).toBe('2500000')
     expect(giaTriHienTai(row, 'don_vi_id')).toBe(DON_VI)

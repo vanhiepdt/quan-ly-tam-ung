@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { canDonVi, HINH_THUC_THANH_TOAN, hopLeHinhThucThanhToan, noiDungTheoHinhThuc } from '@/lib/tai-chinh/hinh-thuc'
-import { HINH_THUC } from '@/lib/tai-chinh/kieu'
+import { CO_SO_TINH_PHI, DS_CO_SO_TINH_PHI, HINH_THUC } from '@/lib/tai-chinh/kieu'
 
 const tien = z.coerce.number({ invalid_type_error: 'Số tiền không hợp lệ.' })
   .finite('Số tiền không hợp lệ.')
@@ -68,6 +68,7 @@ export const schemaGiaoDich = z.object({
   nguoi_lay_hd_id: uuidOrNull,
   phi_lay_hd_ghi_de: z.union([z.null(), z.undefined(), tien]).transform(val => val === undefined ? null : val),
   co_tinh_phi_lay_hd: checkbox,
+  co_so_tinh_phi_lay_hd: z.enum(DS_CO_SO_TINH_PHI).default(CO_SO_TINH_PHI.TONG_TIEN),
   trang_thai_tt_phi: stringOrNull,
   ghi_chu: stringOrNull,
   // Tiền mặt / chuyển khoản / hoàn tạm ứng. Hình thức giao dịch quyết định giá trị nào
@@ -104,6 +105,9 @@ export const schemaGiaoDich = z.object({
 }).refine((d) => canDonVi(d.hinh_thuc) || d.tien_duoc_thanh_toan_goc === null, {
   message: 'Chỉ giao dịch có hóa đơn mới có số tiền nguồn hoàn/thanh toán.',
   path: ['tien_duoc_thanh_toan_goc']
+}).refine((d) => canDonVi(d.hinh_thuc) || d.co_so_tinh_phi_lay_hd === CO_SO_TINH_PHI.TONG_TIEN, {
+  message: 'Chỉ giao dịch có hóa đơn mới được chọn tính phí theo tiền được hoàn/thanh toán.',
+  path: ['co_so_tinh_phi_lay_hd']
 }).refine((d) => hopLeHinhThucThanhToan(d.hinh_thuc, d.hinh_thuc_thanh_toan), {
   // Mỗi hình thức giao dịch chỉ lập một số giấy nhất định, và mỗi giấy chỉ in được một
   // số hình thức thanh toán. Client cố gửi giá trị lạ thì bị từ chối thay vì lưu rác.

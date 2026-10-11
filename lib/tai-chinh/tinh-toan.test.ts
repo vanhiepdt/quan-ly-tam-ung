@@ -37,6 +37,24 @@ describe('tinhToan', () => {
     expect(row.phiLayHd).toBe(Math.round(1_234_567 * 0.15))
   })
 
+  it.each([HINH_THUC.HOAN_TAM_UNG, HINH_THUC.CQ_TRA_THANG])('tính phí %s trên số tiền hoàn/thanh toán sau làm tròn khi được chọn', hinhThuc => {
+    const [row] = tinhToan([dong({
+      hinhThuc, coTinhPhi: true, tongTien: 1_234_567, tienRuouBia: 100_000,
+      tienDuocThanhToanGoc: 876_543, lamTronXuongHangNghin: true,
+      coSoTinhPhi: 'tien_duoc_thanh_toan',
+    })])
+    expect(row.phiLayHd).toBe(131_400)
+    expect(hinhThuc === HINH_THUC.HOAN_TAM_UNG ? row.hoanTamUng : row.cqTraThang).toBe(876_000)
+    expect(row.duThucTe).toBe(-131_400)
+  })
+
+  it('giữ số tiền lẻ khi không làm tròn; phí ghi đè vẫn ưu tiên cơ sở được chọn', () => {
+    const gd = dong({ tongTien: 2_000_000, tienDuocThanhToan: 876_543, coSoTinhPhi: 'tien_duoc_thanh_toan' })
+    expect(tinhToan([gd])[0].phiLayHd).toBe(Math.round(876_543 * 0.15))
+    expect(tinhToan([{ ...gd, phiLayHdGhiDe: 50_000 }])[0].phiLayHd).toBe(50_000)
+    expect(tinhToan([{ ...gd, coTinhPhi: false }])[0].phiLayHd).toBe(0)
+  })
+
   it('không trừ rượu bia khỏi cơ sở tính phí', () => {
     const [row] = tinhToan([dong({
       tongTien: 2_000_000, tienRuouBia: 500_000,

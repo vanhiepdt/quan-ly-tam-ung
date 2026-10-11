@@ -47,6 +47,12 @@ describe('hiển thị một giá trị trong lịch sử', () => {
     expect(hienThiGiaTri('tong_tien', 'khong-phai-so')).toBe('khong-phai-so')
   })
 
+  it('hiện cơ sở phí được chọn bằng nhãn thay vì mã lưu', () => {
+    expect(nhanCot('co_so_tinh_phi_lay_hd')).toBe('Cơ sở tính phí hóa đơn')
+    expect(hienThiGiaTri('co_so_tinh_phi_lay_hd', 'tong_tien')).toBe('Tổng tiền')
+    expect(hienThiGiaTri('co_so_tinh_phi_lay_hd', 'tien_duoc_thanh_toan')).toBe('Tiền được hoàn/thanh toán')
+  })
+
   it('khóa ngoại được tra sang tên đọc được', () => {
     expect(hienThiGiaTri('don_vi_id', DON_VI, boCanh)).toBe('Phòng Kế hoạch')
     expect(hienThiGiaTri('nguoi_lay_hd_id', NGUOI_LAY, boCanh)).toBe('Trần Thị Thúy')

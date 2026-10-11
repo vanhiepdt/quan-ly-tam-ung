@@ -9,6 +9,9 @@ export const DS_HINH_THUC = [
   HINH_THUC.CQ_TRA_THANG, HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY, HINH_THUC.NOP_HOAN_CQ,
 ] as const
 export const TRANG_THAI = { HOP_LE: 'Hợp lệ', CHO_HD: 'Chờ HĐ', PHI_DA_TRA: 'Đã thanh toán' } as const
+export const CO_SO_TINH_PHI = { TONG_TIEN: 'tong_tien', TIEN_DUOC_THANH_TOAN: 'tien_duoc_thanh_toan' } as const
+export const DS_CO_SO_TINH_PHI = [CO_SO_TINH_PHI.TONG_TIEN, CO_SO_TINH_PHI.TIEN_DUOC_THANH_TOAN] as const
+export type CoSoTinhPhi = typeof DS_CO_SO_TINH_PHI[number]
 
 // Tài khoản nhận tiền của người lấy hóa đơn. Một tài khoản dùng cho cả hai việc: nhận
 // tiền thanh toán khi chuyển khoản và trả phí lấy hóa đơn.
@@ -31,7 +34,7 @@ export type GiaoDichTho = {
   // Giá trị thực tế được hoàn/thanh toán cho giao dịch có hóa đơn. Dữ liệu cũ
   // có thể không có trường này, khi đó máy suy ra từ tổng tiền trừ rượu bia.
   tienDuocThanhToan?: number | null; tienDuocThanhToanGoc?: number | null; lamTronXuongHangNghin?: boolean;
-  nguoiDeNghiId: string | null; nguoiDeNghiTen: string | null; nguoiLayHdId: string | null; nguoiLayHdTen: string | null; phiLayHdGhiDe: number | null; coTinhPhi: boolean; trangThaiTtPhi: string; ghiChu: string | null;
+  nguoiDeNghiId: string | null; nguoiDeNghiTen: string | null; nguoiLayHdId: string | null; nguoiLayHdTen: string | null; phiLayHdGhiDe: number | null; coTinhPhi: boolean; coSoTinhPhi?: CoSoTinhPhi; trangThaiTtPhi: string; ghiChu: string | null;
   // Năm người ký được chốt cùng giao dịch. Các trường optional để dữ liệu trước
   // migration vẫn đi qua các hàm tính toán và in giấy an toàn.
   lanhDaoTiepKhachId?: string | null; lanhDaoThanhToanId?: string | null;

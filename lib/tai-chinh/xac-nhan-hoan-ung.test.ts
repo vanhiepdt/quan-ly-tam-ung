@@ -226,9 +226,21 @@ describe('lưu Chi thực tế từ form thêm giao dịch', () => {
     expect(duLieuDaLuu()).toMatchObject({ chi_thuc_te: true, co_tinh_phi_lay_hd: true, phi_lay_hd_ghi_de: 5_000, trang_thai_tt_phi: 'Chưa thanh toán' })
   })
 
+  it('lưu cơ sở phí được chọn và tiền thanh toán đã làm tròn', async () => {
+    expect((await themGiaoDich({}, form({
+      hinh_thuc: 'Cơ quan trả thẳng', tong_tien: '1234567', tien_ruou_bia: '100000',
+      tien_duoc_thanh_toan_goc: '876543', lam_tron_xuong_hang_nghin: '1',
+      co_tinh_phi_lay_hd: '1', co_so_tinh_phi_lay_hd: 'tien_duoc_thanh_toan',
+    }))).thanhCong).toBeDefined()
+    expect(duLieuDaLuu()).toMatchObject({
+      co_tinh_phi_lay_hd: true, co_so_tinh_phi_lay_hd: 'tien_duoc_thanh_toan',
+      tien_duoc_thanh_toan: 876_000,
+    })
+  })
+
   it('nguồn nhập cũ không gửi cờ vẫn lưu false và giữ mặc định phí hoàn ứng', async () => {
     expect((await themGiaoDich({}, form({ tong_tien: '100000' }))).thanhCong).toBeDefined()
-    expect(duLieuDaLuu()).toMatchObject({ chi_thuc_te: false, co_tinh_phi_lay_hd: true })
+    expect(duLieuDaLuu()).toMatchObject({ chi_thuc_te: false, co_tinh_phi_lay_hd: true, co_so_tinh_phi_lay_hd: 'tong_tien' })
   })
 
   it('phải xác nhận lại cảnh báo hoàn ứng nếu lựa chọn Chi thực tế thay đổi', async () => {

@@ -192,7 +192,7 @@ export function SuaGiaoDich({ row, collectors, donVi, vaiTro }: {
   }
 
   const laTienTamUngAnhHuong = (truong?.kieu === 'tien' && ['tong_tien', 'tien_ruou_bia', 'tien_duoc_thanh_toan', 'phi_lay_hd_ghi_de', 'giao_tien_chi_thuy', 'hoan_ung_tien_mat'].includes(truong.id))
-    || truong?.id === 'lam_tron_xuong_hang_nghin'
+    || ['lam_tron_xuong_hang_nghin', 'co_so_tinh_phi_lay_hd'].includes(truong?.id ?? '')
   const laTienCqAnhHuong = truong?.id === 'dua_tien_cq_tra_thang_cho_chi_thuy'
   const laNgayAnhHuong = truong?.id === 'ngay' || truong?.id === 'ngay_de_nghi'
   const loiThongTinGiay = loiTaiNguoiKy || (daGuiThongTinGiay ? stateThongTinGiay.loi : undefined)

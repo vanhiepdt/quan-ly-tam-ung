@@ -1,6 +1,6 @@
 import { LOAI_HD, TRANG_THAI_HD, TRANG_THAI_PHI } from './danh-muc'
 import { DS_HINH_THUC_THANH_TOAN, dsHinhThucThanhToan } from './hinh-thuc'
-import { DS_HINH_THUC, HINH_THUC, type GiaoDichTinh } from './kieu'
+import { CO_SO_TINH_PHI, DS_CO_SO_TINH_PHI, DS_HINH_THUC, HINH_THUC, type GiaoDichTinh } from './kieu'
 import { soTienThanhToan } from './tien-thanh-toan'
 
 // Sửa giao dịch chỉ cho đổi MỘT trường mỗi lần lưu. Lý do: mỗi nhóm trường dưới đây
@@ -11,7 +11,7 @@ export const NHOM_SUA = [
   { id: 'ngayPhatSinh', ten: 'Ngày phát sinh', moTa: 'Ngày quyết định vị trí của giao dịch trong chuỗi số dư, nên đổi ngày sẽ tính lại số dư của các dòng liên quan.' },
   { id: 'hinhThuc', ten: 'Hình thức giao dịch', moTa: 'Đổi loại giao dịch sẽ tự làm sạch các trường không còn phù hợp; số tiền và đơn vị có thể cần kiểm tra lại.' },
   { id: 'chungTu', ten: 'Chứng từ', moTa: 'Trạng thái hóa đơn quyết định khoản tiền có được tính hay không.' },
-  { id: 'tienHd', ten: 'Tiền hóa đơn & phí', moTa: 'Tiền được hoàn/thanh toán là nguồn cho cột tính toán và hai giấy; phí mặc định dựa trên số tiền đó.' },
+  { id: 'tienHd', ten: 'Tiền hóa đơn & phí', moTa: 'Tiền được hoàn/thanh toán là nguồn cho cột tính toán và hai giấy; phí theo tỷ lệ dùng cơ sở được chọn, mặc định là Tổng tiền.' },
   { id: 'dongTien', ten: 'Dòng tiền', moTa: 'Mỗi khoản chỉ thuộc một hình thức và được tính vào đúng số dư của nguồn tiền đó.' },
   { id: 'giay', ten: 'Giấy đề nghị', moTa: 'Chữ in thêm trên giấy đề nghị; không ảnh hưởng tới số dư.' },
   { id: 'donVi', ten: 'Đơn vị tiếp khách', moTa: 'Nội dung được sinh tự động từ tên đơn vị.' },
@@ -70,6 +70,7 @@ export const TRUONG_SUA: readonly TruongSua[] = [
   { id: 'lam_tron_xuong_hang_nghin', ten: 'Làm tròn xuống hàng nghìn', nhom: 'tienHd', vaiTro: 'admin', kieu: 'lua-chon', luaChon: ['1', '0'], hinhThuc: HD_CO_DON_VI, nhanLuaChon: { '1': 'Có làm tròn', '0': 'Không làm tròn' } },
   { id: 'nguoi_lay_hd_id', ten: 'Người lấy hóa đơn', nhom: 'tienHd', vaiTro: 'admin', kieu: 'lua-chon', choPhepRong: true, hinhThuc: HD_CO_DON_VI, dinhDang: 'uuid' },
   { id: 'co_tinh_phi_lay_hd', ten: 'Tính phí hóa đơn', nhom: 'tienHd', vaiTro: 'admin', kieu: 'lua-chon', luaChon: ['1', '0'], hinhThuc: HD_CO_DON_VI, goiY: 'Chọn Không để phí hóa đơn bằng 0 và trạng thái thanh toán trở về Không phát sinh.', nhanLuaChon: { '1': 'Có tính phí', '0': 'Không tính phí' } },
+  { id: 'co_so_tinh_phi_lay_hd', ten: 'Cơ sở tính phí', nhom: 'tienHd', vaiTro: 'admin', kieu: 'lua-chon', luaChon: DS_CO_SO_TINH_PHI, hinhThuc: HD_CO_DON_VI, goiY: 'Chọn số tiền làm cơ sở nhân tỷ lệ phí; phí ghi đè vẫn được ưu tiên.', nhanLuaChon: { [CO_SO_TINH_PHI.TONG_TIEN]: 'Tổng tiền', [CO_SO_TINH_PHI.TIEN_DUOC_THANH_TOAN]: 'Tiền được hoàn/thanh toán (VND)' } },
   { id: 'phi_lay_hd_ghi_de', ten: 'Phí ghi đè', nhom: 'tienHd', vaiTro: 'admin', kieu: 'tien', choPhepRong: true, hinhThuc: HD_CO_DON_VI, goiY: 'Để trống nghĩa là dùng tỷ lệ phí của người lấy HĐ.' },
   { id: 'trang_thai_tt_phi', ten: 'Trạng thái thanh toán phí', nhom: 'tienHd', vaiTro: 'admin', kieu: 'lua-chon', luaChon: TRANG_THAI_PHI, hinhThuc: HD_CO_DON_VI },
 
@@ -118,6 +119,7 @@ export function giaTriHienTai(row: GiaoDichTinh, id: string): string {
     case 'lam_tron_xuong_hang_nghin': return row.lamTronXuongHangNghin ? '1' : '0'
     case 'nguoi_lay_hd_id': return row.nguoiLayHdId ?? ''
     case 'co_tinh_phi_lay_hd': return row.coTinhPhi === false ? '0' : '1'
+    case 'co_so_tinh_phi_lay_hd': return row.coSoTinhPhi ?? CO_SO_TINH_PHI.TONG_TIEN
     case 'phi_lay_hd_ghi_de': return row.phiLayHdGhiDe === null ? '' : String(row.phiLayHdGhiDe)
     case 'trang_thai_tt_phi': return row.trangThaiTtPhi
     case 'tam_ung_tu_cq': return String(row.tamUngTuCq)

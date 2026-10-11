@@ -179,6 +179,14 @@ describe('schemaGiaoDich validation', () => {
       expect(schemaGiaoDich.safeParse({ ...coBan, hinh_thuc, noi_dung: '' }).success).toBe(true)
     })
 
+    it('mặc định tính phí trên tổng tiền, chỉ chấp nhận hai cơ sở cho giao dịch hóa đơn', () => {
+      const hoaDon = { ...coBan, hinh_thuc: 'Hoàn tạm ứng', don_vi_id: DON_VI }
+      expect(schemaGiaoDich.safeParse(hoaDon).data?.co_so_tinh_phi_lay_hd).toBe('tong_tien')
+      expect(schemaGiaoDich.safeParse({ ...hoaDon, co_so_tinh_phi_lay_hd: 'tien_duoc_thanh_toan' }).data?.co_so_tinh_phi_lay_hd).toBe('tien_duoc_thanh_toan')
+      expect(schemaGiaoDich.safeParse({ ...hoaDon, co_so_tinh_phi_lay_hd: 'sai' }).success).toBe(false)
+      expect(schemaGiaoDich.safeParse({ ...coBan, co_so_tinh_phi_lay_hd: 'tien_duoc_thanh_toan' }).success).toBe(false)
+    })
+
     it('nhận cờ tính phí dạng checkbox từ FormData', () => {
       expect(schemaGiaoDich.safeParse({ ...coBan, hinh_thuc: 'Cơ quan trả thẳng', don_vi_id: DON_VI, co_tinh_phi_lay_hd: '1' }).data?.co_tinh_phi_lay_hd).toBe(true)
       expect(schemaGiaoDich.safeParse({ ...coBan, hinh_thuc: 'Cơ quan trả thẳng', don_vi_id: DON_VI, co_tinh_phi_lay_hd: '0' }).data?.co_tinh_phi_lay_hd).toBe(false)

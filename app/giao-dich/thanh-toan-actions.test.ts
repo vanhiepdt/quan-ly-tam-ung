@@ -43,6 +43,14 @@ describe('payment QR server action (mock database; no writes)', () => {
     query.mockResolvedValue({ rows: [row({ tong_tien: '0' })] })
     expect((await layQrThanhToan(id)).loi).toContain('nguyên dương')
   })
+  it('QR uses the selected fee base and the rounded payment amount', async () => {
+    query.mockResolvedValue({ rows: [row({
+      tong_tien: '1234567', tien_ruou_bia: '100000', tien_duoc_thanh_toan_goc: '876543',
+      lam_tron_xuong_hang_nghin: true, co_so_tinh_phi_lay_hd: 'tien_duoc_thanh_toan',
+    })] })
+    expect((await layQrThanhToan(id)).duLieu?.soTien).toBe(105_120)
+  })
+
   it('uses newly changed fee/payee, never client or old list values', async () => {
     expect((await layQrThanhToan(id)).duLieu?.soTien).toBe(120000)
     query.mockResolvedValue({ rows: [row({ phi_lay_hd_ghi_de: '321000', so_tai_khoan: '000999', ten_chu_tk: 'NEW RECIPIENT' })] })
