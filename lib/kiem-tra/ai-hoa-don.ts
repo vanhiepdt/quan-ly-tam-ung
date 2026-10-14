@@ -154,8 +154,12 @@ BẮT BUỘC tìm đúng khối người mua, không nhầm với người bán:
 - mstMuaHang: MST người mua, giữ đủ 10 hoặc 13 số
 - diaChiMuaHang: địa chỉ của người mua, chép nguyên
 loaiHd=gtgt nếu là HÓA ĐƠN GIÁ TRỊ GIA TĂNG; ban_hang nếu là HÓA ĐƠN BÁN HÀNG.
-cotTienHang=sau_thue nếu cột Thành tiền đã gồm thuế; truoc_thue nếu cột Thành tiền chưa thuế và có tiền thuế.
-dongHang.thanhTien = đúng số ở cột Thành tiền; nếu có thuế suất, tiền thuế hoặc thành tiền sau thuế thì ghi riêng.
+BẮT BUỘC đọc bảng theo ý nghĩa tiêu đề cột, không giả định mọi hóa đơn có cùng số cột hoặc cùng thứ tự cột. Có thể gặp bảng hóa đơn GTGT, hóa đơn bán hàng không có thuế, cột gộp/nhiều dòng tiêu đề, hoặc bố cục bảng khác nhau.
+Với từng dòng hàng hóa/dịch vụ, chép đúng tên, số lượng và đơn giá theo hóa đơn; thanhTien là đúng số tiền ở cột thành tiền của dòng. Không lấy số tiền tổng hóa đơn hoặc tổng nhóm thay cho thành tiền dòng.
+cotTienHang=sau_thue khi tiêu đề/nội dung cho biết thành tiền đã bao gồm thuế; truoc_thue khi thành tiền chưa thuế và thuế được ghi riêng. Dùng chính tiêu đề và phép đối chiếu các tổng trên hóa đơn để phân biệt, không dựa riêng vào vị trí cột.
+Nếu hóa đơn GTGT ghi tiền thuế/tỷ lệ thuế riêng thì trích đúng tienThue/thueSuat; nếu có thành tiền sau thuế riêng thì trích thanhTienSauThue. Không cộng thuế lần hai vào thanhTien.
+Hóa đơn bán hàng không thể hiện thuế GTGT thì bỏ trống tienThue, thueSuat và thanhTienSauThue; tuyệt đối không tự tính hoặc bịa thuế.
+Nếu một thông tin dòng hàng không đọc được thì bỏ riêng trường đó, không đoán. Vẫn trích tất cả các dòng hàng đọc được, kể cả khi bố cục bảng khác mẫu quen thuộc.
 BẮT BUỘC gắn laRuouBia true hoặc false cho TỪNG dòng: true cho bia/rượu/đồ uống có cồn, false cho các mặt hàng khác và bia không cồn.
 BẮT BUỘC luôn có tienRuouBia. tienRuouBia là tổng SAU THUẾ của mọi dòng laRuouBia=true: hóa đơn bán hàng lấy thành tiền; hóa đơn GTGT đã gồm thuế lấy thành tiền; chưa gồm thuế lấy thành tiền + tiền thuế hoặc thành tiền × (1+thuế suất).
 Nếu có bảng dòng hàng thì không được đoán tienRuouBia riêng: hãy cộng chính các dòng đã gắn cờ. Nếu không đọc được trường nào thì bỏ trường đó, không bịa. Số tiền là số nguyên, không dấu phẩy.`

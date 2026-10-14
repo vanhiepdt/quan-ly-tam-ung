@@ -37,7 +37,7 @@ const duLieuTiepKhach = {
   gioi_tinhtt: 'Bà', bangiamdoctt: 'Trần Thị B', chucdanhtt: 'Phó Giám đốc',
   donvitiepkhac: 'Phòng Tổ chức', sotiendukien: '2.000.000', sotiendukienbangchu: 'Hai triệu đồng',
   sotientt: '1.700.000', sotienttbangchu: 'Một triệu bảy trăm nghìn đồng',
-  mahoadon: '1C26MTT', sohoadon: '00123456', ketoankiemsoat: 'Lê Thị C', nguoidntk: 'Phạm Văn Hiệp',
+  mahoadon: '1C26MTT', sohoadon: '00123456', benban: 'Nhà bán thử', ketoankiemsoat: 'Lê Thị C', nguoidntk: 'Phạm Văn Hiệp',
 }
 
 describe('zip', () => {

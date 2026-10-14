@@ -7,6 +7,8 @@ import { donViMacDinh, type DonViTiepKhach } from '@/lib/tai-chinh/don-vi'
 import { schemaGiaoDich, type DauVaoGiaoDich } from '@/lib/validation/giao-dich'
 import { taoGiaoDichDaParse, type KetQuaTaoGiaoDich } from '@/lib/tai-chinh/tao-giao-dich'
 import { soTienThanhToan } from '@/lib/tai-chinh/tien-thanh-toan'
+import { parseChiTietHoaDon } from '@/lib/kiem-tra/phan-bo-phu-luc'
+import type { ChiTietHoaDon } from '@/lib/kiem-tra/giao-dien'
 import { deXuatGiaoDich, nhanLoaiHdIntake, type DeXuatIntake } from './doc-hoa-don'
 import { docTepIntake, luuTepIntake, xoaTepIntake } from './tep'
 import {
@@ -109,6 +111,10 @@ function parseDeXuat(v: unknown): DeXuatLuuIntake {
   const ngay = typeof v.ngay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.ngay) ? v.ngay : ''
   const tongTien = Number(v.tongTien)
   const tienRuouBia = Number(v.tienRuouBia)
+  let chiTietHoaDon: ChiTietHoaDon | null = null
+  if (v.chiTietHoaDon !== undefined && v.chiTietHoaDon !== null) {
+    try { chiTietHoaDon = parseChiTietHoaDon(v.chiTietHoaDon) } catch { throw new Error('Chi tiết hóa đơn trong intake không hợp lệ.') }
+  }
   if (!ngay || !Number.isSafeInteger(tongTien) || tongTien < 0 || !Number.isSafeInteger(tienRuouBia) || tienRuouBia < 0) {
     throw new Error('Đề xuất hóa đơn thiếu ngày hoặc số tiền hợp lệ.')
   }
@@ -119,6 +125,7 @@ function parseDeXuat(v: unknown): DeXuatLuuIntake {
     soHd: chuoi(v.soHd),
     tongTien,
     tienRuouBia,
+    chiTietHoaDon,
     loaiHd,
     trangThaiHd: v.trangThaiHd === 'Không hợp lệ' ? 'Không hợp lệ' : 'Hợp lệ',
     ...(thayDoi ? { thayDoi } : {}),
@@ -200,6 +207,7 @@ export function giaoDichTuIntake(row: IntakeRow, dungMacDinh: boolean): { data: 
     hinh_thuc: hinhThuc,
     tong_tien: deXuat.tongTien,
     tien_ruou_bia: deXuat.tienRuouBia,
+    chi_tiet_hoa_don: deXuat.chiTietHoaDon,
     tien_duoc_thanh_toan: soTienThanhToan({
       tongTien: deXuat.tongTien,
       tienRuouBia: deXuat.tienRuouBia,

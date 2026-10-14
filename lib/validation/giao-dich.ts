@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { schemaChiTietHoaDon } from '@/lib/kiem-tra/phan-bo-phu-luc'
 import { canDonVi, HINH_THUC_THANH_TOAN, hopLeHinhThucThanhToan, noiDungTheoHinhThuc } from '@/lib/tai-chinh/hinh-thuc'
 import { CO_SO_TINH_PHI, DS_CO_SO_TINH_PHI, HINH_THUC } from '@/lib/tai-chinh/kieu'
 
@@ -52,6 +53,11 @@ export const schemaGiaoDich = z.object({
   chi_thuc_te: checkbox.transform(value => value ?? false),
   tong_tien: tien.default(0),
   tien_ruou_bia: tien.default(0),
+  chi_tiet_hoa_don: z.preprocess((value) => {
+    if (value === '') return null
+    if (typeof value !== 'string') return value
+    try { return JSON.parse(value) as unknown } catch { return value }
+  }, schemaChiTietHoaDon.nullish()).transform(value => value ?? null),
   // Giá trị ghi đè cho cột Hoàn ứng/CQ trả thẳng. Nếu nguồn nhập không gửi
   // trường này (intake hoặc dữ liệu cũ), service sẽ lấy tổng tiền trừ rượu bia.
   tien_duoc_thanh_toan: z.union([z.null(), z.undefined(), tien]).transform(val => val === undefined ? null : val),

@@ -7,6 +7,7 @@ import { boiCanhGiay } from '@/lib/tai-chinh/cau-hinh-giay'
 import { timGiaoDichTinh } from '@/lib/tai-chinh/in-giay'
 import { CAU_HINH_GIAY_MAC_DINH } from '@/lib/tai-chinh/giay'
 import { HINH_THUC, type GiaoDichTinh } from '@/lib/tai-chinh/kieu'
+import type { ChiTietHoaDon } from '@/lib/kiem-tra/giao-dien'
 import { docZip, ghiZip } from '@/lib/van-ban/zip'
 import { readFile } from 'node:fs/promises'
 import { db } from '@/lib/db/pool'
@@ -29,7 +30,13 @@ const gd: GiaoDichTinh = {
   hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0,
 }
 const mau = readFileSync(path.join(process.cwd(), 'Mau', 'Tam ung tien.docx'))
+const mauGop = readFileSync(path.join(process.cwd(), 'Mau', 'tiep khach va thanh toan.docx'))
 const goi = (loai = 'tam_ung') => GET(new Request('http://localhost/giay'), { params: Promise.resolve({ id: gd.id, loai }) })
+const chiTiet: ChiTietHoaDon = {
+  tenBanHang: 'Nhà bán trong hóa đơn',
+  loaiHd: 'ban_hang', cotTienHang: 'sau_thue',
+  dongHang: [{ ten: 'Suất Buffet 450', soLuong: 1, donGia: 450_000, thanhTien: 450_000 }],
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -86,4 +93,53 @@ describe('route tải giấy DOCX', () => {
     vi.mocked(timGiaoDichTinh).mockResolvedValue(null)
     expect((await goi()).status).toBe(404)
   })
+  it('tải một Word gộp và bỏ trang phụ lục khi giao dịch cũ không có snapshot', async () => {
+    vi.mocked(timGiaoDichTinh).mockResolvedValue({ ...gd, hinhThuc: HINH_THUC.HOAN_TAM_UNG, tongTien: 450_000, tienRuouBia: 60_000 })
+    const res = await goi('thanh_toan')
+    expect(res.status).toBe(200)
+    const xml = docZip(Buffer.from(await res.arrayBuffer())).find(item => item.ten === 'word/document.xml')!.duLieu.toString()
+    expect(xml).not.toContain('PHỤ LỤC BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN')
+  })
+  it('tải một Word gộp có phụ lục khi snapshot có khoản không được thanh toán', async () => {
+    vi.mocked(timGiaoDichTinh).mockResolvedValue({
+      ...gd, hinhThuc: HINH_THUC.HOAN_TAM_UNG, tongTien: 450_000, tienRuouBia: 60_000, chiTietHoaDon: chiTiet,
+    })
+    vi.mocked(readFile).mockResolvedValue(mauGop)
+    const res = await goi('thanh_toan')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('wordprocessingml.document')
+    expect(res.headers.get('content-disposition')).toContain('giay-de-nghi.docx')
+    const xml = docZip(Buffer.from(await res.arrayBuffer())).find(item => item.ten === 'word/document.xml')!.duLieu.toString()
+    expect(xml).toContain('390.000')
+    expect(xml).toContain('60.000')
+    expect(xml).toContain('Người thử')
+    expect(xml).toContain('Nhà bán trong hóa đơn')
+    expect(xml).not.toContain('[[')
+  })
+  it('tải Word gộp nhưng không có trang phụ lục khi số tiền không được thanh toán bằng không', async () => {
+    vi.mocked(timGiaoDichTinh).mockResolvedValue({
+      ...gd, hinhThuc: HINH_THUC.HOAN_TAM_UNG, tongTien: 450_000, tienRuouBia: 0, chiTietHoaDon: chiTiet,
+    })
+    const res = await goi('thanh_toan')
+    expect(res.status).toBe(200)
+    const xml = docZip(Buffer.from(await res.arrayBuffer())).find(item => item.ten === 'word/document.xml')!.duLieu.toString()
+    expect(xml).not.toContain('PHỤ LỤC BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN')
+  })
+})
+
+it('tải đúng bản Word gộp đã sửa trong OnlyOffice, không dựng lại từ mẫu', async () => {
+  vi.mocked(timGiaoDichTinh).mockResolvedValue({
+    ...gd, hinhThuc: HINH_THUC.HOAN_TAM_UNG, tongTien: 450_000, tienRuouBia: 60_000, chiTietHoaDon: chiTiet,
+  })
+  const tep = '22222222-2222-4222-8222-222222222222'
+  vi.mocked(db.query).mockResolvedValue({ rows: [{ tep }] } as never)
+  const daSua = Buffer.from('ban-phu-luc-da-duoc-luu-trong-OnlyOffice')
+  vi.mocked(readFile).mockResolvedValue(daSua)
+  const res = await goi('thanh_toan')
+  expect(res.status).toBe(200)
+  expect(res.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+  expect(Buffer.from(await res.arrayBuffer())).toEqual(daSua)
+  expect(db.query).toHaveBeenCalledWith('select tep from tai_lieu where giao_dich_id=$1 and loai=$2', [gd.id, 'thanh_toan'])
+  expect(readFile).toHaveBeenCalledOnce()
+  expect(readFile).toHaveBeenCalledWith(expect.stringContaining(tep + '.docx'))
 })

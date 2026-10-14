@@ -2,6 +2,7 @@ import type { DonViDoiChieu, DuLieuDocTuHoaDon, DongHang, KetQuaDocHoaDon, PhatH
 import { doanCotTienHang, doanLoaiHoaDon, nhanLoaiHoaDon } from './loai-hoa-don'
 import { giongChuoi, giongMst, giongTien, hienThiMst } from './so-sanh'
 import { congTienRuouBia, tienRuouBiaCuaLop } from './ruou-bia'
+import { chiTietHoaDonTuDeXuat, phanBoPhuLuc } from './phan-bo-phu-luc'
 import { laSoTienHopLe } from './tien'
 
 type Nguon = 'ai1' | 'ai2' | 'xml'
@@ -192,12 +193,16 @@ function chonGiaTri(
   return { giaTri: giaTriChon, phat }
 }
 
+function diemDongHang(dong: readonly DongHang[]): number {
+  return dong.reduce((diem, d) => diem + 10 + (d.soLuong !== undefined ? 3 : 0) + (d.donGia !== undefined ? 2 : 0)
+    + (d.tienThue !== undefined || d.thueSuat !== undefined ? 2 : 0) + (d.thanhTienSauThue !== undefined ? 2 : 0), 0)
+}
+
 function chonDongHang(lop: readonly Lop[]): { dong?: DongHang[]; nguon?: Nguon } {
-  for (const id of ['xml', 'ai1', 'ai2'] as const) {
-    const doc = lop.find(l => l.id === id)?.doc
-    if (doc?.dongHang?.length) return { dong: doc.dongHang, nguon: id }
-  }
-  return {}
+  const coDong = lop.filter((l): l is Lop & { doc: DuLieuDocTuHoaDon & { dongHang: DongHang[] } } => Boolean(l.doc?.dongHang?.length))
+  coDong.sort((a, b) => diemDongHang(b.doc.dongHang) - diemDongHang(a.doc.dongHang)
+    || ['xml', 'ai1', 'ai2'].indexOf(a.id) - ['xml', 'ai1', 'ai2'].indexOf(b.id))
+  return coDong[0] ? { dong: coDong[0].doc.dongHang, nguon: coDong[0].id } : {}
 }
 
 function canhBaoDongHang(lop: readonly Lop[], selected: Nguon | undefined): PhatHien[] {
@@ -236,14 +241,15 @@ function hopNhatNoiBo(ai1: DuLieuDocTuHoaDon | null, ai2: DuLieuDocTuHoaDon | nu
   if (deXuat.tongTien !== undefined) deXuat.tongCong = deXuat.tongTien
 
   const { dong, nguon } = chonDongHang(lop)
+  const docDongHang = nguon ? lop.find(l => l.id === nguon)?.doc : null
   const loaiHd = doanLoaiHoaDon({
     loaiHd: deXuat.loaiHd,
     loaiHdPhu: xml?.loaiHd ?? ai1?.loaiHd ?? ai2?.loaiHd,
     kyHieuHd: deXuat.kyHieuHd,
   })
   const cotTienHang = doanCotTienHang({
-    cotTienHang: xml?.cotTienHang ?? ai1?.cotTienHang ?? ai2?.cotTienHang,
-    cotTienHangPhu: ai1?.cotTienHang ?? ai2?.cotTienHang,
+    cotTienHang: docDongHang?.cotTienHang,
+    cotTienHangPhu: xml?.cotTienHang ?? ai1?.cotTienHang ?? ai2?.cotTienHang,
     dongHang: dong,
     loaiHd,
   })
@@ -267,6 +273,15 @@ function hopNhatNoiBo(ai1: DuLieuDocTuHoaDon | null, ai2: DuLieuDocTuHoaDon | nu
         muc: 'canh_bao', ma: 'ruou_bia_lech', truong: 'tienRuouBia',
         thongDiep: `Tiền không được thanh toán được tính lại từ toàn bộ dòng hàng sau thuế là ${tinh.tien.toLocaleString('vi-VN')}đ; số riêng do nguồn đọc trả về đã được bỏ qua.`,
       })
+    }
+    const chiTiet = chiTietHoaDonTuDeXuat({ ...deXuat, dongHang: tinh.dong })
+    if (chiTiet) {
+      const phanBo = phanBoPhuLuc(chiTiet)
+      if (phanBo.loi) {
+        phatHien.push({ muc: 'loi', ma: 'phan_bo_buffet', truong: 'dongHang', thongDiep: phanBo.loi })
+      } else {
+        deXuat.tienRuouBia = phanBo.tongKhongDeNghi
+      }
     }
   } else {
     const baoCao = lop.map(l => ({ lop: l.nhan, tien: tienRuouBiaCuaLop(l.doc, loaiHd, cotTienHang) }))

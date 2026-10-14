@@ -4,6 +4,7 @@ import path from 'node:path'
 import type { PoolClient } from 'pg'
 import { db, trongTransaction } from '@/lib/db/pool'
 import { docZip } from '@/lib/van-ban/zip'
+import { DANH_SACH_MAU_WORD } from '@/lib/van-ban/mau-word'
 
 export type TaiLieu = { id: string; giao_dich_id: string | null; loai: string | null; ten_mau: string | null; phien_ban: number; tep: string; khoa: string | null }
 export const laId = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
@@ -129,7 +130,7 @@ export async function moPhien(t: TaiLieu, user: string) {
   })
 }
 export async function docMau(ten: string, client: Pick<PoolClient, 'query'> = db) {
-  if (!['Tam ung tien.docx', 'tiep khach va thanh toan.docx'].includes(ten)) throw new Error('Mẫu không hợp lệ')
+  if (!(DANH_SACH_MAU_WORD as readonly string[]).includes(ten)) throw new Error('Mẫu không hợp lệ')
   const { rows } = await client.query<TaiLieu>('select * from tai_lieu where ten_mau=$1', [ten])
   return readFile(rows[0] ? duongDanTaiLieu(rows[0].tep) : path.resolve('Mau', ten))
 }

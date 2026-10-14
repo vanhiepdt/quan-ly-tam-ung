@@ -19,7 +19,7 @@ export function loadScript(src: string) {
   })
   return loading
 }
-export function SoanThao({ id, loai, mau }: { id?: string; loai?: string; mau?: string }) {
+export function SoanThao({ id, loai, mau, nhanMo = 'Mở trình soạn thảo' }: { id?: string; loai?: string; mau?: string; nhanMo?: string }) {
   const container = `onlyoffice-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   const editor = useRef<Editor | null>(null)
   const [open, setOpen] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('')
@@ -46,7 +46,7 @@ export function SoanThao({ id, loai, mau }: { id?: string; loai?: string; mau?: 
     return () => { disposed = true; controller.abort(); editor.current?.destroyEditor(); editor.current = null }
   }, [open, id, loai, mau, container])
   return <div className="w-full space-y-3">
-    <button type="button" className="btn btn-secondary" onClick={() => { setOpen(!open); setError(''); setNotice(open ? 'Đã đóng editor. Việc lưu cuối có thể cần vài giây; tải lại Word để kiểm tra bản đã lưu.' : '') }}>{open ? 'Đóng trình soạn thảo' : 'Mở trình soạn thảo'}</button>
+    <button type="button" className="btn btn-secondary" onClick={() => { setOpen(!open); setError(''); setNotice(open ? 'Đã đóng editor. Việc lưu cuối có thể cần vài giây; tải lại Word để kiểm tra bản đã lưu.' : '') }}>{open ? 'Đóng trình soạn thảo' : nhanMo}</button>
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert" className="notice error">{error} Bạn vẫn có thể dùng liên kết tải Word.</p>}
     {open && <div className="h-[800px] w-full"><div id={container} /></div>}

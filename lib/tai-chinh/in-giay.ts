@@ -1,7 +1,8 @@
 import { layDuLieuTaiChinh } from './du-lieu'
 import { tinhToan } from './tinh-toan'
-import { dungGiay, giayChoHinhThuc, type BoiCanhGiay, type GiayDeNghi, type LoaiGiay } from './giay'
+import { dungGiay, giayChoHinhThuc, giayChinhChoHinhThuc, type BoiCanhGiay, type GiayDeNghi, type LoaiGiay } from './giay'
 import type { GiaoDichTinh } from './kieu'
+import { MAU_TAM_UNG, MAU_TIEP_KHACH_THANH_TOAN } from '@/lib/van-ban/mau-word'
 
 // Giấy in ra phải khớp đúng số liệu đang thấy trên nhật ký, nên đọc qua cùng một đường
 // tính toán thay vì tự truy vấn riêng một giao dịch.
@@ -45,14 +46,14 @@ export function giayCuaGiaoDich(gd: GiaoDichTinh, ctx: BoiCanhGiay): GiayDeNghi[
 // Một giấy cụ thể, hoặc null khi hình thức của giao dịch không lập giấy đó. Chặn ở đây
 // để địa chỉ tải tệp không sinh ra được giấy mà giao dịch không có.
 export function giayTheoLoai(gd: GiaoDichTinh, ctx: BoiCanhGiay, loai: unknown): GiayDeNghi | null {
-  const ds = giayChoHinhThuc(gd.hinhThuc)
-  if (typeof loai !== 'string' || !ds.includes(loai as LoaiGiay)) return null
-  return dungGiay(loai as LoaiGiay, gd, boiCanhTheoGiaoDich(gd, ctx))
+  const chinh = giayChinhChoHinhThuc(gd.hinhThuc)
+  if (typeof loai !== 'string' || chinh === null || loai !== chinh) return null
+  return dungGiay(chinh, gd, boiCanhTheoGiaoDich(gd, ctx))
 }
 
 // Tệp mẫu Word cho từng loại giấy. Hai giấy tiếp khách và thanh toán nằm chung một tệp.
 export const MAU_WORD: Record<LoaiGiay, string> = {
-  tam_ung: 'Tam ung tien.docx',
-  tiep_khach: 'tiep khach va thanh toan.docx',
-  thanh_toan: 'tiep khach va thanh toan.docx',
+  tam_ung: MAU_TAM_UNG,
+  tiep_khach: MAU_TIEP_KHACH_THANH_TOAN,
+  thanh_toan: MAU_TIEP_KHACH_THANH_TOAN,
 }

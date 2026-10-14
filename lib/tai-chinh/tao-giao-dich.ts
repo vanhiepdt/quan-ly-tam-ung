@@ -4,18 +4,19 @@ import type { DauVaoGiaoDich } from '@/lib/validation/giao-dich'
 import { canDonVi, coTinhPhiMacDinh, hinhThucThanhToanMacDinh, HINH_THUC_THANH_TOAN, lamTronXuongHangNghinMacDinh, noiDungTheoDonVi, noiDungTheoHinhThuc } from './hinh-thuc'
 import { ngayDeNghiMacDinh } from './ngay'
 import { khoaSoTaiChinh, kiemTraHoanTamUng, type CanhBaoHoanTamUng } from './xac-nhan-hoan-ung'
-import { giayChoHinhThuc } from './giay'
+import { giayChoHinhThuc, giayChinhChoHinhThuc } from './giay'
 import { giayCuaGiaoDich, timGiaoDichTinh, MAU_WORD } from './in-giay'
 import { boiCanhGiay } from './cau-hinh-giay'
 import { apDungNguoiDeNghiTheoForm, apDungNguoiKy, apDungNguoiKyMacDinh } from './chon-nguoi-ky'
 import { VAI_TRO_KY } from './vai-tro-ky'
 import type { BoiCanhGiay } from './giay'
 import { taoHoacLayTaiLieu, docMau } from '@/lib/onlyoffice/tai-lieu'
-import { dienMauDocx } from '@/lib/van-ban/docx'
+import { taoGiayDocx } from './giay-docx'
 import { ganTepVaoGiaoDich } from '@/lib/tep/gan'
 import { taiKhoanTuNhap } from './tai-khoan'
 import { soTienThanhToan, tienTheoHoaDon } from './tien-thanh-toan'
 import { CO_SO_TINH_PHI, HINH_THUC } from './kieu'
+import { kiemTraChiTietHoaDon } from './kiem-tra-chi-tiet-hoa-don'
 
 export type KetQuaTaoGiaoDich = {
   loi?: string
@@ -89,6 +90,11 @@ export async function taoGiaoDichDaParse(
   d: DauVaoGiaoDich,
   options: TuyChonTaoGiaoDich,
 ): Promise<KetQuaTaoGiaoDich> {
+  const ketQuaChiTiet = kiemTraChiTietHoaDon(d.chi_tiet_hoa_don, d.tong_tien)
+  if (ketQuaChiTiet.loi) return { loi: ketQuaChiTiet.loi }
+  if (ketQuaChiTiet.tienKhongThanhToan !== null) {
+    d = { ...d, tien_ruou_bia: ketQuaChiTiet.tienKhongThanhToan }
+  }
   const dongTien = dongTienTheoHinhThuc(d)
   const trangThaiHd = d.trang_thai_hd || 'Không có'
   const chiThucTe = canDonVi(d.hinh_thuc) && d.chi_thuc_te === true
@@ -126,7 +132,7 @@ export async function taoGiaoDichDaParse(
   const chonGiay = options.loaiGiay ?? []
 
   if (lapGiay && !giayChoHinhThuc(d.hinh_thuc).length) return { loi: 'Hình thức này không lập giấy đề nghị.' }
-  if (lapGiay && chonGiay.some(loai => !giayChoHinhThuc(d.hinh_thuc).some(g => g === loai))) {
+  if (lapGiay && chonGiay.some(loai => loai !== giayChinhChoHinhThuc(d.hinh_thuc))) {
     return { loi: 'Loại giấy không phù hợp với giao dịch.' }
   }
 
@@ -185,8 +191,9 @@ export async function taoGiaoDichDaParse(
         nguoi_de_nghi_id, lanh_dao_tiep_khach_id, lanh_dao_thanh_toan_id, truong_phong_id, ke_toan_kiem_soat_id, thong_tin_giay_da_chot,
         nguoi_lay_hd_id, phi_lay_hd_ghi_de, co_tinh_phi_lay_hd, trang_thai_tt_phi, ghi_chu,
         hinh_thuc_thanh_toan, tai_khoan_nhan_so, tai_khoan_nhan_ngan_hang, tai_khoan_nhan_chi_nhanh,
-        tai_khoan_nhan_ten_chu_tk, nguoi_tao, nguoi_sua, tien_duoc_thanh_toan_goc, ngay_de_nghi, chi_thuc_te, co_so_tinh_phi_lay_hd
-      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$34,$35,$36,$37,$38) returning id`, [
+        tai_khoan_nhan_ten_chu_tk, nguoi_tao, nguoi_sua, tien_duoc_thanh_toan_goc, ngay_de_nghi, chi_thuc_te, co_so_tinh_phi_lay_hd,
+        chi_tiet_hoa_don
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$34,$35,$36,$37,$38,$39::jsonb) returning id`, [
         d.ngay, rows[0].so_thu_tu, donVi.noiDung, donVi.donViId, d.ky_hieu_hd, d.so_hd, d.loai_hd, trangThaiHd, d.hinh_thuc,
         d.tong_tien, d.tien_ruou_bia, tienDuocThanhToan, lamTronXuongHangNghin,
         dongTien.tam_ung_tu_cq, dongTien.giao_tien_chi_thuy, dongTien.dua_tien_cq_tra_thang_cho_chi_thuy, dongTien.hoan_ung_tien_mat,
@@ -195,6 +202,7 @@ export async function taoGiaoDichDaParse(
         hinhThucThanhToan, taiKhoanNhanGhiDe?.soTaiKhoan ?? null, taiKhoanNhanGhiDe?.nganHang ?? null,
         taiKhoanNhanGhiDe?.chiNhanh ?? null, taiKhoanNhanGhiDe?.tenChuTk ?? null, options.actorId,
         tienDuocThanhToanGoc, ngayDeNghi, chiThucTe, coSoTinhPhi,
+        d.chi_tiet_hoa_don ? JSON.stringify(d.chi_tiet_hoa_don) : null,
       ])
       const giaoDichId = inserted.rows[0].id
       const result: KetQuaTaoGiaoDich = { giaoDichId }
@@ -205,9 +213,9 @@ export async function taoGiaoDichDaParse(
           if (!gd) throw new Error('Không tìm thấy giao dịch vừa thêm')
           const giay = giayCuaGiaoDich(gd, contextGiay)
           const ids: string[] = []
-          for (const g of giay.filter(g => !chonGiay.length || chonGiay.includes(g.loai))) {
+          for (const g of giay.filter(g => g.loai === giayChinhChoHinhThuc(gd.hinhThuc) && (!chonGiay.length || chonGiay.includes(g.loai)))) {
             const t = await taoHoacLayTaiLieu(options.actorId, giaoDichId, g.loai, null,
-              async () => dienMauDocx(await docMau(MAU_WORD[g.loai], client), g.thayThe, g.thayCoDinh).duLieu, client)
+              async () => taoGiayDocx(await docMau(MAU_WORD[g.loai], client), g, gd), client)
             ids.push(t.id)
           }
           result.taiLieuIds = ids

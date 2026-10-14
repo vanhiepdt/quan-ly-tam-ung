@@ -74,9 +74,10 @@ export function tienDongSauThue(
   loaiHd?: LoaiHoaDon,
   cotTienHang?: CotTienHang,
 ): number {
-  if (loaiHd !== 'gtgt') return d.thanhTien
-  if (cotTienHang === 'sau_thue') return d.thanhTien
   if (d.thanhTienSauThue !== undefined) return d.thanhTienSauThue
+  if (cotTienHang === 'sau_thue') return d.thanhTien
+  if (loaiHd === 'ban_hang') return d.thanhTien
+  if (loaiHd !== 'gtgt' && cotTienHang !== 'truoc_thue' && d.tienThue === undefined && d.thueSuat === undefined) return d.thanhTien
   if (d.tienThue !== undefined) return d.thanhTien + d.tienThue
   if (d.thueSuat !== undefined) return Math.round(d.thanhTien * (1 + d.thueSuat / 100))
   return d.thanhTien

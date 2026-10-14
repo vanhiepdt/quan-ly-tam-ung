@@ -55,3 +55,16 @@ Không commit `.env`. Không in khóa JWT / mật khẩu.
 ## Backup Google Drive
 
 Xem [SAO-LUU-GOOGLE-DRIVE.md](SAO-LUU-GOOGLE-DRIVE.md) để cấu hình OAuth Google Drive cá nhân và đặt lịch backup trong **Cài đặt → Sao lưu dữ liệu**. Không lưu khóa JSON trong repo.
+
+## Chuyển hoặc khôi phục sang VPS khác
+
+Xem **[hướng dẫn khôi phục sang VPS mới](KHOI-PHUC-SANG-VPS-MOI.md)**. Không chạy các bước cài mới/tạo admin ở trên lên DB đã nhập từ bản sao lưu.
+
+## Phụ lục thanh toán trong OnlyOffice
+
+- Chạy migration `026_loai_tai_lieu_phu_luc.sql` trước khi thay app. Migration chỉ thêm loại tài liệu `phu_luc`, không cập nhật số tiền hay dữ liệu giao dịch cũ.
+- Phụ lục mở ngay trong **Thông tin giấy đề nghị** (bản xem trước khi chưa lưu; bản có thể sửa khi đã lưu) và trong trang **Giấy**.
+- Phụ lục lưu riêng với giấy thanh toán, dùng lại callback/lịch sử phiên bản hiện có. Tải Word trả đúng bản đã lưu trong OnlyOffice.
+- Lưu lại thông tin giấy hoặc sửa trường liên quan của giao dịch làm mới phụ lục đang có. Nếu phụ lục đang mở, phải đóng editor trước khi lưu thay đổi.
+- Các biến ngày, mã/số hóa đơn, người đề nghị và số tiền dùng đúng dữ liệu của giấy thanh toán. `[[benban]]` lấy từ snapshot tên bên bán trên hóa đơn; thiếu thì để trống.
+- Không thay luồng đọc hai AI, phân bổ buffet hay cách làm tròn; không tự áp dụng cho giao dịch cũ thiếu snapshot.

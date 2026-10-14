@@ -275,7 +275,7 @@ describe('thay chữ gõ cứng trong mẫu Word', () => {
     expect(thay('Ngô Anh Phương')).toBe('Đỗ Thị D')
     expect(thay('chi tiêu hành chính')).toBe('Công tác phí')
     expect(thay('Sau khi hoàn thành công việc')).toBe('Trong 30 ngày')
-    expect(thay('ngày   tháng')).toBe('ngày 20 tháng')
+    expect(thay('ngày   tháng')).toBe('ngày   tháng')
     expect(thay(']]/ [[')).toBe(']]/[[')
   })
 
@@ -349,22 +349,24 @@ const nguoiDeNghiRieng: CanBo = { ...nguoiDeNghi, hoTen: 'Vũ Văn E' }
 const ctxRieng = (phan: Partial<BoiCanhGiay> = {}) => ctx({ nguoiDeNghi: nguoiDeNghiRieng, cauHinh: cauHinhRieng, ...phan })
 
 describe('điền vào tệp Word thật', () => {
-  it('hai phần nội dung từ Căn cứ đến hết lời đề nghị dùng Times New Roman 14pt', () => {
+  it('giữ phông Times New Roman của mẫu trong hai phần nội dung giấy', () => {
     const g = dungGiay(LOAI_GIAY.THANH_TOAN, gd({}), ctx())
     const bytes = dienMauDocx(MAU.thanh_toan, g.thayThe, g.thayCoDinh).duLieu
     const xml = docZip(bytes).find(e => e.ten === TEP_NOI_DUNG)!.duLieu.toString('utf8')
     let active = false, sections = 0, checked = 0
     for (const [p] of xml.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)) {
       const text = [...p.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(m => m[1]).join('').normalize('NFC').trim()
-      if (text.startsWith('Căn cứ')) { active = true; sections++ }
+      if (text.startsWith('Căn cứ')) {
+        if (sections >= 2) continue // Phần phụ lục cũng có “Căn cứ”, không thuộc hai giấy chính.
+        active = true; sections++
+      }
       if (/^(DUYỆT CỦA|NGÂN HÀNG)/.test(text)) active = false
       if (!active) continue
       for (const [run] of p.matchAll(/<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g)) {
         if (!/<w:t[\s>]/.test(run)) continue
+        if (![...run.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].some(([, text]) => text.trim())) continue
         expect(run).toContain('w:ascii="Times New Roman"')
         expect(run).toContain('w:hAnsi="Times New Roman"')
-        expect(run).toContain('<w:sz w:val="28"/>')
-        expect(run).toContain('<w:szCs w:val="28"/>')
         checked++
       }
     }
@@ -434,7 +436,29 @@ describe('điền vào tệp Word thật', () => {
     const thanhToan = giayThat(LOAI_GIAY.THANH_TOAN, g, ctxRieng())
     expect(thanhToan.thieu).toEqual([])
     expect(thanhToan.chu).toContain('đã được phê duyệt ngày 18/09/2026')
+    expect(thanhToan.doan.filter(d => d.includes('Đà Nẵng, ngày')).at(-1)).toMatch(/Đà Nẵng, ngày\s+tháng 9 năm 2026/)
     expect(thanhToan.chu).toContain('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/09/2026;')
+  })
+  it('chỉ giữ dòng đính kèm phụ lục khi snapshot có khoản không được thanh toán', () => {
+    const chiTietVuot = {
+      loaiHd: 'ban_hang' as const, cotTienHang: 'sau_thue' as const,
+      dongHang: [{ ten: 'Suất Buffet 450', soLuong: 1, donGia: 450_000, thanhTien: 450_000 }],
+    }
+    const coPhuLuc = giayThat(LOAI_GIAY.THANH_TOAN, gd({
+      hinhThuc: HINH_THUC.CQ_TRA_THANG, tongTien: 450_000, tienRuouBia: 60_000, chiTietHoaDon: chiTietVuot,
+    }), ctxRieng())
+    expect(coPhuLuc.chu).toContain('- Phụ lục bảng kê chi tiết đề nghị thanh toán')
+
+    const khongCoSnapshotCu = giayThat(LOAI_GIAY.THANH_TOAN, gd({
+      hinhThuc: HINH_THUC.CQ_TRA_THANG, tongTien: 450_000, tienRuouBia: 60_000,
+    }), ctxRieng())
+    expect(khongCoSnapshotCu.chu).not.toContain('- Phụ lục bảng kê chi tiết đề nghị thanh toán')
+
+    const khongCoKhoanBiLoai = giayThat(LOAI_GIAY.THANH_TOAN, gd({
+      hinhThuc: HINH_THUC.CQ_TRA_THANG, tongTien: 350_000, tienRuouBia: 0,
+      chiTietHoaDon: { ...chiTietVuot, dongHang: [{ ten: 'Suất Buffet 350', soLuong: 1, donGia: 350_000, thanhTien: 350_000 }] },
+    }), ctxRieng())
+    expect(khongCoKhoanBiLoai.chu).not.toContain('- Phụ lục bảng kê chi tiết đề nghị thanh toán')
   })
   it('hoàn tạm ứng không in tài khoản, và giấy tiếp khách làm tròn kinh phí dự kiến', () => {
     const hoan = giayThat(LOAI_GIAY.THANH_TOAN, gd({ hinhThuc: HINH_THUC.HOAN_TAM_UNG, tongTien: 1_200_000 }), ctxRieng())

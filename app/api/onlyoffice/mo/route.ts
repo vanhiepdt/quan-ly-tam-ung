@@ -1,9 +1,10 @@
 import { layPhien } from '@/lib/xac-thuc/phien'
 import { boiCanhGiay } from '@/lib/tai-chinh/cau-hinh-giay'
 import { timGiaoDichTinh, giayTheoLoai, MAU_WORD } from '@/lib/tai-chinh/in-giay'
-import { dienMauDocx } from '@/lib/van-ban/docx'
+import { taoGiayDocx } from '@/lib/tai-chinh/giay-docx'
 import { taoHoacLayTaiLieu, moPhien, docMau, laId } from '@/lib/onlyoffice/tai-lieu'
 import { cauHinhEditor, diaChi } from '@/lib/onlyoffice/cau-hinh'
+import { DANH_SACH_MAU_WORD } from '@/lib/van-ban/mau-word'
 
 export async function POST(req: Request) {
   let sameOrigin = false
@@ -20,16 +21,17 @@ export async function POST(req: Request) {
     let t, title: string
     if (typeof data.mau === 'string') {
       if (phien.vai_tro !== 'admin') return Response.json({ loi: 'Chỉ quản trị viên được sửa mẫu.' }, { status: 403 })
-      if (!Object.values(MAU_WORD).includes(data.mau)) return Response.json({ loi: 'Mẫu không tồn tại.' }, { status: 404 })
+      if (!(DANH_SACH_MAU_WORD as readonly string[]).includes(data.mau)) return Response.json({ loi: 'Mẫu không tồn tại.' }, { status: 404 })
       title = data.mau
       t = await taoHoacLayTaiLieu(phien.id, null, null, data.mau, () => docMau(data.mau))
     } else {
       if (typeof data.id !== 'string' || !laId(data.id)) return Response.json({ loi: 'Mã không hợp lệ.' }, { status: 400 })
       const gd = await timGiaoDichTinh(data.id)
       const giay = gd && giayTheoLoai(gd, await boiCanhGiay(phien), data.loai)
-      if (!giay) return Response.json({ loi: 'Giấy không tồn tại.' }, { status: 404 })
+      if (!gd || !giay) return Response.json({ loi: 'Giấy không tồn tại.' }, { status: 404 })
       title = `${giay.tieuDe}.docx`
-      t = await taoHoacLayTaiLieu(phien.id, data.id, giay.loai, null, async () => dienMauDocx(await docMau(MAU_WORD[giay.loai]), giay.thayThe, giay.thayCoDinh).duLieu)
+      t = await taoHoacLayTaiLieu(phien.id, data.id, giay.loai, null,
+        async () => taoGiayDocx(await docMau(MAU_WORD[giay.loai]), giay, gd))
     }
     const current = await moPhien(t, phien.id)
     return Response.json({ ...cauHinhEditor(current, phien, title), phienBan: current.phien_ban }, { headers: { 'Cache-Control': 'no-store' } })

@@ -16,9 +16,9 @@ export async function xoaMemGiaoDich() { throw Error('Deletion forbidden in harn
 export async function luuTuyChonCot(data) { window.preferenceCalls.push(data); const result = await answer(window.responses); if (result.ok && location.pathname === '/ledger') sessionStorage.setItem('fixture-ledger-preferences', JSON.stringify(data)); return result; }
 export async function layQrThanhToan(id) { window.qrCalls.push(id); return answer(window.responses); }
 export async function layLichSuGiaoDich(id) { window.historyCalls.push(id); return answer(window.historyResponses); }
-export async function xemGiayNhap() { return { loi: 'Harness' } }
+export async function xemGiayNhap(form, loai) { window.previewCalls = window.previewCalls || []; window.previewCalls.push({loai, data: Object.fromEntries(form)}); return window.fixturePreview || { loi: 'Harness' } }
 export async function taiNguoiKyGiay() { return window.fixturePaperSigners ?? { canBo: [], macDinh: { nguoiDeNghiId: '', lanhDaoTiepKhachId: '', lanhDaoThanhToanId: '', truongPhongId: '', keToanKiemSoatId: '' }, taiKhoanTheoNguoiLayHd: {} } }
-export async function docHoaDon() { return { loi: 'Harness' } }
+export async function docHoaDon() { return window.fixtureInvoice || { loi: 'Harness' } }
 export async function tinhTrangHaiAiHoaDon() { return { muc: 'ok', ai1: { muc: 'ok', nha: '', moHinh: '', docAnh: true, thongDiep: 'Harness AI 1' }, ai2: { muc: 'ok', nha: '', moHinh: '', docAnh: true, thongDiep: 'Harness AI 2' }, thongDiep: 'Harness AI' } }
 export async function kiemTraTrungKyHieu(ky) {
   window.kyHieuCalls = window.kyHieuCalls || []; window.kyHieuCalls.push(ky);
@@ -38,6 +38,7 @@ import {TuyChonCot} from './app/cai-dat/tuy-chon-cot';
 import {BangNhatKy} from './app/giao-dich/bang-nhat-ky';
 import {tinhToan} from './lib/tai-chinh/tinh-toan';
 import {ThanhToan} from './app/giao-dich/thanh-toan';
+import {SoanThao} from './app/giay/soan-thao';
 import {cotMacDinh, cotNhatKy} from './app/giao-dich/cot-nhat-ky';
 const screen = location.pathname;
 window.fixtureColumns = cotNhatKy;
@@ -51,6 +52,9 @@ window.fixtureRows = [
   dong({id:'r2', ngay:'2026-01-01', noiDung:'Tiếp đơn vị thử nghiệm', donViId:'fixture-unit', donViTen:'Đơn vị thử nghiệm', tongTien:900000, hoanTamUng:900000, duLyThuyet:900000, soThuTu:2, kyHieuHd:'1C26MTT', soHd:'0000001', trangThaiHd:'Chờ HĐ', trangThaiTtPhi:'Đã thanh toán', thongTinGiayDaChot:true, nguoiDeNghiId:'paper-proposer-old', lanhDaoTiepKhachId:'paper-leader-guest', lanhDaoThanhToanId:'paper-leader-payment', truongPhongId:'paper-manager-one', keToanKiemSoatId:'paper-accountant'}),
   dong({id:'r3', ngay:'2026-01-02', noiDung:'Tiếp đơn vị thử nghiệm', donViId:'fixture-unit', donViTen:'Đơn vị thử nghiệm', tongTien:1500000, hoanTamUng:1500000, duLyThuyet:1500000, soThuTu:3}),
 ];
+if (location.search.includes('appendix')) Object.assign(window.fixtureRows[1], {
+ tongTien:450000,tienRuouBia:60000,chiTietHoaDon:{tenBanHang:'Nhà hàng kiểm thử',loaiHd:'ban_hang',cotTienHang:'sau_thue',dongHang:[{ten:'Buffet 450',soLuong:1,donGia:450000,thanhTien:450000}]}
+});
 window.fixturePaperSigners = {
   canBo: [
     {id:'paper-proposer-old',hoTen:'Người đề nghị cũ',phong:'Phòng Một',chucDanh:'Chuyên viên',dangHoatDong:true},
@@ -85,7 +89,7 @@ window.fixtureActualRows = tinhToan(location.search.includes('fees') ? [
   dong({id:'a2', soThuTu:2, noiDung:'Học phí 08 học viên', tongTien:16800000, tienDuocThanhToanGoc:16800000, chiThucTe:true, coTinhPhi:false}),
 ]);
 const ledgerPreferences = JSON.parse(sessionStorage.getItem('fixture-ledger-preferences') || 'null') ?? {...cotMacDinh(), an: location.search.includes('hidden') ? ['chungTu','tongTien'] : []};
-createRoot(document.getElementById('root')).render(screen === '/settings' ? <TuyChonCot banDau={null} loiBanDau={null}/> : screen === '/ledger' ? <BangNhatKy rows={[]} coTheSua={false} banDau={ledgerPreferences} phuTro={phuTro}/> : screen === '/ledger-actual' ? <BangNhatKy rows={window.fixtureActualRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-readonly' ? <BangNhatKy rows={window.fixtureRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-edit' ? <BangNhatKy rows={window.fixtureRows} coTheSua={true} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: location.search.includes('admin') ? 'admin' : 'nhap_lieu'}}/> : screen === '/ledger-paper' ? <BangNhatKy rows={window.fixturePaperRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/payment' ? <table><tbody><tr><td><ThanhToan id="fixture"/></td></tr></tbody></table> : <FormGiaoDich collectors={[{id:'fixture-collector',ten:'Người lấy HĐ thử'}]} donVi={[{id:'fixture-unit-2',ten:'Đơn vị thử hai',so_lan:3,lan_cuoi:'01/01/2026'},{id:'fixture-unit',ten:'Đơn vị thử nghiệm'}]} nguoiLayHdMacDinhId="fixture-collector" trangThaiTtPhiMacDinh="Chưa thanh toán"/>);
+createRoot(document.getElementById('root')).render(screen === '/settings' ? <TuyChonCot banDau={null} loiBanDau={null}/> : screen === '/ledger' ? <BangNhatKy rows={[]} coTheSua={false} banDau={ledgerPreferences} phuTro={phuTro}/> : screen === '/ledger-actual' ? <BangNhatKy rows={window.fixtureActualRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-readonly' ? <BangNhatKy rows={window.fixtureRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-edit' ? <BangNhatKy rows={window.fixtureRows} coTheSua={true} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: location.search.includes('admin') ? 'admin' : 'nhap_lieu'}}/> : screen === '/ledger-paper' ? <BangNhatKy rows={window.fixturePaperRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/paper' ? <SoanThao id="r2" loai="thanh_toan"/> : screen === '/payment' ? <table><tbody><tr><td><ThanhToan id="fixture"/></td></tr></tbody></table> : <FormGiaoDich collectors={[{id:'fixture-collector',ten:'Người lấy HĐ thử'}]} donVi={[{id:'fixture-unit-2',ten:'Đơn vị thử hai',so_lan:3,lan_cuoi:'01/01/2026'},{id:'fixture-unit',ten:'Đơn vị thử nghiệm'}]} nguoiLayHdMacDinhId="fixture-collector" trangThaiTtPhiMacDinh="Chưa thanh toán"/>);
 `
 // next/link kéo theo mã dùng chung của Next, thứ đọc process.env ở cấp module. Next tự thay
 // biến này khi đóng gói, còn esbuild thì không, nên phải khai báo để trang thử không vỡ.
@@ -638,7 +642,8 @@ try {
  await page.getByRole('button',{name:'Sửa',exact:true}).first().click()
  const chonTruongAdmin = page.getByRole('dialog',{name:'Sửa giao dịch'}).getByLabel('Trường cần sửa')
  await expect(chonTruongAdmin.locator('option[value="tong_tien"]')).toHaveCount(1)
- await expect(chonTruongAdmin.locator('option')).toHaveCount(19)
+ await expect(chonTruongAdmin.locator('option')).toHaveCount(20)
+ await expect(chonTruongAdmin.locator('option[value="co_so_tinh_phi_lay_hd"]')).toHaveCount(1)
  await expect(chonTruongAdmin.locator('option[value="hinh_thuc"]')).toHaveCount(1)
  await expect(chonTruongAdmin.locator('option[value="tien_duoc_thanh_toan"]')).toHaveCount(1)
  await expect(chonTruongAdmin.locator('option[value="lam_tron_xuong_hang_nghin"]')).toHaveCount(1)
@@ -785,6 +790,73 @@ try {
  await queue([qr]); await page.getByRole('button',{name:'Tải lại QR theo dữ liệu mới nhất'}).click(); await expect(page.getByRole('img')).toHaveAttribute('src',/^data:image\/png;base64,/); await expect(page.getByText('FIXTURE OWNER')).toBeVisible(); await page.getByRole('button',{name:'Đóng',exact:true}).click(); await expect(page.getByRole('dialog')).toHaveCount(0)
  await queue([{delay:300,result:{loi:'STALE QR ERROR'}},qr]); await page.getByRole('button',{name:'Thanh toán',exact:true}).click(); await page.getByRole('button',{name:'Đóng',exact:true}).click(); await page.getByRole('button',{name:'Thanh toán',exact:true}).click(); await page.clock.runFor(500); await expect(page.getByText('FIXTURE OWNER')).toBeVisible(); await expect(page.getByText('STALE QR ERROR')).toHaveCount(0); await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0)
  console.log('PASS payment portal, local QR, error retry, close/reopen stale-response guard and Escape')
+
+ // Mẫu gộp chỉ có một giấy thanh toán; phụ lục không còn là tài liệu OnlyOffice riêng.
+ await context.addInitScript(() => {
+   window.officeEditors = [];
+   window.DocsAPI = { DocEditor: function(id, config) {
+     const frame = document.createElement('iframe'); frame.title = 'OnlyOffice kiểm thử';
+     document.getElementById(id).appendChild(frame);
+     window.officeEditors.push(config);
+     config.events?.onDocumentReady?.();
+     this.destroyEditor = () => frame.remove();
+   }};
+ });
+ let openPaperBody;
+ await context.route(origin+'/api/onlyoffice/mo', async route => {
+   openPaperBody = route.request().postDataJSON();
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({script:origin+'/office.js',config:{document:{key:'paper-fixture',title:'Giấy gộp kiểm thử'}},phienBan:2})});
+ });
+ await page.goto(origin+'/ledger-edit?admin&appendix');
+ await page.getByRole('button',{name:'Sửa',exact:true}).nth(1).click();
+ const paperInfoDialog=page.getByRole('dialog',{name:'Sửa giao dịch'});
+ await paperInfoDialog.getByRole('tab',{name:'Thông tin giấy đề nghị',exact:true}).click();
+ await expect(paperInfoDialog.locator('select[name^="giay_"]')).toHaveCount(5);
+ await expect(paperInfoDialog.getByRole('button',{name:'Mở phụ lục trong OnlyOffice',exact:true})).toHaveCount(0);
+ await expect(paperInfoDialog.locator('iframe')).toHaveCount(0);
+ await paperInfoDialog.getByRole('button',{name:'Đóng hộp thoại',exact:true}).click();
+ await page.goto(origin+'/ledger-edit?admin');
+ await page.getByRole('button',{name:'Sửa',exact:true}).nth(1).click();
+ await page.getByRole('tab',{name:'Thông tin giấy đề nghị',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Mở phụ lục trong OnlyOffice',exact:true})).toHaveCount(0);
+ console.log('PASS paper information keeps signer editing only; the combined paper has no separate appendix editor');
+
+ // Trang Giấy mở đúng một phiên OnlyOffice cho tài liệu gộp và gửi loại thanh toán.
+ await page.goto(origin+'/paper');
+ await page.getByRole('button',{name:'Mở trình soạn thảo',exact:true}).click();
+ await expect(page.getByRole('status')).toContainText('Đang mở phiên bản 2');
+ expect(openPaperBody).toEqual({id:'r2',loai:'thanh_toan'});
+ expect(openPaperBody).not.toHaveProperty('phu-luc');
+ await expect(page.locator('iframe')).toHaveCount(1);
+ await page.getByRole('button',{name:'Đóng trình soạn thảo',exact:true}).click();
+ await expect(page.locator('iframe')).toHaveCount(0);
+ console.log('PASS combined paper opens one OnlyOffice editor with the payment document type');
+
+ // Khi chưa lưu, một nút Xem dựng đúng một Word gộp; thay đổi vẫn cập nhật bản xem trước.
+ await openForm(); await chonHinhThuc('Cơ quan trả thẳng');
+ await page.evaluate(origin=>{
+   window.fixtureInvoice={trangThai:'hop_le',phatHien:[],deXuat:{ngay:'2026-10-12',kyHieuHd:'1C26MBC',soHd:'00020110',tongTien:450000,tienRuouBia:60000,tenBanHang:'Nhà hàng xem trước',loaiHd:'ban_hang',cotTienHang:'sau_thue',dongHang:[{ten:'Buffet 450',soLuong:1,donGia:450000,thanhTien:450000}]}};
+   window.fixturePreview={viewer:{script:origin+'/office.js',config:{document:{key:'preview',title:'Bản Word xem trước'},editorConfig:{mode:'view'}}}};
+ },origin);
+ await page.getByLabel('Đọc từ hóa đơn').setInputFiles({name:'kiem-thu.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 fixture')});
+ await expect(page.locator('[name="so_hd"]')).toHaveValue('00020110');
+ await page.getByRole('button',{name:'Lập giấy đề nghị',exact:true}).click();
+ await page.getByRole('button',{name:'Xem',exact:true}).click();
+ const previewDialog=page.getByRole('dialog',{name:'Xem giấy đề nghị',exact:true});
+ await expect(previewDialog.locator('iframe')).toHaveCount(1);
+ expect(await page.evaluate(()=>window.previewCalls.map(x=>x.loai))).toEqual(['thanh_toan']);
+ expect(await page.evaluate(()=>JSON.parse(window.previewCalls[0].data.chi_tiet_hoa_don).tenBanHang)).toBe('Nhà hàng xem trước');
+ expect(await page.evaluate(()=>window.calls)).toEqual([]);
+ await expect(previewDialog.getByRole('heading',{name:'Bản Word xem trước'})).toHaveCount(1);
+ await previewDialog.getByRole('button',{name:'Đóng',exact:true}).click();
+ await expect(previewDialog).toHaveCount(0);
+ // Tiền bị loại bằng không: vẫn dựng một Word gộp; logic tạo DOCX sẽ bỏ trang phụ lục.
+ await page.getByLabel('Tiền không được thanh toán (VND)').fill('0');
+ await page.getByRole('button',{name:'Xem',exact:true}).click();
+ await expect(previewDialog.locator('iframe')).toHaveCount(1);
+ expect(await page.evaluate(()=>window.previewCalls.map(x=>x.loai))).toEqual(['thanh_toan','thanh_toan']);
+ await previewDialog.getByRole('button',{name:'Đóng',exact:true}).click();
+ console.log('PASS one preview button opens one combined Word; changes refresh it and zero excluded amount remains one document');
  expect(errors).toEqual([])
  console.log('PASS no browser page errors; isolated mocks, no application HTTP endpoints or database')
 } finally { await browser.close(); await new Promise(resolve=>server.close(resolve)) }

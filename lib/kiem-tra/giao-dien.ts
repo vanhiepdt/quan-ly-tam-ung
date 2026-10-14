@@ -18,6 +18,17 @@ export type DongHang = {
   laRuouBia?: boolean
 }
 
+export type ChiTietHoaDon = {
+  ngay?: string
+  kyHieuHd?: string
+  soHd?: string
+  tenBanHang?: string
+  tongTien?: number
+  loaiHd?: LoaiHoaDon
+  cotTienHang?: CotTienHang
+  dongHang: DongHang[]
+}
+
 export interface DuLieuDocTuHoaDon {
   kyHieuHd?: string
   soHd?: string

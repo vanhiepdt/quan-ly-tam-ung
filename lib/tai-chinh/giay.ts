@@ -4,6 +4,7 @@ import { HINH_THUC, type GiaoDichTinh, type TaiKhoanNhan } from './kieu'
 import { dongTaiKhoan } from './tai-khoan'
 import { lamTronXuongHangNghin, soTienThanhToan } from './tien-thanh-toan'
 import type { ThayTheCoDinh } from '@/lib/van-ban/docx'
+import { coPhuLucThanhToan } from './co-phu-luc'
 
 export { lamTronXuongHangNghin, soTienThanhToan } from './tien-thanh-toan'
 
@@ -65,6 +66,11 @@ const GIAY_THEO_HINH_THUC: Record<string, readonly LoaiGiay[]> = {
 
 export function giayChoHinhThuc(hinhThuc: string): readonly LoaiGiay[] {
   return GIAY_THEO_HINH_THUC[hinhThuc] ?? []
+}
+
+// Mẫu tiếp khách + thanh toán đã là một tệp Word: chỉ mở/lưu tài liệu chính.
+export function giayChinhChoHinhThuc(hinhThuc: string): LoaiGiay | null {
+  return giayChoHinhThuc(hinhThuc).at(-1) ?? null
 }
 
 export const TEN_GIAY: Record<LoaiGiay, string> = {
@@ -151,7 +157,7 @@ export type BoiCanhGiay = {
 }
 
 // Thiếu liên kết hoặc có nhiều tài khoản cùng cán bộ thì không tự đoán tài khoản nhận.
-export type DuLieuGiay = Pick<GiaoDichTinh, 'ngay' | 'ngayDeNghi' | 'hinhThuc' | 'hinhThucThanhToan' | 'tamUngTuCq' | 'tongTien' | 'tienRuouBia' | 'tienDuocThanhToan' | 'lamTronXuongHangNghin' | 'donViTen' | 'nguoiLayHdId' | 'kyHieuHd' | 'soHd' | 'taiKhoanNhanGhiDe'>
+export type DuLieuGiay = Pick<GiaoDichTinh, 'ngay' | 'ngayDeNghi' | 'hinhThuc' | 'hinhThucThanhToan' | 'tamUngTuCq' | 'tongTien' | 'tienRuouBia' | 'tienDuocThanhToan' | 'lamTronXuongHangNghin' | 'donViTen' | 'nguoiLayHdId' | 'kyHieuHd' | 'soHd' | 'taiKhoanNhanGhiDe' | 'chiTietHoaDon'>
 
 export function taiKhoanNhan(gd: DuLieuGiay, ctx: BoiCanhGiay): TaiKhoanNhan | null {
   const ds = Object.values(ctx.taiKhoanTheoNguoiLayHd).filter(tk => tk.canBoId === ctx.nguoiDeNghi.id)
@@ -203,7 +209,7 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
   const noiDungTamUng = noiDungHinhThucTamUng(hinhThucThanhToan, tk ? dongTaiKhoan(tk) : null)
   const dungThayCoDinh = [
     ...thayCoDinh({
-      phong, tenDonVi, diaDanh: cauHinh.diaDanh, ngay, nguoiDeNghi: ctx.nguoiDeNghi.hoTen,
+      phong, tenDonVi, diaDanh: cauHinh.diaDanh, nguoiDeNghi: ctx.nguoiDeNghi.hoTen,
       truongPhong: truongPhong?.hoTen ?? null,
       lyDoTamUng: cauHinh.lyDoTamUng, thoiHanThanhToan: cauHinh.thoiHanThanhToan,
       hinhThucThanhToan: dongHinhThucTt,
@@ -212,6 +218,9 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
     // không để lại khoảng trắng thừa trước dấu chấm khi phương thức còn lại rỗng.
     { mau: /\[\[CK\]\]\s+\[\[TM\]\]\./g, thay: `${dungChuyenKhoan ? '[[CK]]' : '[[TM]]'}.` },
   ]
+  if (!coPhuLucThanhToan(gd)) {
+    dungThayCoDinh.push({ mau: mauChuoi('- Phụ lục bảng kê chi tiết đề nghị thanh toán'), thay: '' })
+  }
 
   const chung: Record<string, string> = {
     ngay, thang, nam, ngaytk: ngayHaiChu(ngay), thangtk: ngayHaiChu(thang), namtk: nam,
@@ -230,6 +239,10 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
     sotientt: vnd.format(sotientt), sotienttbangchu: docSoTien(sotientt),
     sotiendukien: vnd.format(kinhPhi), sotiendukienbangchu: docSoTien(kinhPhi),
     mahoadon: gd.kyHieuHd ?? '', sohoadon: gd.soHd ?? '',
+    // Mẫu gộp có thêm trang phụ lục. Tên bên bán lấy từ snapshot hóa đơn; giao dịch
+    // cũ không có snapshot thì để trống, tuyệt đối không lấy tên người đề nghị hay
+    // đơn vị tiếp khách thay thế.
+    benban: gd.chiTietHoaDon?.tenBanHang?.trim() ?? '',
     CK: noiDungTamUng.CK, TM: noiDungTamUng.TM,
     // Hình thức thanh toán in thành chữ ở giấy thanh toán, kèm số tài khoản nhận tiền
     // khi chuyển khoản. Tài khoản lấy từ người lấy hóa đơn — cùng tài khoản dùng để trả
@@ -340,7 +353,7 @@ export function mauChuoi(chuoi: string): RegExp {
 // [[...]]. Phải thay bằng chuỗi thật để giấy in ra không mang tên người khác. Nếu sau
 // này mẫu được sửa thành chỗ trống thì những mục dưới đây chỉ còn là phép thay vô hại.
 function thayCoDinh(c: {
-  phong: string; tenDonVi: string; diaDanh: string; ngay: string
+  phong: string; tenDonVi: string; diaDanh: string
   nguoiDeNghi: string; truongPhong: string | null
   lyDoTamUng: string; thoiHanThanhToan: string
   hinhThucThanhToan: string
@@ -358,9 +371,6 @@ function thayCoDinh(c: {
     // Mẫu tiếp khách dùng chung chỗ trống tháng cho dòng hành chính và ngày phê duyệt.
     // Đổi riêng dòng hành chính sang tháng không đệm số 0.
     { mau: /\[\[ngaydntk\]\]\s+tháng\s+\[\[thangdntk\]\]\s+năm\s+\[\[namdntk\]\]/g, thay: '[[ngaydntk]] tháng [[thangdntkVanXuoi]] năm [[namdntk]]' },
-    // Giấy thanh toán để trống ngày ở dòng "Hà Nội, ngày ... tháng [[thang]]": in theo
-    // ngày phát sinh, giống mọi chỗ ngày khác trên giấy.
-    { mau: /(ngày)\s+tháng/g, thay: `$1 ${c.ngay} tháng` },
     // Mẫu gõ "]]/ [[" giữa hai chỗ trống ngày; bỏ dấu cách để ngày in liền mạch.
     { mau: /\]\]\/\s+\[\[/g, thay: ']]/[[' },
     // Dòng "3. Hình thức thanh toán" trong mẫu gõ cứng "Hoàn tạm ứng". Thay bằng hình

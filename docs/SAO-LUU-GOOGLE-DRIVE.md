@@ -17,7 +17,7 @@ OAuth dùng `state` ngẫu nhiên, PKCE, cookie HTTP-only trong 10 phút, chỉ 
 
 ## Khôi phục
 
-Ứng dụng chưa có nút khôi phục trực tiếp. Tải `.tar.gz` từ Google Drive, giải nén, khôi phục `database.dump` bằng `pg_restore` cùng major PostgreSQL và chép `tep/` vào volume dữ liệu khi bảo trì. Nên thử khôi phục định kỳ trên DB tạm.
+Ứng dụng chưa có nút khôi phục trực tiếp. Xem **[hướng dẫn khôi phục sang VPS mới](KHOI-PHUC-SANG-VPS-MOI.md)** để tải bản Drive, nhập PostgreSQL và tệp đính kèm, khôi phục cấu hình/Google/OnlyOffice, kiểm tra trước khi chuyển DNS. Nên diễn tập định kỳ trên DB/VPS tạm.
 
 ## Script Service Account cũ
 

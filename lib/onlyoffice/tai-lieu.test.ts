@@ -46,32 +46,32 @@ beforeEach(() => {
 })
 
 describe('capNhatTaiLieuGiay', () => {
-  it('không ghi bất kỳ tệp nào khi tài liệu hiện hành đang mở trong OnlyOffice', async () => {
+  it.each(['tiep_khach', 'phu_luc'])('không ghi bất kỳ tệp nào khi %s đang mở trong OnlyOffice', async loai => {
     const query = vi.fn(async (sql: string) => {
       if (sql.startsWith('select pg_advisory_xact_lock')) return { rows: [] }
-      if (sql.includes('from tai_lieu where giao_dich_id')) return { rows: [{ ...taiLieuCu, khoa: 'onlyoffice-lock' }] }
+      if (sql.includes('from tai_lieu where giao_dich_id')) return { rows: [{ ...taiLieuCu, loai, khoa: 'onlyoffice-lock' }] }
       return { rows: [] }
     })
     const sinh = vi.fn(async () => docxToiThieu())
 
-    await expect(capNhatTaiLieuGiay(nguoiDung, giaoDich, [{ loai: 'tiep_khach', sinh }], { query } as never))
+    await expect(capNhatTaiLieuGiay(nguoiDung, giaoDich, [{ loai, sinh }], { query } as never))
       .rejects.toBeInstanceOf(LoiTaiLieuDangMo)
 
     expect(sinh).not.toHaveBeenCalled()
     expect(mocks.writeFile).not.toHaveBeenCalled()
   })
 
-  it('lưu bản Word mới thành phiên bản kế tiếp và giữ bản cũ trong lịch sử', async () => {
+  it.each(['tiep_khach', 'phu_luc'])('lưu %s thành phiên bản kế tiếp và giữ bản cũ trong lịch sử', async loai => {
     const data = docxToiThieu()
-    const moi = { ...taiLieuCu, tep: tepMoi, phien_ban: 3 }
+    const moi = { ...taiLieuCu, loai, tep: tepMoi, phien_ban: 3 }
     const query = vi.fn(async (sql: string) => {
       if (sql.startsWith('select pg_advisory_xact_lock')) return { rows: [] }
-      if (sql.includes('from tai_lieu where giao_dich_id')) return { rows: [taiLieuCu] }
+      if (sql.includes('from tai_lieu where giao_dich_id')) return { rows: [{ ...taiLieuCu, loai }] }
       if (sql.startsWith('update tai_lieu')) return { rows: [moi] }
       return { rows: [] }
     })
 
-    await expect(capNhatTaiLieuGiay(nguoiDung, giaoDich, [{ loai: 'tiep_khach', sinh: async () => data }], { query } as never))
+    await expect(capNhatTaiLieuGiay(nguoiDung, giaoDich, [{ loai, sinh: async () => data }], { query } as never))
       .resolves.toEqual([moi])
 
     expect(query).toHaveBeenCalledWith(

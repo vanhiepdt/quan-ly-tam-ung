@@ -9,7 +9,7 @@ import { donViMacDinh, type DonViTiepKhach } from '@/lib/tai-chinh/don-vi'
 import type { NguoiLayHdChon } from '@/lib/tai-chinh/tai-khoan'
 import { dongTaiKhoan, taiKhoanTuNhap } from '@/lib/tai-chinh/tai-khoan'
 import Link from 'next/link'
-import { giayChoHinhThuc } from '@/lib/tai-chinh/giay'
+import { giayChoHinhThuc, giayChinhChoHinhThuc } from '@/lib/tai-chinh/giay'
 import { VAI_TRO_KY } from '@/lib/tai-chinh/vai-tro-ky'
 import { truongPhongTheoNguoi, type LuaChonNguoiKy, type NguoiKyGiay } from '@/lib/tai-chinh/chon-nguoi-ky'
 import { loadScript } from '@/app/giay/soan-thao'
@@ -174,6 +174,7 @@ export function FormGiaoDich({
   const formRef = useRef<HTMLFormElement>(null)
   const warningRef = useRef<HTMLDialogElement>(null)
   const [tepHoaDon, setTepHoaDon] = useState<File | null>(null)
+  const [chiTietHoaDon, setChiTietHoaDon] = useState<unknown | null>(null)
   const [canhBao, setCanhBao] = useState<KetQua['canhBao']>()
   useEffect(() => {
     if (canhBao && showDialog) warningRef.current?.showModal()
@@ -192,6 +193,7 @@ export function FormGiaoDich({
         setCanhBaoKyHieu('')
         kyHieuDaKiem.current = ''
         setTepHoaDon(null)
+        setChiTietHoaDon(null)
         setLapGiay(false)
         setMoThongTinGiay(false)
         setChonGiay([])
@@ -370,7 +372,11 @@ export function FormGiaoDich({
       const bans: BanXem[] = []
       for (const loai of chonGiay) {
         const result = await xemGiayNhap(data, loai)
-        if (!result.viewer) throw new Error(result.loi || 'Không mở được bản Word.')
+        if (!result.viewer) {
+          setViewer(bans)
+          setLoiXem(`Giấy đề nghị: ${result.loi || 'Không mở được bản Word.'}`)
+          return
+        }
         bans.push(result.viewer)
       }
       setViewer(bans)
@@ -390,7 +396,7 @@ export function FormGiaoDich({
     })
   }
 
-  function dienTuHoaDon(deXuat: { ngay?: string; kyHieuHd?: string; soHd?: string; tongTien?: number; tienRuouBia?: number }) {
+  function dienTuHoaDon(deXuat: { ngay?: string; kyHieuHd?: string; soHd?: string; tongTien?: number; tienRuouBia?: number; dongHang?: unknown[]; loaiHd?: 'gtgt' | 'ban_hang'; cotTienHang?: 'truoc_thue' | 'sau_thue'; tenBanHang?: string }) {
     setValues(hien => {
       const ngayMoi = deXuat.ngay || hien.ngay
       const updated: Record<string, string> = {
@@ -410,6 +416,7 @@ export function FormGiaoDich({
       }
       return updated
     })
+    setChiTietHoaDon(deXuat.dongHang?.length ? { ngay: deXuat.ngay, kyHieuHd: deXuat.kyHieuHd, soHd: deXuat.soHd, tenBanHang: deXuat.tenBanHang, tongTien: deXuat.tongTien, loaiHd: deXuat.loaiHd, cotTienHang: deXuat.cotTienHang, dongHang: deXuat.dongHang } : null)
     if (deXuat.kyHieuHd) kiemKyHieu(deXuat.kyHieuHd)
   }
 
@@ -556,6 +563,7 @@ export function FormGiaoDich({
                     <input type="hidden" name="tong_tien" value={values.tong_tien} />
                     <label className="field">Tiền không được thanh toán (VND)<input type="text" {...bindMoney('tien_ruou_bia')} inputMode="numeric" placeholder="0" /></label>
                     <input type="hidden" name="tien_ruou_bia" value={values.tien_ruou_bia} />
+                    <input type="hidden" name="chi_tiet_hoa_don" value={chiTietHoaDon ? JSON.stringify(chiTietHoaDon) : ''} />
                     <label className="field">Tiền được hoàn/thanh toán (VND) *<input type="text" required {...bindMoney('tien_duoc_thanh_toan')} inputMode="numeric" placeholder="0" /></label>
                     <input type="hidden" name="tien_duoc_thanh_toan" value={values.tien_duoc_thanh_toan} />
                     <input type="hidden" name="tien_duoc_thanh_toan_goc" value={values.tien_duoc_thanh_toan_goc} />
@@ -594,7 +602,7 @@ export function FormGiaoDich({
               <section className="form-section">
                 <h3>Hóa đơn &amp; phí lấy hóa đơn</h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <DocHoaDon onDien={dienTuHoaDon} onTep={setTepHoaDon} tep={tepHoaDon} />
+                  <DocHoaDon onDien={dienTuHoaDon} onTep={file => { setTepHoaDon(file); if (file) setChiTietHoaDon(null) }} tep={tepHoaDon} />
                   <label className="field">Ký hiệu HĐ
                     <input placeholder="VD: 1C26MTT" {...bind('ky_hieu_hd')} onBlur={e => kiemKyHieu(e.target.value)} />
                     {canhBaoKyHieu && <small className="text-amber-800" role="status">{canhBaoKyHieu}</small>}
@@ -714,7 +722,7 @@ export function FormGiaoDich({
                 try {
                   const kq = await taiNguoiKyGiay()
                   setCanBoGiay(kq); setNguoiKy(kq.macDinh)
-                  setChonGiay([...giayChoHinhThuc(hinhThuc)])
+                  setChonGiay([giayChinhChoHinhThuc(hinhThuc)!])
                   setLapGiay(true)
                 } catch { setLoiXem('Không tải được người ký. Bấm Lập giấy đề nghị để thử lại.') }
                 finally { setDangTaiNguoiKy(false) }
@@ -737,7 +745,8 @@ export function FormGiaoDich({
                     </select>
                   </label>)}
                 </div>
-                <button type="button" className="btn btn-secondary mt-4" disabled={pending || dangXem} onClick={xemWord}>{dangXem ? 'Đang dựng Word…' : 'Xem'}</button>
+                <button type="button" className="btn btn-secondary mt-4" disabled={pending || dangXem} onClick={() => void xemWord()}>{dangXem ? 'Đang dựng Word…' : 'Xem'}</button>
+                <p className="mt-3 text-sm text-slate-600">Nút Xem mở một bản Word theo thông tin đang nhập; trang phụ lục chỉ có khi phát sinh tiền không được thanh toán. Thay đổi trước khi lưu? Bấm Xem lại để cập nhật bản xem trước.</p>
               </div>}
               {loiXem && !moThongTinGiay && <p role="alert" className="notice error">{loiXem}</p>}
             </section>}
@@ -759,7 +768,10 @@ export function FormGiaoDich({
       <h2 id={`${id}-giay-title`} className="text-xl font-semibold">Xem giấy đề nghị</h2>
       {dangXem && <p role="status">Đang dựng Word…</p>}
       {loiXem && <p role="alert" className="notice error">{loiXem}</p>}
-      {viewer?.map(ban => <KhungXemWord key={String((ban.config.document as { key: string }).key)} viewer={ban} />)}
+      {viewer?.map(ban => <section key={String((ban.config.document as { key: string }).key)} aria-label={String((ban.config.document as { title?: string }).title ?? 'Bản Word')}>
+        <h3 className="mt-5 text-lg font-semibold">{String((ban.config.document as { title?: string }).title ?? 'Bản Word')}</h3>
+        <KhungXemWord viewer={ban} />
+      </section>)}
       <div className="mt-5 flex justify-end">
         <button type="button" className="btn btn-secondary" disabled={dangXem} onClick={() => { setMoThongTinGiay(false); setViewer(null) }}>Đóng</button>
       </div>

@@ -15,12 +15,12 @@ import { CO_SO_TINH_PHI, HINH_THUC, type CoSoTinhPhi } from '@/lib/tai-chinh/kie
 import { khoaSoTaiChinh } from '@/lib/tai-chinh/xac-nhan-hoan-ung'
 import { soTienThanhToan, tienTheoHoaDon } from '@/lib/tai-chinh/tien-thanh-toan'
 import { ngayDeNghiMacDinh } from '@/lib/tai-chinh/ngay'
-import { giayChoHinhThuc } from '@/lib/tai-chinh/giay'
+import { giayChoHinhThuc, giayChinhChoHinhThuc } from '@/lib/tai-chinh/giay'
 import { boiCanhGiay } from '@/lib/tai-chinh/cau-hinh-giay'
 import { giayCuaGiaoDich, MAU_WORD, timGiaoDichTinh } from '@/lib/tai-chinh/in-giay'
 import { VAI_TRO_KY } from '@/lib/tai-chinh/vai-tro-ky'
 import { capNhatTaiLieuGiay, docMau, LoiTaiLieuDangMo } from '@/lib/onlyoffice/tai-lieu'
-import { dienMauDocx } from '@/lib/van-ban/docx'
+import { taoGiayDocx } from '@/lib/tai-chinh/giay-docx'
 
 export type KetQua = KetQuaTaoGiaoDich
 
@@ -121,13 +121,14 @@ async function lamMoiGiayDangCo(
   if (!giaoDich) throw new Error('Không đọc được giao dịch sau khi cập nhật.')
   const loaiDaCo = new Set(taiLieu.map(t => t.loai))
   const context = await boiCanhGiay(phien)
-  const giay = giayCuaGiaoDich(giaoDich, context).filter(g => loaiDaCo.has(g.loai))
-  if (!giay.length) return
-
-  await capNhatTaiLieuGiay(userId, giaoDichId, giay.map(g => ({
-    loai: g.loai,
-    sinh: async () => dienMauDocx(await docMau(MAU_WORD[g.loai], client), g.thayThe, g.thayCoDinh).duLieu,
-  })), client)
+  const giayChinh = giayChinhChoHinhThuc(giaoDich.hinhThuc)
+  const tatCaGiay = giayCuaGiaoDich(giaoDich, context)
+  const canCapNhat: Array<{ loai: string; sinh: () => Promise<Buffer> }> = tatCaGiay
+    .filter(g => g.loai === giayChinh && loaiDaCo.has(g.loai)).map(g => ({
+      loai: g.loai,
+      sinh: async () => taoGiayDocx(await docMau(MAU_WORD[g.loai], client), g, giaoDich),
+    }))
+  if (canCapNhat.length) await capNhatTaiLieuGiay(userId, giaoDichId, canCapNhat, client)
 }
 
 const maHoacNull = (formData: FormData, khoa: string) => {
@@ -145,6 +146,7 @@ function layDuLieu(formData: FormData) {
     ky_hieu_hd: get('ky_hieu_hd'), so_hd: get('so_hd'), loai_hd: get('loai_hd'),
     trang_thai_hd: get('trang_thai_hd'), hinh_thuc: get('hinh_thuc'), chi_thuc_te: get('chi_thuc_te'),
     tong_tien: get('tong_tien') || 0, tien_ruou_bia: get('tien_ruou_bia') || 0,
+    chi_tiet_hoa_don: get('chi_tiet_hoa_don'),
     tien_duoc_thanh_toan: get('tien_duoc_thanh_toan'), tien_duoc_thanh_toan_goc: get('tien_duoc_thanh_toan_goc'),
     ngay_de_nghi: get('ngay_de_nghi'),
     lam_tron_xuong_hang_nghin: get('lam_tron_xuong_hang_nghin'),
@@ -538,10 +540,13 @@ export async function suaThongTinGiayGiaoDich(_: KetQua, formData: FormData): Pr
       const giaoDich = await timGiaoDichTinh(parsed.data.id, client)
       if (!giaoDich) throw new Error('Không đọc được giao dịch sau khi cập nhật thông tin giấy.')
       const giay = giayCuaGiaoDich(giaoDich, context)
-      await capNhatTaiLieuGiay(phien.id, parsed.data.id, giay.map(g => ({
-        loai: g.loai,
-        sinh: async () => dienMauDocx(await docMau(MAU_WORD[g.loai], client), g.thayThe, g.thayCoDinh).duLieu,
-      })), client)
+      const canCapNhat: Array<{ loai: string; sinh: () => Promise<Buffer> }> = giay
+        .filter(g => g.loai === giayChinhChoHinhThuc(giaoDich.hinhThuc))
+        .map(g => ({
+          loai: g.loai,
+          sinh: async () => taoGiayDocx(await docMau(MAU_WORD[g.loai], client), g, giaoDich),
+        }))
+      await capNhatTaiLieuGiay(phien.id, parsed.data.id, canCapNhat, client)
       return { thanhCong: 'Đã lưu thông tin giấy đề nghị và làm mới tài liệu Word.' }
     })
   } catch (error) {

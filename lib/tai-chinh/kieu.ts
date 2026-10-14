@@ -1,3 +1,5 @@
+import type { ChiTietHoaDon } from '@/lib/kiem-tra/giao-dien'
+
 export const HINH_THUC = {
   TAM_UNG_THEM: 'Tạm ứng thêm', GIAO_CHI_THUY: 'Giao tiền chị Thúy',
   DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY: 'Đưa tiền CQ trả thẳng cho Chị Thúy',
@@ -26,6 +28,7 @@ export type TaiKhoanNhan = {
 export type GiaoDichTho = {
   id: string; ngay: string; ngayDeNghi?: string | null; soThuTu: number; taoLuc: string; noiDung: string; kyHieuHd: string | null; soHd: string | null; loaiHd: string | null;
   trangThaiHd: string; hinhThuc: string; tongTien: number; tienRuouBia: number; tamUngTuCq: number; giaoTienChiThuy: number; hoanUngTienMat: number;
+  chiTietHoaDon?: ChiTietHoaDon | null
   // Optional để máy chủ vẫn đọc được dữ liệu trước migration; chuyenDongGiaoDich
   // luôn chuẩn hóa thành 0 khi cột chưa có trong kết quả truy vấn.
   duaTienCqTraThangChoChiThuy?: number;

@@ -2,6 +2,8 @@ import { db } from '@/lib/db/pool'
 import { CO_SO_TINH_PHI, type GiaoDichTho, type ThamSoTinh } from './kieu'
 import { coTinhPhiMacDinh } from './hinh-thuc'
 import { taiKhoanTu } from './tai-khoan'
+import { parseChiTietHoaDon } from '@/lib/kiem-tra/phan-bo-phu-luc'
+import type { ChiTietHoaDon } from '@/lib/kiem-tra/giao-dien'
 
 type DongGiaoDich = Record<string, unknown>
 type DongNguoiLay = { id: string; ty_le_phi: string | number | null }
@@ -17,6 +19,11 @@ const ngayIso = (v: unknown) => v instanceof Date
   ? `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`
   : String(v).slice(0, 10)
 
+function docChiTietHoaDon(value: unknown): ChiTietHoaDon | null {
+  if (value === null || value === undefined) return null
+  try { return parseChiTietHoaDon(value) } catch { return null }
+}
+
 export function chuyenDongGiaoDich(g: DongGiaoDich): GiaoDichTho {
   const chiThucTe = g.chi_thuc_te === true || g.chi_thuc_te === 'true'
   return {
@@ -24,6 +31,7 @@ export function chuyenDongGiaoDich(g: DongGiaoDich): GiaoDichTho {
     id: String(g.id), ngay: ngayIso(g.ngay), ngayDeNghi: g.ngay_de_nghi == null ? null : ngayIso(g.ngay_de_nghi), soThuTu: Number(g.so_thu_tu), taoLuc: new Date(String(g.tao_luc)).toISOString(),
     noiDung: String(g.noi_dung), kyHieuHd: g.ky_hieu_hd === null ? null : String(g.ky_hieu_hd), soHd: g.so_hd === null ? null : String(g.so_hd), loaiHd: g.loai_hd === null ? null : String(g.loai_hd),
     trangThaiHd: String(g.trang_thai_hd), hinhThuc: String(g.hinh_thuc), tongTien: so(g.tong_tien), tienRuouBia: so(g.tien_ruou_bia),
+    chiTietHoaDon: docChiTietHoaDon(g.chi_tiet_hoa_don),
     tamUngTuCq: so(g.tam_ung_tu_cq), giaoTienChiThuy: so(g.giao_tien_chi_thuy), hoanUngTienMat: so(g.hoan_ung_tien_mat),
     duaTienCqTraThangChoChiThuy: g.dua_tien_cq_tra_thang_cho_chi_thuy === null || g.dua_tien_cq_tra_thang_cho_chi_thuy === undefined
       ? 0

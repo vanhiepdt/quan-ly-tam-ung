@@ -10,7 +10,7 @@ import { docDuLieuCauHinhAi } from './ai-actions'
 import { docCanBo } from '@/lib/tai-chinh/cau-hinh-giay'
 import { db } from '@/lib/db/pool'
 import { dangXuat } from '@/app/dang-nhap/actions'
-import { MAU_WORD } from '@/lib/tai-chinh/in-giay'
+import { DANH_SACH_MAU_WORD } from '@/lib/van-ban/mau-word'
 import { CaiDatIntake } from './cai-dat-intake'
 import { docDuLieuCauHinhIntake } from './intake-actions'
 import { CaiDatSaoLuu } from './cai-dat-sao-luu'
@@ -106,7 +106,7 @@ export default async function CaiDatPage({ searchParams }: { searchParams: Promi
         {laAdmin && <section className="card mb-6 space-y-3 p-5 sm:p-6">
           <h2 className="text-lg font-semibold">Mẫu giấy đề nghị</h2>
           <p>Sửa định dạng Word bằng OnlyOffice. Mẫu gốc và các bản đã lưu được giữ riêng, không ghi đè.</p>
-          {[...new Set(Object.values(MAU_WORD))].map(ten => <p key={ten}><Link className="btn btn-secondary" href={`/cai-dat/mau/${encodeURIComponent(ten)}`}>{ten}</Link></p>)}
+          {DANH_SACH_MAU_WORD.map(ten => <p key={ten}><Link className="btn btn-secondary" href={`/cai-dat/mau/${encodeURIComponent(ten)}`}>{ten}</Link></p>)}
         </section>}
 
         <div className="card mb-6 p-5 sm:p-6" data-panel="settings">

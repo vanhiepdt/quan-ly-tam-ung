@@ -2,6 +2,8 @@ import { docCauHinhGiay } from '@/lib/tai-chinh/cau-hinh-giay'
 import { docHoaDonHaiAi } from '@/lib/kiem-tra/doc-hoa-don'
 import type { KetQuaDocHoaDon } from '@/lib/kiem-tra/giao-dien'
 import { laSoTienHopLe } from '@/lib/kiem-tra/tien'
+import { chiTietHoaDonTuDeXuat } from '@/lib/kiem-tra/phan-bo-phu-luc'
+import type { ChiTietHoaDon } from '@/lib/kiem-tra/giao-dien'
 import { kiemTraTepIntake } from './tep'
 
 export type DeXuatIntake = {
@@ -10,6 +12,7 @@ export type DeXuatIntake = {
   soHd: string | null
   tongTien: number
   tienRuouBia: number
+  chiTietHoaDon: ChiTietHoaDon | null
   loaiHd: 'gtgt' | 'ban_hang'
   trangThaiHd: 'Hợp lệ' | 'Không hợp lệ'
 }
@@ -42,6 +45,7 @@ export function deXuatGiaoDich(ketQua: Pick<KetQuaDocHoaDon, 'deXuat' | 'trangTh
     soHd: d.soHd?.trim() || null,
     tongTien: tienMacDinh(d.tongTien),
     tienRuouBia: tienMacDinh(d.tienRuouBia),
+    chiTietHoaDon: chiTietHoaDonTuDeXuat(d),
     loaiHd,
     trangThaiHd: ketQua.trangThai === 'khong_hop_le' ? 'Không hợp lệ' : 'Hợp lệ',
   }

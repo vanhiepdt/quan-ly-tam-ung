@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => {
   class TaiLieuDangMo extends Error {}
   return {
     query: vi.fn(), phien: vi.fn(), transaction: vi.fn(), revalidate: vi.fn(),
-    context: vi.fn(), find: vi.fn(), papers: vi.fn(), refresh: vi.fn(), template: vi.fn(), fill: vi.fn(), TaiLieuDangMo,
+    build: vi.fn(), context: vi.fn(), find: vi.fn(), papers: vi.fn(), refresh: vi.fn(), template: vi.fn(), TaiLieuDangMo,
   }
 })
 vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidate }))
@@ -14,7 +14,7 @@ vi.mock('@/lib/xac-thuc/bao-ve', () => import('../../lib/xac-thuc/bao-ve'))
 vi.mock('@/lib/tai-chinh/cau-hinh-giay', () => ({ boiCanhGiay: mocks.context }))
 vi.mock('@/lib/tai-chinh/in-giay', () => ({ timGiaoDichTinh: mocks.find, giayCuaGiaoDich: mocks.papers, MAU_WORD: { tiep_khach: 'tiep khach va thanh toan.docx', thanh_toan: 'tiep khach va thanh toan.docx' } }))
 vi.mock('@/lib/onlyoffice/tai-lieu', () => ({ capNhatTaiLieuGiay: mocks.refresh, docMau: mocks.template, LoiTaiLieuDangMo: mocks.TaiLieuDangMo }))
-vi.mock('@/lib/van-ban/docx', () => ({ dienMauDocx: mocks.fill }))
+vi.mock('@/lib/tai-chinh/giay-docx', () => ({ taoGiayDocx: mocks.build }))
 import { suaGiaoDich, suaThongTinGiayGiaoDich } from './actions'
 
 const actor = '11111111-1111-4111-8111-111111111111'
@@ -52,11 +52,11 @@ beforeEach(() => {
   mocks.phien.mockResolvedValue({ id: actor, vai_tro: 'admin' })
   mocks.transaction.mockImplementation(async (_id: string, callback: (c: unknown) => unknown) => callback({ query: mocks.query }))
   mocks.context.mockResolvedValue({ canBo: [], cauHinh: {}, nguoiDeNghi: {}, taiKhoanTheoNguoiLayHd: {} })
-  mocks.find.mockResolvedValue({ id })
+  mocks.find.mockResolvedValue({ id, hinhThuc: 'Hoàn tạm ứng' })
   mocks.papers.mockReturnValue([{ loai: 'tiep_khach', thayThe: {}, thayCoDinh: [] }, { loai: 'thanh_toan', thayThe: {}, thayCoDinh: [] }])
   mocks.refresh.mockResolvedValue([])
   mocks.template.mockResolvedValue(Buffer.from('template'))
-  mocks.fill.mockReturnValue({ duLieu: Buffer.from('document') })
+  mocks.build.mockReturnValue(Buffer.from('document'))
   mocks.query.mockImplementation(async (sql: string, params?: unknown[]) => {
     if (sql.includes('from giao_dich')) return { rows: [{ hinh_thuc: 'Hoàn tạm ứng' }] }
     if (sql.includes('from can_bo')) return { rows: Array.isArray(params?.[0]) ? params![0].map(id => ({ id })) : [] }
@@ -219,7 +219,7 @@ describe('suaGiaoDich', () => {
     expect(params).toEqual([1500000, 1500999, actor, id])
   })
 
-  it('sửa tổng tiền làm mới cả hai giấy đề nghị đã lập', async () => {
+  it('sửa tổng tiền làm mới Word gộp đã lập', async () => {
     mocks.query.mockImplementation(async (sql: string) => {
       if (sql.includes('from giao_dich')) return { rows: [{
         hinh_thuc: 'Hoàn tạm ứng', tong_tien: '2000000', tien_ruou_bia: '0',
@@ -233,7 +233,7 @@ describe('suaGiaoDich', () => {
     expect(mocks.find).toHaveBeenCalledWith(id, expect.any(Object))
     expect(mocks.papers).toHaveBeenCalledTimes(1)
     expect(mocks.refresh).toHaveBeenCalledWith(actor, id, expect.any(Array), expect.any(Object))
-    expect(mocks.refresh.mock.calls[0][2].map((g: { loai: string }) => g.loai)).toEqual(['tiep_khach', 'thanh_toan'])
+    expect(mocks.refresh.mock.calls[0][2].map((g: { loai: string }) => g.loai)).toEqual(['thanh_toan'])
     expect(mocks.revalidate).toHaveBeenCalledWith(`/giay/${id}`)
   })
 
@@ -363,7 +363,7 @@ describe('suaGiaoDich', () => {
 })
 
 describe('suaThongTinGiayGiaoDich', () => {
-  it('lưu đủ năm người ký và làm mới cả giấy tiếp khách lẫn thanh toán', async () => {
+  it('lưu đủ năm người ký và làm mới một Word gộp', async () => {
     expect((await suaThongTinGiayGiaoDich({}, guiThongTinGiay())).thanhCong).toContain('làm mới')
     const [sql, params] = capNhat()[0]
     expect(sql).toContain('lanh_dao_tiep_khach_id=$2')
@@ -372,7 +372,7 @@ describe('suaThongTinGiayGiaoDich', () => {
     expect(mocks.find).toHaveBeenCalledWith(id, expect.any(Object))
     expect(mocks.papers).toHaveBeenCalledTimes(1)
     expect(mocks.refresh).toHaveBeenCalledWith(actor, id, expect.any(Array), expect.any(Object))
-    expect(mocks.refresh.mock.calls[0][2].map((g: { loai: string }) => g.loai)).toEqual(['tiep_khach', 'thanh_toan'])
+    expect(mocks.refresh.mock.calls[0][2].map((g: { loai: string }) => g.loai)).toEqual(['thanh_toan'])
     expect(mocks.revalidate).toHaveBeenCalledWith('/giao-dich')
     expect(mocks.revalidate).toHaveBeenCalledWith('/dashboard')
     expect(mocks.revalidate).toHaveBeenCalledWith(`/giay/${id}`)
@@ -470,4 +470,43 @@ describe('sửa Chi thực tế', () => {
     expect(capNhat()[0][1][28]).toBe(expected)
     expect(capNhat()[0][1][29]).toBe(expected ? 'tien_duoc_thanh_toan' : 'tong_tien')
   })
+})
+
+const chiTietPhuLuc = {
+  tenBanHang: 'Nhà hàng ABC', loaiHd: 'ban_hang', cotTienHang: 'sau_thue',
+  dongHang: [{ ten: 'Buffet 450', soLuong: 1, donGia: 450_000, thanhTien: 450_000 }],
+}
+const bienGiayThanhToan = { nguoidntk: 'Người đề nghị mới', sotientt: '390.000', mahoadon: '1C26MBC', sohoadon: '00020110' }
+function coPhuLuc() {
+  mocks.find.mockResolvedValue({ id, hinhThuc: 'Hoàn tạm ứng', tienRuouBia: 60_000, chiTietHoaDon: chiTietPhuLuc })
+  mocks.papers.mockReturnValue([
+    { loai: 'tiep_khach', thayThe: {}, thayCoDinh: [] },
+    { loai: 'thanh_toan', thayThe: bienGiayThanhToan, thayCoDinh: [] },
+  ])
+}
+it('lưu Thông tin giấy đề nghị làm mới Word gộp chứa phụ lục với cùng dữ liệu giao dịch', async () => {
+  coPhuLuc()
+  expect((await suaThongTinGiayGiaoDich({}, guiThongTinGiay())).thanhCong).toBeDefined()
+  const danhSach = mocks.refresh.mock.calls[0][2]
+  expect(danhSach.map((g: { loai: string }) => g.loai)).toEqual(['thanh_toan'])
+  await danhSach[0].sinh()
+  expect(mocks.build).toHaveBeenCalledWith(Buffer.from('template'), expect.objectContaining({ loai: 'thanh_toan', thayThe: bienGiayThanhToan }), expect.objectContaining({ chiTietHoaDon: chiTietPhuLuc }))
+  expect(mocks.template).toHaveBeenCalledWith('tiep khach va thanh toan.docx', expect.any(Object))
+})
+it('sửa giao dịch không tạo lại phụ lục riêng cũ khi chưa có Word chính', async () => {
+  coPhuLuc()
+  mocks.query.mockImplementation(async (sql: string) => {
+    if (sql.includes('from giao_dich')) return { rows: [{ hinh_thuc: 'Hoàn tạm ứng' }] }
+    if (sql.includes('from tai_lieu')) return { rows: [{ loai: 'phu_luc' }] }
+    return { rows: [] }
+  })
+  expect((await suaGiaoDich({}, gui('so_hd', '00020110'))).thanhCong).toBeDefined()
+  expect(mocks.refresh).not.toHaveBeenCalled()
+  expect(mocks.build).not.toHaveBeenCalled()
+})
+it('không tạo phụ lục riêng khi khoản bị loại bằng không', async () => {
+  coPhuLuc()
+  mocks.find.mockResolvedValue({ id, hinhThuc: 'Hoàn tạm ứng', tienRuouBia: 0, chiTietHoaDon: chiTietPhuLuc })
+  expect((await suaThongTinGiayGiaoDich({}, guiThongTinGiay())).thanhCong).toBeDefined()
+  expect(mocks.refresh.mock.calls[0][2].map((g: { loai: string }) => g.loai)).toEqual(['thanh_toan'])
 })

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { layPhien } from '@/lib/xac-thuc/phien'
-import { MAU_WORD } from '@/lib/tai-chinh/in-giay'
+import { DANH_SACH_MAU_WORD } from '@/lib/van-ban/mau-word'
 import { docMau } from '@/lib/onlyoffice/tai-lieu'
 import { docZip } from '@/lib/van-ban/zip'
 import { SoanThao } from '@/app/giay/soan-thao'
@@ -12,7 +12,7 @@ export default async function MauPage({ params }: { params: Promise<{ ten: strin
   if (phien.vai_tro !== 'admin' || phien.doi_mat_khau) redirect('/cai-dat')
   const { ten: thamSo } = await params
   // Next.js may preserve percent encoding in dynamic params. Resolve only known templates.
-  const ten = Object.values(MAU_WORD).find(mau => mau === thamSo || encodeURIComponent(mau) === thamSo)
+  const ten = DANH_SACH_MAU_WORD.find(mau => mau === thamSo || encodeURIComponent(mau) === thamSo)
   if (!ten) notFound()
   const entries = docZip(await docMau(ten))
   const text = entries.filter(m => m.ten.startsWith('word/') && m.ten.endsWith('.xml')).map(m => m.duLieu.toString().replace(/<[^>]*>/g, '')).join('\n')

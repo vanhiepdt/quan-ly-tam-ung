@@ -201,7 +201,7 @@ export function SuaGiaoDich({ row, collectors, donVi, vaiTro }: {
 
   return <>
     <button type="button" className="btn btn-secondary min-h-8 px-3 py-1" onClick={moHopThoai}>Sửa</button>
-    {mo && <dialog ref={dialogRef} aria-labelledby={`${id}-title`} onCancel={event => { if (dangLuu || dangTaiNguoiKy) event.preventDefault(); else dong() }} className="fixed inset-0 m-auto max-h-[92dvh] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-2xl border-0 bg-white p-6 text-slate-800 shadow-2xl backdrop:bg-slate-950/50 backdrop:backdrop-blur-sm">
+    {mo && <dialog ref={dialogRef} aria-labelledby={`${id}-title`} onCancel={event => { if (dangLuu || dangTaiNguoiKy) event.preventDefault(); else dong() }} className={`fixed inset-0 m-auto max-h-[92dvh] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-2xl border-0 bg-white p-6 text-slate-800 shadow-2xl backdrop:bg-slate-950/50 backdrop:backdrop-blur-sm`}>
       <header className="mb-4 flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 id={`${id}-title`} className="text-xl font-semibold tracking-tight text-slate-950">Sửa giao dịch</h2>
