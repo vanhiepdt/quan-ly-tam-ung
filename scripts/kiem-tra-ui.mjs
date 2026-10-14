@@ -833,19 +833,32 @@ try {
  console.log('PASS combined paper opens one OnlyOffice editor with the payment document type');
 
  // Khi chưa lưu, một nút Xem dựng đúng một Word gộp; thay đổi vẫn cập nhật bản xem trước.
+ await page.setViewportSize({width:1920,height:1200});
  await openForm(); await chonHinhThuc('Cơ quan trả thẳng');
+ const createDialog=page.getByRole('dialog',{name:'Thêm giao dịch',exact:true});
+ expect(await createDialog.getAttribute('class')).toContain('max-w-[96rem]');
  await page.evaluate(origin=>{
    window.fixtureInvoice={trangThai:'hop_le',phatHien:[],deXuat:{ngay:'2026-10-12',kyHieuHd:'1C26MBC',soHd:'00020110',tongTien:450000,tienRuouBia:60000,tenBanHang:'Nhà hàng xem trước',loaiHd:'ban_hang',cotTienHang:'sau_thue',dongHang:[{ten:'Buffet 450',soLuong:1,donGia:450000,thanhTien:450000}]}};
    window.fixturePreview={viewer:{script:origin+'/office.js',config:{document:{key:'preview',title:'Bản Word xem trước'},editorConfig:{mode:'view'}}}};
  },origin);
  await page.getByLabel('Đọc từ hóa đơn').setInputFiles({name:'kiem-thu.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 fixture')});
  await expect(page.locator('[name="so_hd"]')).toHaveValue('00020110');
+ await expect(page.getByRole('columnheader',{name:'Đề nghị thanh toán'})).toBeVisible();
+ await page.getByRole('textbox',{name:'Thành tiền theo hóa đơn dòng 1'}).fill('500000');
+ await page.getByRole('textbox',{name:'Nội dung dòng 1'}).fill('Buffet tối');
+ await expect(page.getByLabel('Tổng tiền (VND) *')).toHaveValue('500.000');
+ await expect(page.getByLabel('Tiền không được thanh toán (VND)')).toHaveValue('110.000');
+ await expect(page.getByRole('cell',{name:'390.000đ'}).first()).toBeVisible();
  await page.getByRole('button',{name:'Lập giấy đề nghị',exact:true}).click();
  await page.getByRole('button',{name:'Xem',exact:true}).click();
  const previewDialog=page.getByRole('dialog',{name:'Xem giấy đề nghị',exact:true});
  await expect(previewDialog.locator('iframe')).toHaveCount(1);
  expect(await page.evaluate(()=>window.previewCalls.map(x=>x.loai))).toEqual(['thanh_toan']);
  expect(await page.evaluate(()=>JSON.parse(window.previewCalls[0].data.chi_tiet_hoa_don).tenBanHang)).toBe('Nhà hàng xem trước');
+ expect(await page.evaluate(()=>{
+   const data=window.previewCalls[0].data; const detail=JSON.parse(data.chi_tiet_hoa_don);
+   return {ten:detail.dongHang[0].ten,tienSauThue:detail.dongHang[0].thanhTienSauThue,tongTien:data.tong_tien,khongThanhToan:data.tien_ruou_bia,duocThanhToan:data.tien_duoc_thanh_toan};
+ })).toEqual({ten:'Buffet tối',tienSauThue:500000,tongTien:'500000',khongThanhToan:'110000',duocThanhToan:'390000'});
  expect(await page.evaluate(()=>window.calls)).toEqual([]);
  await expect(previewDialog.getByRole('heading',{name:'Bản Word xem trước'})).toHaveCount(1);
  await previewDialog.getByRole('button',{name:'Đóng',exact:true}).click();
@@ -857,6 +870,9 @@ try {
  expect(await page.evaluate(()=>window.previewCalls.map(x=>x.loai))).toEqual(['thanh_toan','thanh_toan']);
  await previewDialog.getByRole('button',{name:'Đóng',exact:true}).click();
  console.log('PASS one preview button opens one combined Word; changes refresh it and zero excluded amount remains one document');
+ await page.setViewportSize({width:390,height:844});
+ await expect(createDialog).toBeVisible();
+ expect(await createDialog.getAttribute('class')).toContain('w-[calc(100%-2rem)]');
  expect(errors).toEqual([])
  console.log('PASS no browser page errors; isolated mocks, no application HTTP endpoints or database')
 } finally { await browser.close(); await new Promise(resolve=>server.close(resolve)) }

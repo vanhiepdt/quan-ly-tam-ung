@@ -15,6 +15,8 @@ import { truongPhongTheoNguoi, type LuaChonNguoiKy, type NguoiKyGiay } from '@/l
 import { loadScript } from '@/app/giay/soan-thao'
 import { xemGiayNhap, taiNguoiKyGiay } from './xem-giay-actions'
 import { DocHoaDon } from './doc-hoa-don'
+import type { DuLieuDocTuHoaDon } from '@/lib/kiem-tra/giao-dien'
+import { chiTietHoaDonTuDeXuat, phanBoPhuLuc } from '@/lib/kiem-tra/phan-bo-phu-luc'
 import { ChonDonVi } from './chon-don-vi'
 import { kiemTraTrungKyHieu } from './trung-ky-hieu-actions'
 import { chuoiTienHopLe } from '@/lib/kiem-tra/tien'
@@ -386,23 +388,34 @@ export function FormGiaoDich({
     })
   }
 
-  function dienTuHoaDon(deXuat: { ngay?: string; kyHieuHd?: string; soHd?: string; tongTien?: number; tienRuouBia?: number; dongHang?: unknown[]; loaiHd?: 'gtgt' | 'ban_hang'; cotTienHang?: 'truoc_thue' | 'sau_thue'; tenBanHang?: string }) {
+  function dienTuHoaDon(deXuat: DuLieuDocTuHoaDon, thayDoiTongTien?: number) {
+    const chiTiet = chiTietHoaDonTuDeXuat(deXuat)
+    const phanBo = chiTiet ? phanBoPhuLuc(chiTiet) : null
+    const snapshot = deXuat.dongHang?.length ? {
+      ngay: deXuat.ngay, kyHieuHd: deXuat.kyHieuHd, soHd: deXuat.soHd,
+      tenBanHang: deXuat.tenBanHang, tongTien: deXuat.tongTien,
+      loaiHd: deXuat.loaiHd, cotTienHang: deXuat.cotTienHang, dongHang: deXuat.dongHang,
+    } : null
     setValues(hien => {
       const ngayMoi = deXuat.ngay || hien.ngay
+      const tongTien = thayDoiTongTien === undefined
+        ? chuoiTienHopLe(deXuat.tongTien, hien.tong_tien)
+        : String(Math.max(0, soTienNguyen(hien.tong_tien) + thayDoiTongTien))
+      const tienKhongThanhToan = phanBo && !phanBo.loi ? phanBo.tongKhongDeNghi : deXuat.tienRuouBia
       const updated: Record<string, string> = {
         ...hien,
-      ngay: ngayMoi,
-      ky_hieu_hd: deXuat.kyHieuHd ?? hien.ky_hieu_hd,
-      so_hd: deXuat.soHd ?? hien.so_hd,
-      tong_tien: chuoiTienHopLe(deXuat.tongTien, hien.tong_tien),
-      tien_ruou_bia: chuoiTienHopLe(deXuat.tienRuouBia, hien.tien_ruou_bia),
+        ngay: ngayMoi,
+        ky_hieu_hd: deXuat.kyHieuHd ?? hien.ky_hieu_hd,
+        so_hd: deXuat.soHd ?? hien.so_hd,
+        tong_tien: tongTien,
+        tien_ruou_bia: chuoiTienHopLe(tienKhongThanhToan, hien.tien_ruou_bia),
       }
       if (canDonVi(updated.hinh_thuc)) {
         capNhatTienTheoHoaDonTrenForm(updated)
       }
       return updated
     })
-    setChiTietHoaDon(deXuat.dongHang?.length ? { ngay: deXuat.ngay, kyHieuHd: deXuat.kyHieuHd, soHd: deXuat.soHd, tenBanHang: deXuat.tenBanHang, tongTien: deXuat.tongTien, loaiHd: deXuat.loaiHd, cotTienHang: deXuat.cotTienHang, dongHang: deXuat.dongHang } : null)
+    setChiTietHoaDon(chiTiet ?? snapshot)
     if (deXuat.kyHieuHd) kiemKyHieu(deXuat.kyHieuHd)
   }
 
@@ -436,7 +449,7 @@ export function FormGiaoDich({
       {state.giaoDichId && (state.taiLieuIds?.length || state.loiGiay) && <Link className="btn btn-secondary" href={`/giay/${state.giaoDichId}`}>Mở giấy của giao dịch vừa lưu</Link>}
       {state.giaoDichId && <Link className="btn btn-secondary" href={`/tep/${state.giaoDichId}`}>Mở hồ sơ tệp</Link>}
     </div>}
-    {showDialog && <dialog ref={dialogRef} aria-labelledby={`${id}-title`} onCancel={event => { if (pending) event.preventDefault(); else setShowDialog(false) }} className="fixed inset-0 m-auto max-h-[92dvh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto rounded-2xl border-0 bg-white p-0 text-slate-800 shadow-2xl backdrop:bg-slate-950/50 backdrop:backdrop-blur-sm">
+    {showDialog && <dialog ref={dialogRef} aria-labelledby={`${id}-title`} onCancel={event => { if (pending) event.preventDefault(); else setShowDialog(false) }} className="fixed inset-0 m-auto max-h-[92dvh] w-[calc(100%-2rem)] max-w-[96rem] overflow-y-auto rounded-2xl border-0 bg-white p-0 text-slate-800 shadow-2xl backdrop:bg-slate-950/50 backdrop:backdrop-blur-sm">
       <form ref={formRef} aria-busy={pending} onSubmit={event => {
         event.preventDefault()
         if (pending || dangTaiNguoiKy || dangXem) return
