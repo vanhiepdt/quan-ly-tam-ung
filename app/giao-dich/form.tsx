@@ -19,7 +19,7 @@ import { ChonDonVi } from './chon-don-vi'
 import { kiemTraTrungKyHieu } from './trung-ky-hieu-actions'
 import { chuoiTienHopLe } from '@/lib/kiem-tra/tien'
 import { lamTronXuongHangNghin, tienTheoHoaDon } from '@/lib/tai-chinh/tien-thanh-toan'
-import { ngayDeNghiMacDinh } from '@/lib/tai-chinh/ngay'
+import { ngayHienTaiBangkok } from '@/lib/tai-chinh/ngay'
 
 type BanXem = { script: string; config: Record<string, unknown> }
 type TrinhDocEditor = { DocEditor: new (el: string, cfg: Record<string, unknown>) => { destroyEditor: () => void } }
@@ -68,11 +68,10 @@ function defaultValues(mac?: {
   nguoiLayHdMacDinhId?: string | null
   trangThaiTtPhiMacDinh?: string | null
 }): Record<string, string> {
-  const today = new Date()
-  const ngay = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const ngay = ngayHienTaiBangkok()
   const phi = mac?.trangThaiTtPhiMacDinh
   return {
-    ngay, ngay_de_nghi: ngayDeNghiMacDinh(ngay), noi_dung: HINH_THUC.TAM_UNG_THEM, don_vi_id: '', hinh_thuc: HINH_THUC.TAM_UNG_THEM,
+    ngay, ngay_de_nghi: ngay, noi_dung: HINH_THUC.TAM_UNG_THEM, don_vi_id: '', hinh_thuc: HINH_THUC.TAM_UNG_THEM,
     trang_thai_hd: 'Hợp lệ', loai_hd: 'Phiếu chi CQ', ky_hieu_hd: '', so_hd: '',
     trang_thai_tt_phi: phi && (TRANG_THAI_PHI as readonly string[]).includes(phi) ? phi : 'Không phát sinh',
     tong_tien: '0', tien_ruou_bia: '0', tien_duoc_thanh_toan: '0', tien_duoc_thanh_toan_goc: '0', lam_tron_xuong_hang_nghin: '0',
@@ -215,15 +214,6 @@ export function FormGiaoDich({
       if (name === 'ky_hieu_hd') setCanhBaoKyHieu('')
       setValues((current) => {
         const updated = { ...current, [name]: newValue }
-        // Ngày đề nghị mặc định bám theo ngày hóa đơn cho tới khi người dùng tự
-        // sửa nó. Khi dữ liệu hóa đơn hoặc người dùng đổi ngày hóa đơn, không ghi đè ngày đã
-        // được chọn riêng.
-        if (name === 'ngay' && canDonVi(updated.hinh_thuc)) {
-          const ngayMacDinhCu = ngayDeNghiMacDinh(current.ngay)
-          if (!current.ngay_de_nghi || current.ngay_de_nghi === ngayMacDinhCu) {
-            updated.ngay_de_nghi = ngayDeNghiMacDinh(newValue)
-          }
-        }
         // Tự động điền loại chứng từ khi đổi hình thức giao dịch
         if (name === 'hinh_thuc') {
           updated.loai_hd = getAutoLoaiHd(newValue) || loaiHdInvoiceOnly[0]
@@ -236,7 +226,7 @@ export function FormGiaoDich({
           } else {
             if (!updated.don_vi_id) updated.don_vi_id = donViMacDinh(dsDonVi)?.id ?? ''
             if (!canDonVi(current.hinh_thuc) || !current.ngay_de_nghi) {
-              updated.ngay_de_nghi = ngayDeNghiMacDinh(updated.ngay)
+              updated.ngay_de_nghi = ngayHienTaiBangkok()
             }
           }
           const noiDungCoDinh = noiDungTheoHinhThuc(newValue)
@@ -408,10 +398,6 @@ export function FormGiaoDich({
       tien_ruou_bia: chuoiTienHopLe(deXuat.tienRuouBia, hien.tien_ruou_bia),
       }
       if (canDonVi(updated.hinh_thuc)) {
-        const ngayMacDinhCu = ngayDeNghiMacDinh(hien.ngay)
-        if (!hien.ngay_de_nghi || hien.ngay_de_nghi === ngayMacDinhCu) {
-          updated.ngay_de_nghi = ngayDeNghiMacDinh(ngayMoi)
-        }
         capNhatTienTheoHoaDonTrenForm(updated)
       }
       return updated
@@ -427,13 +413,14 @@ export function FormGiaoDich({
     data.set('xac_nhan_hoan_tam_ung', '1')
     data.set('fingerprint_hoan_tam_ung', canhBao.fingerprint)
     if (tepHoaDon) data.set('tep_hoa_don', tepHoaDon)
+    if (canDonVi(values.hinh_thuc)) data.set('ngay_de_nghi', ngayHienTaiBangkok())
     startTransition(() => action(data))
   }
 
   return <>
     <button type="button" className="btn btn-primary" onClick={() => {
       setValues(hien => {
-        const moi: Record<string, string> = { ...hien, chi_thuc_te: '0' }
+        const moi: Record<string, string> = { ...hien, chi_thuc_te: '0', ...(canDonVi(hien.hinh_thuc) ? { ngay_de_nghi: ngayHienTaiBangkok() } : {}) }
         if (!canDonVi(moi.hinh_thuc) || moi.don_vi_id) return moi
         const macDinh = donViMacDinh(dsDonVi)
         return macDinh ? { ...moi, don_vi_id: macDinh.id } : moi
@@ -457,6 +444,7 @@ export function FormGiaoDich({
         // on validation/warning responses. Only clear our fields after real success.
         const data = new FormData(event.currentTarget)
         if (tepHoaDon) data.set('tep_hoa_don', tepHoaDon)
+        if (canDonVi(values.hinh_thuc)) data.set('ngay_de_nghi', ngayHienTaiBangkok())
         startTransition(() => action(data))
       }} onChange={() => setCanhBao(undefined)}>
         <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur sm:px-7">
@@ -476,7 +464,7 @@ export function FormGiaoDich({
               <h3>Thông tin chung</h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label className="field">Ngày *<input type="date" required {...bind('ngay')} /></label>
-                {needsInvoice && <label className="field">Ngày đề nghị *<input type="date" required {...bind('ngay_de_nghi')} /><span className="text-xs font-normal text-slate-500">Ngày in trên Giấy đề nghị tiếp khách; mặc định lùi về thứ sáu nếu ngày hóa đơn là cuối tuần.</span></label>}
+                {needsInvoice && <label className="field">Ngày đề nghị *<input type="date" required readOnly {...bind('ngay_de_nghi')} /><span className="text-xs font-normal text-slate-500">Ngày lập giấy là ngày hiện tại (giờ Việt Nam), không lấy theo ngày hóa đơn.</span></label>}
                 <div className="flex flex-wrap items-end gap-3 sm:col-span-2">
                   <label className="field min-w-0 flex-1">
                     Hình thức giao dịch *
@@ -746,7 +734,7 @@ export function FormGiaoDich({
                   </label>)}
                 </div>
                 <button type="button" className="btn btn-secondary mt-4" disabled={pending || dangXem} onClick={() => void xemWord()}>{dangXem ? 'Đang dựng Word…' : 'Xem'}</button>
-                <p className="mt-3 text-sm text-slate-600">Nút Xem mở một bản Word theo thông tin đang nhập; trang phụ lục chỉ có khi phát sinh tiền không được thanh toán. Thay đổi trước khi lưu? Bấm Xem lại để cập nhật bản xem trước.</p>
+                <p className="mt-3 text-sm text-slate-600">Nút Xem mở một bản Word theo thông tin đang nhập; trang bảng kê chỉ có khi phát sinh tiền không được thanh toán. Thay đổi trước khi lưu? Bấm Xem lại để cập nhật bản xem trước.</p>
               </div>}
               {loiXem && !moThongTinGiay && <p role="alert" className="notice error">{loiXem}</p>}
             </section>}
@@ -764,7 +752,7 @@ export function FormGiaoDich({
         </div>
       </form>
     </dialog>}
-    {showDialog && moThongTinGiay && <dialog ref={giayDialogRef} aria-labelledby={`${id}-giay-title`} onCancel={event => { if (dangXem) event.preventDefault(); else { setMoThongTinGiay(false); setViewer(null) } }} className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-6xl overflow-y-auto rounded-2xl border-0 bg-white p-6 text-slate-800 shadow-2xl backdrop:bg-slate-950/50">
+    {showDialog && moThongTinGiay && <dialog ref={giayDialogRef} aria-labelledby={`${id}-giay-title`} onCancel={event => { if (dangXem) event.preventDefault(); else { setMoThongTinGiay(false); setViewer(null) } }} className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-[1600px] overflow-y-auto rounded-2xl border-0 bg-white p-6 text-slate-800 shadow-2xl backdrop:bg-slate-950/50">
       <h2 id={`${id}-giay-title`} className="text-xl font-semibold">Xem giấy đề nghị</h2>
       {dangXem && <p role="status">Đang dựng Word…</p>}
       {loiXem && <p role="alert" className="notice error">{loiXem}</p>}

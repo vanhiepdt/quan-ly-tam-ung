@@ -436,7 +436,7 @@ describe('điền vào tệp Word thật', () => {
     const thanhToan = giayThat(LOAI_GIAY.THANH_TOAN, g, ctxRieng())
     expect(thanhToan.thieu).toEqual([])
     expect(thanhToan.chu).toContain('đã được phê duyệt ngày 18/09/2026')
-    expect(thanhToan.doan.filter(d => d.includes('Đà Nẵng, ngày')).at(-1)).toMatch(/Đà Nẵng, ngày\s+tháng 9 năm 2026/)
+    expect(thanhToan.doan.filter(d => d.includes('Đà Nẵng, ngày')).at(-1)).toContain('Đà Nẵng, ngày 18 tháng 9 năm 2026')
     expect(thanhToan.chu).toContain('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/09/2026;')
   })
   it('chỉ giữ dòng đính kèm phụ lục khi snapshot có khoản không được thanh toán', () => {
@@ -447,18 +447,18 @@ describe('điền vào tệp Word thật', () => {
     const coPhuLuc = giayThat(LOAI_GIAY.THANH_TOAN, gd({
       hinhThuc: HINH_THUC.CQ_TRA_THANG, tongTien: 450_000, tienRuouBia: 60_000, chiTietHoaDon: chiTietVuot,
     }), ctxRieng())
-    expect(coPhuLuc.chu).toContain('- Phụ lục bảng kê chi tiết đề nghị thanh toán')
+    expect(coPhuLuc.chu).toContain('- Bảng kê chi tiết đề nghị thanh toán')
 
     const khongCoSnapshotCu = giayThat(LOAI_GIAY.THANH_TOAN, gd({
       hinhThuc: HINH_THUC.CQ_TRA_THANG, tongTien: 450_000, tienRuouBia: 60_000,
     }), ctxRieng())
-    expect(khongCoSnapshotCu.chu).not.toContain('- Phụ lục bảng kê chi tiết đề nghị thanh toán')
+    expect(khongCoSnapshotCu.chu).not.toContain('- Bảng kê chi tiết đề nghị thanh toán')
 
     const khongCoKhoanBiLoai = giayThat(LOAI_GIAY.THANH_TOAN, gd({
       hinhThuc: HINH_THUC.CQ_TRA_THANG, tongTien: 350_000, tienRuouBia: 0,
       chiTietHoaDon: { ...chiTietVuot, dongHang: [{ ten: 'Suất Buffet 350', soLuong: 1, donGia: 350_000, thanhTien: 350_000 }] },
     }), ctxRieng())
-    expect(khongCoKhoanBiLoai.chu).not.toContain('- Phụ lục bảng kê chi tiết đề nghị thanh toán')
+    expect(khongCoKhoanBiLoai.chu).not.toContain('- Bảng kê chi tiết đề nghị thanh toán')
   })
   it('hoàn tạm ứng không in tài khoản, và giấy tiếp khách làm tròn kinh phí dự kiến', () => {
     const hoan = giayThat(LOAI_GIAY.THANH_TOAN, gd({ hinhThuc: HINH_THUC.HOAN_TAM_UNG, tongTien: 1_200_000 }), ctxRieng())

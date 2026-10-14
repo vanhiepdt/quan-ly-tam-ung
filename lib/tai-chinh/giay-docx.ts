@@ -14,15 +14,23 @@ function boPhuLuc(docx: Buffer): Buffer {
   const document = muc.find(item => item.ten === TEP_NOI_DUNG)
   if (!document) throw new LoiMauPhuLuc('Mẫu giấy thiếu nội dung Word.')
   const xml = document.duLieu.toString('utf8')
-  const title = [...xml.matchAll(/<w:p(?=[\s>])[^>]*>[\s\S]*?<\/w:p>/g)].find(m => {
+  const paragraphs = [...xml.matchAll(/<w:p(?=[\s>])[^>]*>[\s\S]*?<\/w:p>/g)]
+  const titleIndex = paragraphs.findIndex(m => {
     const text = [...m[0].matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(x => x[1]).join('')
-    return text.replace(/\s+/g, ' ').trim().toLocaleUpperCase('vi') === 'PHỤ LỤC BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN'
+    return /^(?:PHỤ LỤC )?BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN$/.test(text.replace(/\s+/g, ' ').trim().toLocaleUpperCase('vi'))
   })
-  if (!title) return docx // mẫu cũ chưa có trang phụ lục
+  if (titleIndex < 0) return docx // mẫu cũ chưa có trang bảng kê
+  const title = paragraphs[titleIndex]
+  const truoc = paragraphs[titleIndex - 1]
+  // Bản mẫu mới đặt ngắt trang ở một đoạn trống ngay trước tiêu đề. Xóa
+  // đoạn này cùng bảng kê, không để trang trắng cuối giấy thanh toán.
+  const batDau = truoc && truoc.index + truoc[0].length === title.index
+    && /<w:br\b[^>]*w:type="page"/.test(truoc[0]) && !/<w:t(?=[\s>])/.test(truoc[0])
+    ? truoc.index : title.index
   const sect = xml.lastIndexOf('<w:sectPr')
   const end = xml.lastIndexOf('</w:body>')
   if (sect <= title.index || end <= sect) throw new LoiMauPhuLuc('Không xác định được ranh giới trang phụ lục trong mẫu giấy.')
-  document.duLieu = Buffer.from(xml.slice(0, title.index) + xml.slice(sect), 'utf8')
+  document.duLieu = Buffer.from(xml.slice(0, batDau) + xml.slice(sect), 'utf8')
   return ghiZip(muc)
 }
 

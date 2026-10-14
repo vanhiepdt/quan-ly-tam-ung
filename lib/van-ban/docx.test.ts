@@ -32,7 +32,7 @@ const duLieuTamUng = {
 
 const duLieuTiepKhach = {
   PHONGTK: 'P. HÀNH CHÍNH TỔ CHỨC', PHONGTKVT: 'Phòng Hành chính Tổ chức',
-  ngaytk: '20', thangtk: '09', namtk: '2026', ngaydntk: '20', thangdntk: '09', namdntk: '2026', thang: '9', nam: '2026',
+  ngaytk: '20', thangtk: '09', namtk: '2026', ngaydntk: '20', thangdntk: '09', thangdntkVanXuoi: '9', namdntk: '2026', thang: '9', nam: '2026',
   gioi_tinhtk: 'Ông', bangiamdoctk: 'Nguyễn Văn A', chucdanhtk: 'Giám đốc',
   gioi_tinhtt: 'Bà', bangiamdoctt: 'Trần Thị B', chucdanhtt: 'Phó Giám đốc',
   donvitiepkhac: 'Phòng Tổ chức', sotiendukien: '2.000.000', sotiendukienbangchu: 'Hai triệu đồng',
@@ -114,7 +114,7 @@ describe('dienMauDocx trên tệp mẫu thật', () => {
   it('điền hết chỗ trống của giấy tiếp khách và giấy thanh toán', () => {
     const { duLieu, thieu } = dienMauDocx(mauTiepKhach, duLieuTiepKhach, [
       { mau: /\]\]\/\s+\[\[/g, thay: ']]/[[' },
-      { mau: /(ngày)\s+tháng/, thay: '$1 20 tháng' },
+      { mau: /\[\[ngaydntk\]\]\s+tháng\s*\[\[thangdntk\]\]\s+năm\s+\[\[namdntk\]\]/g, thay: '[[ngaydntk]] tháng [[thangdntkVanXuoi]] năm [[namdntk]]' },
       { mau: /P\. HÀNH CHÍNH TỔ CHỨC/, thay: 'P. HÀNH CHÍNH TỔ CHỨC' },
     ])
     expect(thieu).toEqual([])

@@ -87,7 +87,7 @@ describe('mở Word gộp giấy thanh toán trong OnlyOffice', () => {
     expect(moPhien).toHaveBeenCalledWith(taiLieu, id)
     const sinh = vi.mocked(taoHoacLayTaiLieu).mock.calls[0][4]
     const xml = docZip(await sinh()).find(e => e.ten === 'word/document.xml')!.duLieu.toString()
-    for (const value of ['GIẤY ĐỀ NGHỊ TIẾP KHÁCH', 'GIẤY ĐỀ NGHỊ THANH TOÁN', 'PHỤ LỤC BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN', 'Nhà hàng trên hóa đơn', 'Người đề nghị', '1C26MBC', '00020110', '390.000', '60.000']) expect(xml).toContain(value)
+    for (const value of ['GIẤY ĐỀ NGHỊ TIẾP KHÁCH', 'GIẤY ĐỀ NGHỊ THANH TOÁN', 'BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN', 'Nhà hàng trên hóa đơn', 'Người đề nghị', '1C26MBC', '00020110', '390.000', '450.000']) expect(xml).toContain(value)
     expect(xml).not.toContain('[[')
     expect(docMau).toHaveBeenCalledWith('tiep khach va thanh toan.docx')
   })
@@ -105,7 +105,7 @@ describe('mở Word gộp giấy thanh toán trong OnlyOffice', () => {
     expect((await gui()).status).toBe(200)
     const sinh = vi.mocked(taoHoacLayTaiLieu).mock.calls[0][4]
     const xml = docZip(await sinh()).find(e => e.ten === 'word/document.xml')!.duLieu.toString()
-    expect(xml).not.toContain('PHỤ LỤC BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN')
+    expect(xml).not.toContain('BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN')
   })
   it('giữ chế độ chỉ xem với tài khoản chỉ đọc', async () => {
     vi.mocked(layPhien).mockResolvedValue({ ...actor, vai_tro: 'chi_doc' })

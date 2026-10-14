@@ -37,18 +37,17 @@ function rowOf(table: string, name: string): string[] {
   return cells(row[0])
 }
 
-it('một Word điền giấy tiếp khách, thanh toán và phụ lục; tổng I, II ở cột Thành tiền', () => {
+it('một Word điền giấy tiếp khách, thanh toán và bảng kê sáu cột', () => {
   const giay = dungGiay(LOAI_GIAY.THANH_TOAN, giaoDich, ctx)
   const contents = xml(taoGiayDocx(mau, giay, giaoDich))
-  for (const title of ['GIẤY ĐỀ NGHỊ TIẾP KHÁCH', 'GIẤY ĐỀ NGHỊ THANH TOÁN', 'PHỤ LỤC BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN']) expect(contents).toContain(title)
+  for (const title of ['GIẤY ĐỀ NGHỊ TIẾP KHÁCH', 'GIẤY ĐỀ NGHỊ THANH TOÁN', 'BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN']) expect(contents).toContain(title)
   expect(contents).toContain('Nhà hàng A')
   expect(contents).not.toContain('[[')
   const bang = [...contents.matchAll(/<w:tbl(?=[\s>])[^>]*>[\s\S]*?<\/w:tbl>/g)]
-    .find(t => t[0].includes('Các khoản không đề nghị thanh toán'))![0]
-  expect(rowOf(bang, 'Các khoản đề nghị thanh toán')[2]).toBe('390.000')
-  expect(rowOf(bang, 'Các khoản không đề nghị thanh toán')[2]).toBe('110.000')
-  expect(rowOf(bang, 'TỔNG CỘNG HÓA ĐƠN')[2]).toBe('500.000')
-  expect(rowOf(bang, 'Bia Tiger')).toEqual(['3', 'Bia Tiger', '1', '50.000', '', '50.000', ''])
+    .find(t => t[0].includes('Đề nghị thanh toán'))![0]
+  expect(rowOf(bang, 'Suất Buffet 450')).toEqual(['1', 'Suất Buffet 450', '1', '450.000', '390.000', 'Định mức 390.000đ × 1 suất = 390.000đ'])
+  expect(rowOf(bang, 'Bia Tiger')).toEqual(['2', 'Bia Tiger', '1', '50.000', '0', ''])
+  expect(rowOf(bang, 'Tổng cộng')).toEqual(['Tổng cộng', '500.000', '390.000', ''])
 })
 
 it('không phát sinh tiền không thanh toán thì xóa hẳn trang phụ lục và ngắt trang của nó', () => {
@@ -56,8 +55,8 @@ it('không phát sinh tiền không thanh toán thì xóa hẳn trang phụ lụ
   const contents = xml(taoGiayDocx(mau, dungGiay(LOAI_GIAY.THANH_TOAN, gd, ctx), gd))
   expect(contents).toContain('GIẤY ĐỀ NGHỊ TIẾP KHÁCH')
   expect(contents).toContain('GIẤY ĐỀ NGHỊ THANH TOÁN')
-  expect(contents).not.toContain('PHỤ LỤC BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN')
-  expect(contents).not.toContain('Các khoản không đề nghị thanh toán')
+  expect(contents).not.toContain('BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN')
+  expect(contents).not.toContain('Thành tiềntheo hóa đơn')
   expect(contents.match(/w:type="page"/g)).toHaveLength(1)
   expect(contents).not.toContain('[[')
 })

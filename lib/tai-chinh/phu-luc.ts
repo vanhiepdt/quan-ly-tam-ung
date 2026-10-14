@@ -1,10 +1,7 @@
 import type { ChiTietHoaDon } from '@/lib/kiem-tra/giao-dien'
 import {
   phanBoPhuLuc,
-  phanTichCotPhuLuc,
-  taoDongMangPhuLuc,
-  type DongPhuLuc,
-  type NhomCotPhuLuc,
+  type DongBangKe,
 } from '@/lib/kiem-tra/phan-bo-phu-luc'
 import { dienMauDocx, TEP_NOI_DUNG, type ThayTheCoDinh } from '@/lib/van-ban/docx'
 import { docZip, ghiZip } from '@/lib/van-ban/zip'
@@ -105,33 +102,24 @@ function tenChuan(value: string): string {
     .replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
-function cacDongBang(document: string): { khoang: Khoang; xml: string; dong: DongBang[]; headerIndex: number; headers: string[]; cotStt: number; cotThanhTien: number } {
+function cacDongBang(document: string): { khoang: Khoang; xml: string; dong: DongBang[]; headerIndex: number } {
   for (const bang of cacKhoang(document, 'w:tbl')) {
     const xml = document.slice(bang.batDau, bang.ketThuc)
     const dong = hangTrucTiepTrongBang(xml).map(khoang => {
       const hang = xml.slice(khoang.batDau, khoang.ketThuc)
       const cells = cellTrucTiepTrongHang(hang)
-      return {
-        khoang,
-        cells,
-        text: cells.map(cell => textTrongCell(hang.slice(cell.batDau, cell.ketThuc))),
-      }
+      return { khoang, cells, text: cells.map(cell => textTrongCell(hang.slice(cell.batDau, cell.ketThuc))) }
     })
-    const headerIndex = dong.findIndex(row => {
-      if (!row.cells.length || !row.text.some(text => /^stt$|^so thu tu$/.test(tenChuan(text)))) return false
-      const structure = phanTichCotPhuLuc(row.text)
-      return structure !== null && structure.soCot === row.cells.length
-    })
-    if (headerIndex < 0) continue
-
-    const headers = dong[headerIndex].text
-    const structure = phanTichCotPhuLuc(headers)
-    const cotStt = headers.findIndex(text => /^stt$|^so thu tu$/.test(tenChuan(text)))
-    const cotThanhTien = structure?.cot.indexOf('thanhTien') ?? -1
-    if (!structure || cotStt < 0 || cotThanhTien < 0) continue
-    return { khoang: bang, xml, dong, headerIndex, headers, cotStt, cotThanhTien }
+    const headerIndex = dong.findIndex(row => row.cells.length === 6 &&
+      /^stt$|^so thu tu$/.test(tenChuan(row.text[0])) &&
+      /^(noi dung|ten hang hoa)/.test(tenChuan(row.text[1])) &&
+      /^so luong/.test(tenChuan(row.text[2])) &&
+      /^thanh tien\s*theo hoa don$/.test(tenChuan(row.text[3])) &&
+      /^de nghi thanh toan$/.test(tenChuan(row.text[4])) &&
+      /^ghi chu$/.test(tenChuan(row.text[5])))
+    if (headerIndex >= 0) return { khoang: bang, xml, dong, headerIndex }
   }
-  throw new LoiMauPhuLuc('Mẫu phụ lục không có bảng chi tiết với các cột cần thiết.')
+  throw new LoiMauPhuLuc('Mẫu bảng kê không có đủ sáu cột theo mẫu hiện hành.')
 }
 
 function dienCell(xml: string, text: string): string {
@@ -173,14 +161,6 @@ function thayCacCell(hangXml: string, values: readonly string[]): string {
   return result
 }
 
-function thayMotCell(hangXml: string, index: number, value: string): string {
-  const cells = cellTrucTiepTrongHang(hangXml)
-  if (!cells[index]) throw new LoiMauPhuLuc('Dòng tổng cộng trong mẫu phụ lục thiếu cột thành tiền.')
-  const cell = cells[index]
-  const content = dienCell(hangXml.slice(cell.batDau, cell.ketThuc), value)
-  return hangXml.slice(0, cell.batDau) + content + hangXml.slice(cell.ketThuc)
-}
-
 // Word/OnlyOffice lưu ô gộp bằng gridSpan: chỉ số ô vật lý không còn là
 // chỉ số cột. Tìm ô Thành tiền theo lưới bảng, giữ nguyên ô nhãn và định dạng gộp.
 function oTaiCot(hangXml: string, cot: number, soCot: number): number {
@@ -208,57 +188,24 @@ function thayNhieu(xml: string, edits: readonly ThayDoi[]): string {
   return result
 }
 
-function dinhDangGiaTri(value: string | number | null, field: string | null): string {
-  if (value === null || value === '') return ''
-  if (field === 'soLuong') return typeof value === 'number' ? DINH_DANG_SO_LUONG.format(value) : value
-  if (field === 'donGia' || field === 'tienThue' || field === 'thanhTien') {
-    return typeof value === 'number' ? DINH_DANG_TIEN.format(value) : value
-  }
-  return String(value)
-}
-
-function mangGiaTriDong(
-  row: DongPhuLuc,
-  structure: NonNullable<ReturnType<typeof phanTichCotPhuLuc>>,
-  group: NhomCotPhuLuc,
-  stt: number,
-  cotStt: number,
-): string[] {
-  const values = taoDongMangPhuLuc(row, structure, group)
-    .map((value, index) => dinhDangGiaTri(value, structure.cot[index]))
-  values[cotStt] = String(stt)
-  return values
-}
-
-function khoangTrongNhom(
-  dong: readonly DongBang[],
-  tu: number,
-  den: number,
-): DongBang[] {
-  return dong.slice(tu + 1, den).filter(row => row.cells.length > 0 && row.text.every(text => !text.trim()))
-}
-
 function chuanHoaHang(
   bangXml: string,
   mauHang: DongBang[],
-  noiDung: readonly DongPhuLuc[],
-  group: NhomCotPhuLuc,
-  structure: NonNullable<ReturnType<typeof phanTichCotPhuLuc>>,
-  cotStt: number,
-  sttDau: number,
-): { edits: ThayDoi[]; soDong: number } {
-  if (noiDung.length && !mauHang.length) throw new LoiMauPhuLuc('Mẫu phụ lục thiếu dòng trống để điền chi tiết.')
-  if (!mauHang.length) return { edits: [], soDong: 0 }
-
+  noiDung: readonly DongBangKe[],
+): ThayDoi[] {
+  if (!mauHang.length) throw new LoiMauPhuLuc('Mẫu bảng kê thiếu dòng trống để điền chi tiết.')
   const mau = bangXml.slice(mauHang[0].khoang.batDau, mauHang[0].khoang.ketThuc)
     .replace(/\s+w14:(?:paraId|textId)="[^"]*"/g, '')
-  const cacHangMoi = noiDung.map((row, index) => thayCacCell(
-    mau,
-    mangGiaTriDong(row, structure, group, sttDau + index, cotStt),
-  )).join('')
-  const edits: ThayDoi[] = [{ khoang: mauHang[0].khoang, text: cacHangMoi }]
-  for (const row of mauHang.slice(1)) edits.push({ khoang: row.khoang, text: '' })
-  return { edits, soDong: noiDung.length }
+  const cacHangMoi = noiDung.map((row, index) => thayCacCell(mau, [
+    String(index + 1), row.ten,
+    row.soLuong === null ? '' : DINH_DANG_SO_LUONG.format(row.soLuong),
+    DINH_DANG_TIEN.format(row.thanhTienHoaDon),
+    DINH_DANG_TIEN.format(row.deNghiThanhToan), row.ghiChu,
+  ])).join('')
+  return [
+    { khoang: mauHang[0].khoang, text: cacHangMoi },
+    ...mauHang.slice(1).map(row => ({ khoang: row.khoang, text: '' })),
+  ]
 }
 
 export function taoPhuLucDocx(mau: Buffer, chiTiet: ChiTietHoaDon, thayThe: Record<string, string>, thayCoDinh: readonly ThayTheCoDinh[] = []): Buffer {
@@ -277,28 +224,26 @@ export function taoPhuLucDocx(mau: Buffer, chiTiet: ChiTietHoaDon, thayThe: Reco
   const document = muc.find(item => item.ten === TEP_NOI_DUNG)
   if (!document) throw new LoiMauPhuLuc('Mẫu phụ lục thiếu word/document.xml.')
 
-  const { khoang: bangKhoang, xml: bangXml, dong, headerIndex, headers, cotStt, cotThanhTien } = cacDongBang(document.duLieu.toString('utf8'))
-  const structure = phanTichCotPhuLuc(headers)
-  const nhomDeNghi = dong.findIndex(row => row.text.some(text => tenChuan(text).includes('cac khoan de nghi thanh toan')))
-  const nhomKhongDeNghi = dong.findIndex(row => row.text.some(text => tenChuan(text).includes('cac khoan khong de nghi thanh toan')))
-  const tong = dong.findIndex(row => row.text.some(text => tenChuan(text).includes('tong cong hoa don')))
-  if (!structure || nhomDeNghi <= headerIndex || nhomKhongDeNghi <= nhomDeNghi || tong <= nhomKhongDeNghi) {
-    throw new LoiMauPhuLuc('Không nhận diện được các nhóm và dòng tổng trong mẫu phụ lục.')
-  }
-
-  const hangDeNghi = khoangTrongNhom(dong, nhomDeNghi, nhomKhongDeNghi)
-  const hangKhongDeNghi = khoangTrongNhom(dong, nhomKhongDeNghi, tong)
-  const deNghi = chuanHoaHang(bangXml, hangDeNghi, phanBo.cacKhoanDeNghi, 'deNghi', structure, cotStt, 1)
-  const khongDeNghi = chuanHoaHang(bangXml, hangKhongDeNghi, phanBo.cacKhoanKhongDeNghi, 'khongDeNghi', structure, cotStt, deNghi.soDong + 1)
-  const edits = [...deNghi.edits, ...khongDeNghi.edits]
-  for (const [index, amount] of [[nhomDeNghi, phanBo.tongDeNghi], [nhomKhongDeNghi, phanBo.tongKhongDeNghi]] as const) {
-    const row = dong[index]
-    const rowXml = bangXml.slice(row.khoang.batDau, row.khoang.ketThuc)
-    edits.push({ khoang: row.khoang, text: thayMotCell(rowXml, oTaiCot(rowXml, cotThanhTien, headers.length), DINH_DANG_TIEN.format(amount)) })
-  }
+  const { khoang: bangKhoang, xml: bangXml, dong, headerIndex } = cacDongBang(document.duLieu.toString('utf8'))
+  const tong = dong.findIndex((row, index) => index > headerIndex && row.text.some(text => tenChuan(text) === 'tong cong'))
+  if (tong <= headerIndex) throw new LoiMauPhuLuc('Không nhận diện được dòng Tổng cộng trong mẫu bảng kê.')
+  const mauHang = dong.slice(headerIndex + 1, tong)
+    .filter(row => row.cells.length === 6 && row.text.every(text => !text.trim()))
+  const edits = chuanHoaHang(bangXml, mauHang, phanBo.cacDongTheoHoaDon)
   const tongRow = dong[tong]
   const totalRow = bangXml.slice(tongRow.khoang.batDau, tongRow.khoang.ketThuc)
-  const tongMoi = thayMotCell(totalRow, oTaiCot(totalRow, cotThanhTien, headers.length), DINH_DANG_TIEN.format(phanBo.tongHoaDon))
+  // Dòng tổng có ô nhãn gộp ba cột. Điền đúng hai ô tiền đứng độc lập,
+  // không ghi đè nhãn, số lượng hoặc ghi chú của mẫu OnlyOffice.
+  const tongHoaDon = oTaiCot(totalRow, 3, 6)
+  const tongDeNghi = oTaiCot(totalRow, 4, 6)
+  const totalCells = cellTrucTiepTrongHang(totalRow)
+  const totalEdit = [
+    { khoang: totalCells[tongHoaDon], text: DINH_DANG_TIEN.format(phanBo.tongHoaDon) },
+    { khoang: totalCells[tongDeNghi], text: DINH_DANG_TIEN.format(phanBo.tongDeNghi) },
+  ]
+  const tongMoi = thayNhieu(totalRow, totalEdit.map(({ khoang, text }) => ({
+    khoang, text: dienCell(totalRow.slice(khoang.batDau, khoang.ketThuc), text),
+  })))
   edits.push({ khoang: tongRow.khoang, text: tongMoi })
 
   const table = thayNhieu(bangXml, edits)

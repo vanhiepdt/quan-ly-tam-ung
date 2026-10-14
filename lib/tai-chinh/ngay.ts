@@ -25,3 +25,13 @@ export function ngayDeNghiMacDinh(ngay: string): string {
   else if (thu === 0) date.setUTCDate(date.getUTCDate() - 2)
   return chuoiNgayUtc(date)
 }
+
+// Ngày lập giấy của giao dịch mới luôn là ngày thực tại Việt Nam, không phụ
+// thuộc ngày hóa đơn hay múi giờ của trình duyệt/máy chủ.
+export function ngayHienTaiBangkok(date: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date)
+  const get = (type: 'year' | 'month' | 'day') => parts.find(part => part.type === type)!.value
+  return `${get('year')}-${get('month')}-${get('day')}`
+}

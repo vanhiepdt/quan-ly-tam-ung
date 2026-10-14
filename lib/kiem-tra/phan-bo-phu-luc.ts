@@ -37,57 +37,20 @@ export type DongPhuLuc = {
   ghiChu: string
 }
 
-export type CotPhuLuc = 'ten' | 'soLuong' | 'donGia' | 'tienThue' | 'thanhTien' | 'ghiChu'
-export type NhomCotPhuLuc = 'deNghi' | 'khongDeNghi'
-export type CauTrucPhuLuc = { soCot: number; nhomCot: NhomCotPhuLuc[]; cot: (CotPhuLuc | null)[] }
-
-function tenCotChuan(value: string): string {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ').trim()
-}
-
-export function phanTichCotPhuLuc(headers: readonly string[], nhomHeaders: readonly string[] = []): CauTrucPhuLuc | null {
-  if (headers.length < 4 || headers.length > 20) return null
-  const cot = headers.map(header => {
-    const ten = tenCotChuan(header)
-    if (/thanh tien|tong tien|thanh toan|so tien(?! thue)/.test(ten)) return 'thanhTien' as const
-    if (/ghi chu/.test(ten)) return 'ghiChu' as const
-    if (/so luong/.test(ten)) return 'soLuong' as const
-    if (/don gia/.test(ten)) return 'donGia' as const
-    if (/tien thue|thue gtgt|thue vat/.test(ten)) return 'tienThue' as const
-    if (/so tien/.test(ten)) return 'thanhTien' as const
-    if (/noi dung|hang hoa|dich vu|dien giai|ten hang|ten hang hoa/.test(ten)) return 'ten' as const
-    return null
-  })
-  if (!cot.includes('ten') || !cot.includes('soLuong') || !cot.includes('donGia') || !cot.includes('thanhTien')) return null
-
-  const nhom = headers.map((_, index) => {
-    const text = tenCotChuan(`${nhomHeaders[index] ?? ''} ${headers[index]}`)
-    if (/khong de nghi|khong thanh toan|khong duoc thanh toan/.test(text)) return 'khongDeNghi' as const
-    if (/de nghi thanh toan|de nghi|duoc thanh toan/.test(text)) return 'deNghi' as const
-    return null
-  })
-  const coNhom = nhom.some(Boolean)
-  if (coNhom && (nhom.some(x => x === 'deNghi') && nhom.some(x => x === 'khongDeNghi')) === false) return null
-  return { soCot: headers.length, cot, nhomCot: nhom as NhomCotPhuLuc[] }
-}
-
-export function taoDongMangPhuLuc(row: DongPhuLuc, cauTruc: CauTrucPhuLuc, nhom: NhomCotPhuLuc): (string | number | null)[] {
-  return cauTruc.cot.map((cot, index) => {
-    if (cauTruc.nhomCot[index] && cauTruc.nhomCot[index] !== nhom) return null
-    if (cot === 'ten') return row.ten
-    if (cot === 'soLuong') return row.soLuong
-    if (cot === 'donGia') return row.donGia
-    if (cot === 'tienThue') return row.tienThue
-    if (cot === 'thanhTien') return row.thanhTien
-    if (cot === 'ghiChu') return row.ghiChu || null
-    return null
-  })
+// Bảng kê gộp một dòng cho mỗi dòng hóa đơn, đúng thứ tự hóa đơn. Phần
+// được đề nghị nằm cạnh thành tiền sau thuế, không tách thành hai nhóm như mẫu cũ.
+export type DongBangKe = {
+  ten: string
+  soLuong: number | null
+  thanhTienHoaDon: number
+  deNghiThanhToan: number
+  ghiChu: string
 }
 
 export type KetQuaPhanBoPhuLuc = {
   cacKhoanDeNghi: DongPhuLuc[]
   cacKhoanKhongDeNghi: DongPhuLuc[]
+  cacDongTheoHoaDon: DongBangKe[]
   tongDeNghi: number
   tongKhongDeNghi: number
   tongHoaDon: number
@@ -95,8 +58,8 @@ export type KetQuaPhanBoPhuLuc = {
   loi?: string
 }
 
-const RONG: Pick<KetQuaPhanBoPhuLuc, 'cacKhoanDeNghi' | 'cacKhoanKhongDeNghi' | 'tongDeNghi' | 'tongKhongDeNghi' | 'tongHoaDon' | 'coBuffet'> = {
-  cacKhoanDeNghi: [], cacKhoanKhongDeNghi: [], tongDeNghi: 0, tongKhongDeNghi: 0, tongHoaDon: 0, coBuffet: false,
+const RONG: Pick<KetQuaPhanBoPhuLuc, 'cacKhoanDeNghi' | 'cacKhoanKhongDeNghi' | 'cacDongTheoHoaDon' | 'tongDeNghi' | 'tongKhongDeNghi' | 'tongHoaDon' | 'coBuffet'> = {
+  cacKhoanDeNghi: [], cacKhoanKhongDeNghi: [], cacDongTheoHoaDon: [], tongDeNghi: 0, tongKhongDeNghi: 0, tongHoaDon: 0, coBuffet: false,
 }
 
 export function parseChiTietHoaDon(value: unknown): ChiTietHoaDon | null {
@@ -218,6 +181,10 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
   const coBuffet = cacDong.some(d => d.buffet)
   const cacKhoanDeNghi: DongPhuLuc[] = []
   const cacKhoanKhongDeNghi: DongPhuLuc[] = []
+  const cacDongTheoHoaDon: DongBangKe[] = cacDong.map(({ dong, tien }) => ({
+    ten: dong.ten, soLuong: dong.soLuong ?? null, thanhTienHoaDon: tien,
+    deNghiThanhToan: 0, ghiChu: '',
+  }))
   const monKhac: Array<{ viTri: number; tien: number }> = []
   let hanMucCon = 0
 
@@ -234,6 +201,10 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
       const dinhMuc = DINH_MUC_BUFFET * soLuong
       if (!Number.isSafeInteger(dinhMuc)) return { ...RONG, coBuffet, loi: `Số lượng của “${dong.ten}” vượt giới hạn tính toán.` }
       const donGia = donGiaHieuLuc(dong, tien, soLuong)
+      const bangKe = cacDongTheoHoaDon[viTri]
+      bangKe.soLuong = soLuong
+      bangKe.deNghiThanhToan = Math.min(tien, dinhMuc)
+      bangKe.ghiChu = `Định mức 390.000đ × ${new Intl.NumberFormat('vi-VN').format(soLuong)} suất = ${new Intl.NumberFormat('vi-VN').format(dinhMuc)}đ`
       if (tien <= dinhMuc) {
         cacKhoanDeNghi.push(dongPhuLuc(dong, tien, loaiHd, cotTienHang, '', { soLuong, donGia }))
         hanMucCon += dinhMuc - tien
@@ -249,6 +220,7 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
     }
     if (!coBuffet) {
       cacKhoanDeNghi.push(dongPhuLuc(dong, tien, loaiHd, cotTienHang))
+      cacDongTheoHoaDon[viTri].deNghiThanhToan = tien
     } else {
       monKhac.push({ viTri, tien })
     }
@@ -259,8 +231,13 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
     if (typeof chon === 'string') return { ...RONG, coBuffet, loi: chon }
     for (const { viTri, tien } of monKhac) {
       const { dong } = cacDong[viTri]
-      if (chon.has(viTri)) cacKhoanDeNghi.push(dongPhuLuc(dong, tien, loaiHd, cotTienHang))
-      else cacKhoanKhongDeNghi.push(dongPhuLuc(dong, tien, loaiHd, cotTienHang, 'Ngoài định mức buffet'))
+      if (chon.has(viTri)) {
+        cacKhoanDeNghi.push(dongPhuLuc(dong, tien, loaiHd, cotTienHang))
+        cacDongTheoHoaDon[viTri].deNghiThanhToan = tien
+      } else {
+        cacKhoanKhongDeNghi.push(dongPhuLuc(dong, tien, loaiHd, cotTienHang, 'Ngoài định mức buffet'))
+        cacDongTheoHoaDon[viTri].ghiChu = 'Ngoài định mức buffet'
+      }
     }
   }
 
@@ -270,5 +247,5 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
   if (![tongDeNghi, tongKhongDeNghi, tongHoaDon].every(Number.isSafeInteger)) {
     return { ...RONG, coBuffet, loi: 'Tổng tiền các dòng hàng vượt giới hạn an toàn.' }
   }
-  return { cacKhoanDeNghi, cacKhoanKhongDeNghi, tongDeNghi, tongKhongDeNghi, tongHoaDon, coBuffet }
+  return { cacKhoanDeNghi, cacKhoanKhongDeNghi, cacDongTheoHoaDon, tongDeNghi, tongKhongDeNghi, tongHoaDon, coBuffet }
 }

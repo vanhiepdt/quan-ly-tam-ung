@@ -45,17 +45,16 @@ function giaiXml(value: string): string {
 }
 
 function dongBang(tep: Buffer): string[][] {
-  const xml = docZip(tep).find(item => item.ten === TEP_NOI_DUNG)?.duLieu.toString('utf8')
-  if (!xml) throw new Error('Mẫu thiếu word/document.xml')
+  const xml = noiDung(tep)
   const bang = [...xml.matchAll(/<w:tbl(?:\s[^>]*)?>[\s\S]*?<\/w:tbl>/g)]
-    .find(match => match[0].includes('Các khoản đề nghị thanh toán'))?.[0]
+    .find(match => match[0].includes('Thành tiền'))?.[0]
   if (!bang) throw new Error('Mẫu thiếu bảng chi tiết')
   return [...bang.matchAll(/<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g)].map(([, row]) =>
     [...row.matchAll(/<w:tc(?:\s[^>]*)?>([\s\S]*?)<\/w:tc>/g)].map(([, cell]) =>
       [...cell.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(([, text]) => giaiXml(text)).join('').normalize('NFC')))
 }
 
-describe('phụ lục bảng kê DOCX', () => {
+describe('bảng kê chi tiết DOCX theo mẫu gộp sáu cột', () => {
   it('chỉ bật khi có snapshot hợp lệ và tiền không được thanh toán lớn hơn 0', () => {
     expect(coPhuLucThanhToan({ chiTietHoaDon: chiTiet, tienRuouBia: 2_264_640 })).toBe(true)
     expect(coPhuLucThanhToan({ chiTietHoaDon: chiTiet, tienRuouBia: 0 })).toBe(false)
@@ -63,47 +62,48 @@ describe('phụ lục bảng kê DOCX', () => {
     expect(coPhuLucThanhToan({ chiTietHoaDon: null, tienRuouBia: 2_264_640 })).toBe(false)
   })
 
-  it('điền hai nhóm, đủ bảy cột, tổng hóa đơn và tên người đề nghị theo đúng mẫu', () => {
+  it('giữ thứ tự hóa đơn, điền sáu cột theo tiền sau thuế và cả hai tổng', () => {
     const rows = dongBang(taoPhuLucDocx(mau, chiTiet, thayThe))
-    expect(rows[0]).toEqual([
-      'STT', 'Nội dung', 'Số lượng', 'Đơn giá', 'Tiền thuếGTGT(nếu có)',
-      'Thành tiền(Bao gồm thuế GTGT)', 'Ghi chú',
+    expect(rows[0]).toEqual(['STT', 'Nội dung', 'Số lượng', 'Thành tiềntheo hóa đơn', 'Đề nghị thanh toán', 'Ghi chú'])
+    expect(rows.slice(1, -1)).toEqual([
+      ['1', 'Suất Buffet 565', '10', '6.102.000', '3.900.000', 'Định mức 390.000đ × 10 suất = 3.900.000đ'],
+      ['2', 'Suất Buffet 279', '2', '602.640', '602.640', 'Định mức 390.000đ × 2 suất = 780.000đ'],
+      ['3', 'Coca', '5', '159.500', '159.500', ''],
+      ['4', 'Nước Khoáng Alba', '2', '62.640', '0', 'Ngoài định mức buffet'],
+      ['5', 'Khăn Lạnh', '2', '6.480', '6.480', ''],
     ])
-
-    const buffetVuot = rows.find(row => row[1] === 'Suất Buffet 565' && row[6] === 'Định mức 390.000đ/suất')
-    expect(buffetVuot).toEqual(['1', 'Suất Buffet 565', '10', '390.000', '', '3.900.000', 'Định mức 390.000đ/suất'])
-    const buffetKhongDeNghi = rows.find(row => row[1] === 'Suất Buffet 565' && row[6] === 'Phần vượt định mức buffet')
-    expect(buffetKhongDeNghi).toEqual(['5', 'Suất Buffet 565', '10', '175.000', '', '2.202.000', 'Phần vượt định mức buffet'])
-    expect(rows.find(row => row[1] === 'Suất Buffet 279')).toEqual([
-      '2', 'Suất Buffet 279', '2', '279.000', '44.640', '602.640', '',
-    ])
-    expect(rows.find(row => row[1] === 'Coca')).toEqual(['3', 'Coca', '5', '29.000', '14.500', '159.500', ''])
-    expect(rows.find(row => row[1] === 'Khăn Lạnh')).toEqual(['4', 'Khăn Lạnh', '2', '3.000', '480', '6.480', ''])
-    expect(rows.find(row => row[1] === 'Nước Khoáng Alba')).toEqual([
-      '6', 'Nước Khoáng Alba', '2', '29.000', '4.640', '62.640', 'Ngoài định mức buffet',
-    ])
-    expect(rows.find(row => row.includes('TỔNG CỘNG HÓA ĐƠN'))?.[2]).toBe('6.933.260')
-    expect(rows.find(row => row.includes('Các khoản đề nghị thanh toán'))?.[2]).toBe('4.668.620')
-    expect(rows.find(row => row.includes('Các khoản không đề nghị thanh toán'))?.[2]).toBe('2.264.640')
-
-    const xml = docZip(taoPhuLucDocx(mau, chiTiet, thayThe))
-      .find(item => item.ten === TEP_NOI_DUNG)!.duLieu.toString('utf8')
+    expect(rows.at(-1)).toEqual(['Tổng cộng', '6.933.260', '4.668.620', ''])
+    const xml = noiDung(taoPhuLucDocx(mau, chiTiet, thayThe))
     expect(xml).toContain('Nguyễn Văn A')
     expect(xml).toContain('Nhà hàng Buffet Mẫu')
     expect(xml).not.toContain('[[')
   })
 
-  it('để trống cột thuế và tách tiền buffet theo giá sau thuế trên hóa đơn bán hàng', () => {
+  it('hóa đơn bán hàng không thuế: một dòng buffet vượt định mức, hai ô tiền riêng', () => {
     const banHang: ChiTietHoaDon = {
       loaiHd: 'ban_hang', cotTienHang: 'sau_thue',
       dongHang: [{ ten: 'Suất buffet 450', soLuong: 1, donGia: 450_000, thanhTien: 450_000 }],
     }
     const rows = dongBang(taoPhuLucDocx(mau, banHang, { ...thayThe, nguoidntk: 'Người đề nghị', sotientt: '390.000' }))
-    expect(rows.find(row => row[1] === 'Suất buffet 450' && row[6] === 'Định mức 390.000đ/suất'))
-      .toEqual(['1', 'Suất buffet 450', '1', '390.000', '', '390.000', 'Định mức 390.000đ/suất'])
-    expect(rows.find(row => row[1] === 'Suất buffet 450' && row[6] === 'Phần vượt định mức buffet'))
-      .toEqual(['2', 'Suất buffet 450', '1', '60.000', '', '60.000', 'Phần vượt định mức buffet'])
-    expect(rows.find(row => row.includes('TỔNG CỘNG HÓA ĐƠN'))?.[2]).toBe('450.000')
+    expect(rows[1]).toEqual(['1', 'Suất buffet 450', '1', '450.000', '390.000', 'Định mức 390.000đ × 1 suất = 390.000đ'])
+    expect(rows[2]).toEqual(['Tổng cộng', '450.000', '390.000', ''])
+  })
+
+  it('bia rượu không ghi chú và không được thanh toán, các món giữ đúng vị trí hóa đơn', () => {
+    const rows = dongBang(taoPhuLucDocx(mau, {
+      loaiHd: 'ban_hang', cotTienHang: 'sau_thue', dongHang: [
+        { ten: 'Coca', soLuong: 1, thanhTien: 70_000 },
+        { ten: 'Suất buffet 350', soLuong: 2, thanhTien: 700_000 },
+        { ten: 'Bia Tiger', soLuong: 1, thanhTien: 50_000 },
+        { ten: 'Nước suối', soLuong: 1, thanhTien: 30_000 },
+      ],
+    }, thayThe))
+    expect(rows.slice(1, -1).map(row => [row[1], row[3], row[4], row[5]])).toEqual([
+      ['Coca', '70.000', '70.000', ''],
+      ['Suất buffet 350', '700.000', '700.000', 'Định mức 390.000đ × 2 suất = 780.000đ'],
+      ['Bia Tiger', '50.000', '0', ''],
+      ['Nước suối', '30.000', '0', 'Ngoài định mức buffet'],
+    ])
   })
 })
 
@@ -122,7 +122,7 @@ it('điền toàn bộ biến ngày, mã/số hóa đơn, bên bán, số tiền
   // Số tiền dùng giá trị truyền từ luồng cũ (4.668.000), không tự đổi thành 4.668.620.
   expect(text).toContain('Tổng số tiền đề nghị thanh toán: 4.668.000 đồng')
   // Tổng I vẫn là tổng chưa làm tròn của đúng các dòng hàng sau thuế.
-  expect(text).toContain('Các khoản đề nghị thanh toán4.668.620')
+  expect(dongBang(taoPhuLucDocx(mau, chiTiet, thayThe)).at(-1)).toEqual(['Tổng cộng', '6.933.260', '4.668.620', ''])
 })
 
 it('bên bán thiếu thì để trống, không dùng tên người đề nghị hoặc đơn vị tiếp khách', () => {
@@ -165,26 +165,18 @@ it('giữ nguyên ghi chú, đối tượng và ngắt trang chủ động đặ
   expect(xml).toContain('<w:br w:type="page"/>')
 })
 
-function dongTongDaGop(tep: Buffer): { nhan: string; thanhTien: string; soO: number; span: number } {
-  const xml = noiDung(tep)
-  const bang = [...xml.matchAll(/<w:tbl(?:\s[^>]*)?>[\s\S]*?<\/w:tbl>/g)]
-    .find(match => match[0].includes('Các khoản đề nghị thanh toán'))?.[0] ?? ''
-  const tong = [...bang.matchAll(/<w:tr(?:\s[^>]*)?>[\s\S]*?<\/w:tr>/g)].find(([row]) => row.includes('TỔNG CỘNG HÓA ĐƠN'))?.[0] ?? ''
-  const cells = [...tong.matchAll(/<w:tc(?:\s[^>]*)?>[\s\S]*?<\/w:tc>/g)].map(m => m[0])
-  const text = (cell: string) => giaiXml([...cell.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(m => m[1]).join(''))
-  return { nhan: text(cells[1] ?? ''), thanhTien: text(cells[2] ?? ''), soO: cells.length,
-    span: Number(/<w:gridSpan\s+w:val="(\d+)"/.exec(cells[1] ?? '')?.[1]) }
-}
-
-it('mẫu gộp có dòng tổng cộng gộp ô: điền đúng ô tiền, giữ nguyên ô nhãn', () => {
+it('mẫu gộp có dòng Tổng cộng gộp ba ô: không ghi đè nhãn hoặc ô ghi chú', () => {
   const docx = taoPhuLucDocx(mau, chiTiet, thayThe)
-  expect(dongTongDaGop(docx)).toEqual({ nhan: 'TỔNG CỘNG HÓA ĐƠN', thanhTien: '6.933.260', soO: 4, span: 4 })
-  expect(noiDung(docx)).not.toContain('[[')
+  const rows = dongBang(docx)
+  expect(rows.at(-1)).toEqual(['Tổng cộng', '6.933.260', '4.668.620', ''])
+  const tong = [...noiDung(docx).matchAll(/<w:tr(?:\s[^>]*)?>[\s\S]*?<\/w:tr>/g)]
+    .find(([row]) => row.includes('Tổng cộng'))?.[0] ?? ''
+  expect(tong).toContain('<w:gridSpan w:val="3"')
 })
 
-it('không ghi tiền vào ô nhãn nếu mẫu tổng cộng gộp qua cột Thành tiền', () => {
+it('từ chối dòng tổng cộng khi ô nhãn gộp qua cột Thành tiền hóa đơn', () => {
   const files = docZip(mau)
   const document = files.find(x => x.ten === TEP_NOI_DUNG)!
-  document.duLieu = Buffer.from(document.duLieu.toString().replace(/(<w:tr[^>]*>[\s\S]*?TỔNG CỘNG HÓA ĐƠN[\s\S]*?<w:gridSpan w:val=")4("\/>)|(<w:gridSpan w:val=")4("\/>)/, (_all, before, after, before2, after2) => before ? `${before}5${after}` : `${before2}5${after2}`))
+  document.duLieu = Buffer.from(document.duLieu.toString().replace('<w:gridSpan w:val="3"', '<w:gridSpan w:val="4"'))
   expect(() => taoPhuLucDocx(ghiZip(files), chiTiet, thayThe)).toThrow(LoiMauPhuLuc)
 })

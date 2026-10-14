@@ -98,7 +98,7 @@ describe('route tải giấy DOCX', () => {
     const res = await goi('thanh_toan')
     expect(res.status).toBe(200)
     const xml = docZip(Buffer.from(await res.arrayBuffer())).find(item => item.ten === 'word/document.xml')!.duLieu.toString()
-    expect(xml).not.toContain('PHỤ LỤC BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN')
+    expect(xml).not.toContain('BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN')
   })
   it('tải một Word gộp có phụ lục khi snapshot có khoản không được thanh toán', async () => {
     vi.mocked(timGiaoDichTinh).mockResolvedValue({
@@ -111,7 +111,7 @@ describe('route tải giấy DOCX', () => {
     expect(res.headers.get('content-disposition')).toContain('giay-de-nghi.docx')
     const xml = docZip(Buffer.from(await res.arrayBuffer())).find(item => item.ten === 'word/document.xml')!.duLieu.toString()
     expect(xml).toContain('390.000')
-    expect(xml).toContain('60.000')
+    expect(xml).toContain('450.000')
     expect(xml).toContain('Người thử')
     expect(xml).toContain('Nhà bán trong hóa đơn')
     expect(xml).not.toContain('[[')
@@ -123,7 +123,7 @@ describe('route tải giấy DOCX', () => {
     const res = await goi('thanh_toan')
     expect(res.status).toBe(200)
     const xml = docZip(Buffer.from(await res.arrayBuffer())).find(item => item.ten === 'word/document.xml')!.duLieu.toString()
-    expect(xml).not.toContain('PHỤ LỤC BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN')
+    expect(xml).not.toContain('BẢNG KÊ CHI TIẾT ĐỀ NGHỊ THANH TOÁN')
   })
 })
 

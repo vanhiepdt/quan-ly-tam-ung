@@ -15,6 +15,9 @@ describe('phân bổ phụ lục theo dòng hóa đơn', () => {
     expect(kq.loi).toBeUndefined()
     expect(kq.tongDeNghi).toBe(770_000)
     expect(kq.tongKhongDeNghi).toBe(30_000)
+    expect(kq.cacDongTheoHoaDon.map(d => [d.ten, d.thanhTienHoaDon, d.deNghiThanhToan])).toEqual([
+      ['Suất Buffet 350', 700_000, 700_000], ['Coca', 70_000, 70_000], ['Nước suối', 30_000, 0],
+    ])
     expect(kq.cacKhoanDeNghi.map(d => d.ten)).toEqual(['Suất Buffet 350', 'Coca'])
   })
 
@@ -34,6 +37,10 @@ describe('phân bổ phụ lục theo dòng hóa đơn', () => {
     expect(kq.tongHoaDon).toBe(6_933_260)
     expect(kq.tongDeNghi).toBe(4_668_620)
     expect(kq.tongKhongDeNghi).toBe(2_264_640)
+    expect(kq.cacDongTheoHoaDon.map(d => [d.ten, d.thanhTienHoaDon, d.deNghiThanhToan])).toEqual([
+      ['Suất Buffet 565', 6_102_000, 3_900_000], ['Suất Buffet 279', 602_640, 602_640],
+      ['Coca', 159_500, 159_500], ['Nước Khoáng Alba', 62_640, 0], ['Khăn Lạnh', 6_480, 6_480],
+    ])
     expect(kq.cacKhoanDeNghi.map(d => [d.ten, d.soLuong, d.thanhTien])).toEqual([
       ['Suất Buffet 565', 10, 3_900_000],
       ['Suất Buffet 279', 2, 602_640],
@@ -72,6 +79,7 @@ describe('phân bổ phụ lục theo dòng hóa đơn', () => {
     expect(kq.tongDeNghi).toBe(900_000)
     expect(kq.tongKhongDeNghi).toBe(160_000)
     expect(kq.cacKhoanKhongDeNghi[0].ghiChu).toBe('')
+    expect(kq.cacDongTheoHoaDon[1].ghiChu).toBe('')
   })
 
   it('không thanh toán bia rượu trong hóa đơn có buffet', () => {

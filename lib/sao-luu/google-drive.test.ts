@@ -32,7 +32,9 @@ describe('kết nối OAuth Drive cá nhân', () => {
     const encrypted = maHoaRefreshToken('sensitive-refresh-token')
     expect(encrypted).not.toContain('sensitive-refresh-token')
     expect(giaiMaRefreshToken(encrypted)).toBe('sensitive-refresh-token')
-    expect(() => giaiMaRefreshToken(encrypted.replace(/.$/, 'A'))).toThrow()
+    const [version, iv, tag, payload] = encrypted.split('.')
+    const payloadBiSua = `${payload[0] === 'A' ? 'B' : 'A'}${payload.slice(1)}`
+    expect(() => giaiMaRefreshToken([version, iv, tag, payloadBiSua].join('.'))).toThrow()
   })
 
   it('tạo URL có offline, PKCE, state và scope drive.file (không phải toàn Drive)', async () => {

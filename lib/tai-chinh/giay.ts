@@ -219,7 +219,7 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
     { mau: /\[\[CK\]\]\s+\[\[TM\]\]\./g, thay: `${dungChuyenKhoan ? '[[CK]]' : '[[TM]]'}.` },
   ]
   if (!coPhuLucThanhToan(gd)) {
-    dungThayCoDinh.push({ mau: mauChuoi('- Phụ lục bảng kê chi tiết đề nghị thanh toán'), thay: '' })
+    dungThayCoDinh.push({ mau: mauChuoi('- Bảng kê chi tiết đề nghị thanh toán'), thay: '' })
   }
 
   const chung: Record<string, string> = {
@@ -370,7 +370,7 @@ function thayCoDinh(c: {
     { mau: mauChuoi('Hà Nội,'), thay: `${c.diaDanh},` },
     // Mẫu tiếp khách dùng chung chỗ trống tháng cho dòng hành chính và ngày phê duyệt.
     // Đổi riêng dòng hành chính sang tháng không đệm số 0.
-    { mau: /\[\[ngaydntk\]\]\s+tháng\s+\[\[thangdntk\]\]\s+năm\s+\[\[namdntk\]\]/g, thay: '[[ngaydntk]] tháng [[thangdntkVanXuoi]] năm [[namdntk]]' },
+    { mau: /\[\[ngaydntk\]\]\s+tháng\s*\[\[thangdntk\]\]\s+năm\s+\[\[namdntk\]\]/g, thay: '[[ngaydntk]] tháng [[thangdntkVanXuoi]] năm [[namdntk]]' },
     // Mẫu gõ "]]/ [[" giữa hai chỗ trống ngày; bỏ dấu cách để ngày in liền mạch.
     { mau: /\]\]\/\s+\[\[/g, thay: ']]/[[' },
     // Dòng "3. Hình thức thanh toán" trong mẫu gõ cứng "Hoàn tạm ứng". Thay bằng hình
