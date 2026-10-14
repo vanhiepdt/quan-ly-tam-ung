@@ -7,7 +7,7 @@
 // chứa nó và xoá phần còn lại ở các run sau.
 import { docZip, ghiZip } from './zip'
 
-export type ThayTheCoDinh = { mau: RegExp; thay: string }
+export type ThayTheCoDinh = { mau: RegExp; thay: string; xoaDoanNeuRong?: boolean }
 
 export type KetQuaDien = { xml: string; thieu: string[] }
 
@@ -27,7 +27,16 @@ const RE_RUN = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g
 const RE_DOAN = /<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g
 const RE_CHO_TRONG = /\[\[([A-Za-z_][A-Za-z0-9_]*)\]{1,2}/g
 
-type Cho = { batDau: number; ketThuc: number; chuoi: string }
+type Cho = { batDau: number; ketThuc: number; chuoi: string; xoaDoanNeuRong?: boolean }
+
+function doanChiConDinhDang(doan: string): boolean {
+  const conLai = doan
+    .replace(/<w:pPr(?:\s[^>]*)?>[\s\S]*?<\/w:pPr>/g, '')
+    .replace(/<w:rPr(?:\s[^>]*)?>[\s\S]*?<\/w:rPr>/g, '')
+    .replace(/<w:t(?:\s[^>]*)?>[\s\S]*?<\/w:t>/g, '')
+    .replace(/<\/?w:(?:p|r)(?:\s[^>]*)?>/g, '')
+  return conLai.trim() === ''
+}
 
 // Gắn lại từng ký tự của phần thay cố định vào run gốc của nó. Phần thay thường chỉ
 // là bản gốc bị bỏ bớt hoặc chèn thêm vài ký tự (ví dụ "]]/ [[" -> "]]/[["), nên dò
@@ -52,7 +61,11 @@ function dienDoan(doan: string, giaTri: Record<string, string>, thayThe: readonl
   if (!runs.length) return doan
   const goc = runs.map(r => giaiXml(r[1]))
   const gop = goc.join('')
-  const reThay = thayThe.map(t => ({ re: new RegExp(t.mau.source, t.mau.flags.includes('g') ? t.mau.flags : t.mau.flags + 'g'), thay: t.thay }))
+  const reThay = thayThe.map(t => ({
+    re: new RegExp(t.mau.source, t.mau.flags.includes('g') ? t.mau.flags : t.mau.flags + 'g'),
+    thay: t.thay,
+    xoaDoanNeuRong: t.xoaDoanNeuRong,
+  }))
   if (!gop.includes('[[') && !thayThe.some(t => new RegExp(t.mau.source, t.mau.flags.replace('g', '')).test(gop))) return doan
 
   const runCua: number[] = []
@@ -65,7 +78,10 @@ function dienDoan(doan: string, giaTri: Record<string, string>, thayThe: readonl
   for (const t of reThay) {
     for (const m of gop.matchAll(t.re)) {
       if (m[0].length === 0) continue
-      ungVien.push({ batDau: m.index, ketThuc: m.index + m[0].length, chuoi: m[0].replace(t.re, t.thay) })
+      ungVien.push({
+        batDau: m.index, ketThuc: m.index + m[0].length,
+        chuoi: m[0].replace(t.re, t.thay), xoaDoanNeuRong: t.xoaDoanNeuRong,
+      })
     }
   }
   ungVien.sort((a, b) => a.batDau - b.batDau)
@@ -83,6 +99,7 @@ function dienDoan(doan: string, giaTri: Record<string, string>, thayThe: readonl
   }
   for (let k = viTri; k < gop.length; k++) kyTu.push({ c: gop[k], run: runCua[k] })
   const chuoiMoi = kyTu.map(x => x.c).join('')
+  if (daThay.some(c => c.xoaDoanNeuRong) && !chuoiMoi.trim() && doanChiConDinhDang(doan)) return ''
 
   const cho: Cho[] = []
   for (const m of chuoiMoi.matchAll(RE_CHO_TRONG)) {

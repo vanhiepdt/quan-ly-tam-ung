@@ -219,7 +219,9 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
     { mau: /\[\[CK\]\]\s+\[\[TM\]\]\./g, thay: `${dungChuyenKhoan ? '[[CK]]' : '[[TM]]'}.` },
   ]
   if (!coPhuLucThanhToan(gd)) {
-    dungThayCoDinh.push({ mau: mauChuoi('- Bảng kê chi tiết đề nghị thanh toán'), thay: '' })
+    dungThayCoDinh.push({
+      mau: mauChuoi('- Bảng kê chi tiết đề nghị thanh toán'), thay: '', xoaDoanNeuRong: true,
+    })
   }
 
   const chung: Record<string, string> = {

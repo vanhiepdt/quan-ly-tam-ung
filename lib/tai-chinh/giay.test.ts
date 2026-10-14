@@ -459,6 +459,9 @@ describe('điền vào tệp Word thật', () => {
       chiTietHoaDon: { ...chiTietVuot, dongHang: [{ ten: 'Suất Buffet 350', soLuong: 1, donGia: 350_000, thanhTien: 350_000 }] },
     }), ctxRieng())
     expect(khongCoKhoanBiLoai.chu).not.toContain('- Bảng kê chi tiết đề nghị thanh toán')
+    const dongHoaDon = khongCoKhoanBiLoai.doan.indexOf('- Hóa đơn mã 1C26MTT, số 00123456, ngày 20/09/2026;')
+    const dongKinhDeNghi = khongCoKhoanBiLoai.doan.indexOf('Kính đề nghị Bà xem xét, phê duyệt thanh toán theo quy định.')
+    expect(dongKinhDeNghi).toBe(dongHoaDon + 1)
   })
   it('hoàn tạm ứng không in tài khoản, và giấy tiếp khách làm tròn kinh phí dự kiến', () => {
     const hoan = giayThat(LOAI_GIAY.THANH_TOAN, gd({ hinhThuc: HINH_THUC.HOAN_TAM_UNG, tongTien: 1_200_000 }), ctxRieng())

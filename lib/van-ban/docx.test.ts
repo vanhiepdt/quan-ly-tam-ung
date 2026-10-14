@@ -94,6 +94,15 @@ describe('dienChoTrong', () => {
     const { xml: ketQua } = dienChoTrong(xml, {}, [{ mau: /Tự do - Tự do/, thay: 'Tự do - Hạnh phúc' }])
     expect(docDoan(ketQua)).toEqual(['Độc lập - Tự do - Hạnh phúc'])
   })
+
+  it('chỉ xóa cả đoạn định dạng khi phép thay thế được đánh dấu và để đoạn rỗng', () => {
+    const xml = '<w:p><w:pPr><w:pStyle w:val="978"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>- Bảng kê chi tiết đề nghị thanh toán</w:t></w:r></w:p>' +
+      '<w:p><w:r><w:t>Ghi chú: - Bảng kê chi tiết đề nghị thanh toán</w:t></w:r></w:p>'
+    const { xml: ketQua } = dienChoTrong(xml, {}, [{
+      mau: /- Bảng kê chi tiết đề nghị thanh toán/, thay: '', xoaDoanNeuRong: true,
+    }])
+    expect(docDoan(ketQua)).toEqual(['Ghi chú: '])
+  })
 })
 
 describe('dienMauDocx trên tệp mẫu thật', () => {
