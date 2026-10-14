@@ -26,8 +26,7 @@ export function ngayDeNghiMacDinh(ngay: string): string {
   return chuoiNgayUtc(date)
 }
 
-// Ngày lập giấy của giao dịch mới luôn là ngày thực tại Việt Nam, không phụ
-// thuộc ngày hóa đơn hay múi giờ của trình duyệt/máy chủ.
+// Ngày hiện tại tại Việt Nam, dùng để khởi tạo ngày giao dịch trước khi đọc hóa đơn.
 export function ngayHienTaiBangkok(date: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',

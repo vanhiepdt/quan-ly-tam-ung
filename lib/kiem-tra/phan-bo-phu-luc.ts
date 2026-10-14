@@ -15,6 +15,8 @@ const schemaDongHang = z.object({
   tienThue: soTien.optional(),
   thanhTienSauThue: soTien.optional(),
   laRuouBia: z.boolean().optional(),
+  deNghiThanhToan: soTien.optional(),
+  ghiChu: z.string().max(500).optional(),
 })
 
 export const schemaChiTietHoaDon = z.object({
@@ -179,8 +181,8 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
     buffet: laBuffet(dong.ten),
   }))
   const coBuffet = cacDong.some(d => d.buffet)
-  const cacKhoanDeNghi: DongPhuLuc[] = []
-  const cacKhoanKhongDeNghi: DongPhuLuc[] = []
+  const deNghiTheoDong = new Map<number, DongPhuLuc>()
+  const khongDeNghiTheoDong = new Map<number, DongPhuLuc>()
   const cacDongTheoHoaDon: DongBangKe[] = cacDong.map(({ dong, tien }) => ({
     ten: dong.ten, soLuong: dong.soLuong ?? null, thanhTienHoaDon: tien,
     deNghiThanhToan: 0, ghiChu: '',
@@ -192,7 +194,7 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
     const { dong, tien, buffet } = cacDong[viTri]
     if (!Number.isSafeInteger(tien) || tien < 0) return { ...RONG, coBuffet, loi: `Không xác định được thành tiền sau thuế của “${dong.ten}”.` }
     if (dong.laRuouBia) {
-      cacKhoanKhongDeNghi.push(dongPhuLuc(dong, tien, loaiHd, cotTienHang))
+      khongDeNghiTheoDong.set(viTri, dongPhuLuc(dong, tien, loaiHd, cotTienHang))
       continue
     }
     if (buffet) {
@@ -206,20 +208,20 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
       bangKe.deNghiThanhToan = Math.min(tien, dinhMuc)
       bangKe.ghiChu = `Định mức 390.000đ × ${new Intl.NumberFormat('vi-VN').format(soLuong)} suất = ${new Intl.NumberFormat('vi-VN').format(dinhMuc)}đ`
       if (tien <= dinhMuc) {
-        cacKhoanDeNghi.push(dongPhuLuc(dong, tien, loaiHd, cotTienHang, '', { soLuong, donGia }))
+        deNghiTheoDong.set(viTri, dongPhuLuc(dong, tien, loaiHd, cotTienHang, '', { soLuong, donGia }))
         hanMucCon += dinhMuc - tien
       } else {
-        cacKhoanDeNghi.push(dongPhuLuc(dong, dinhMuc, loaiHd, cotTienHang, 'Định mức 390.000đ/suất', {
+        deNghiTheoDong.set(viTri, dongPhuLuc(dong, dinhMuc, loaiHd, cotTienHang, 'Định mức 390.000đ/suất', {
           soLuong, donGia: DINH_MUC_BUFFET, tienThue: null,
         }))
-        cacKhoanKhongDeNghi.push(dongPhuLuc(dong, tien - dinhMuc, loaiHd, cotTienHang, 'Phần vượt định mức buffet', {
+        khongDeNghiTheoDong.set(viTri, dongPhuLuc(dong, tien - dinhMuc, loaiHd, cotTienHang, 'Phần vượt định mức buffet', {
           soLuong, donGia: Math.max(0, donGia - DINH_MUC_BUFFET), tienThue: null,
         }))
       }
       continue
     }
     if (!coBuffet) {
-      cacKhoanDeNghi.push(dongPhuLuc(dong, tien, loaiHd, cotTienHang))
+      deNghiTheoDong.set(viTri, dongPhuLuc(dong, tien, loaiHd, cotTienHang))
       cacDongTheoHoaDon[viTri].deNghiThanhToan = tien
     } else {
       monKhac.push({ viTri, tien })
@@ -232,15 +234,62 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
     for (const { viTri, tien } of monKhac) {
       const { dong } = cacDong[viTri]
       if (chon.has(viTri)) {
-        cacKhoanDeNghi.push(dongPhuLuc(dong, tien, loaiHd, cotTienHang))
+        deNghiTheoDong.set(viTri, dongPhuLuc(dong, tien, loaiHd, cotTienHang))
         cacDongTheoHoaDon[viTri].deNghiThanhToan = tien
       } else {
-        cacKhoanKhongDeNghi.push(dongPhuLuc(dong, tien, loaiHd, cotTienHang, 'Ngoài định mức buffet'))
+        khongDeNghiTheoDong.set(viTri, dongPhuLuc(dong, tien, loaiHd, cotTienHang, 'Ngoài định mức buffet'))
         cacDongTheoHoaDon[viTri].ghiChu = 'Ngoài định mức buffet'
       }
     }
   }
 
+  // Ghi đè chỉ hai cột người dùng được sửa. Không thay dữ liệu gốc, cách chọn
+  // món tự động hay làm tròn; snapshot cũ thiếu ghi đè vẫn giữ kết quả cũ.
+  let tongMonKhacDeNghi = 0
+  let hanMucConSauChinhSua = hanMucCon
+  for (let viTri = 0; viTri < cacDong.length; viTri++) {
+    const { dong, tien, buffet } = cacDong[viTri]
+    const bangKe = cacDongTheoHoaDon[viTri]
+    const deNghi = dong.deNghiThanhToan ?? bangKe.deNghiThanhToan
+    if (deNghi > tien) {
+      return { ...RONG, coBuffet, loi: `Đề nghị thanh toán dòng ${viTri + 1} không được vượt thành tiền theo hóa đơn.` }
+    }
+    if (dong.laRuouBia && deNghi > 0) {
+      return { ...RONG, coBuffet, loi: `Dòng ${viTri + 1} là bia, rượu nên không được đề nghị thanh toán.` }
+    }
+    if (buffet && !dong.laRuouBia && deNghi > DINH_MUC_BUFFET * bangKe.soLuong!) {
+      return { ...RONG, coBuffet, loi: `Đề nghị thanh toán dòng ${viTri + 1} vượt định mức 390.000đ sau thuế × ${bangKe.soLuong} suất buffet.` }
+    }
+    if (coBuffet && buffet) hanMucConSauChinhSua += bangKe.deNghiThanhToan - deNghi
+    if (coBuffet && !buffet && !dong.laRuouBia) tongMonKhacDeNghi += deNghi
+
+    if (deNghi !== bangKe.deNghiThanhToan) {
+      // Phần người dùng chia theo số tiền không có đơn giá/thuế riêng. Bảng kê
+      // mới chỉ in thành tiền; không tự suy ra hay nhân lại dữ liệu hóa đơn.
+      const phanChia = deNghi > 0 && deNghi < tien ? { donGia: null, tienThue: null } : {}
+      if (!buffet && deNghi > 0) bangKe.ghiChu = ''
+      if (deNghi > 0) deNghiTheoDong.set(viTri, dongPhuLuc(dong, deNghi, loaiHd, cotTienHang, bangKe.ghiChu, { soLuong: bangKe.soLuong, ...phanChia }))
+      else deNghiTheoDong.delete(viTri)
+      if (tien > deNghi) khongDeNghiTheoDong.set(viTri, dongPhuLuc(dong, tien - deNghi, loaiHd, cotTienHang, bangKe.ghiChu, { soLuong: bangKe.soLuong, ...phanChia }))
+      else khongDeNghiTheoDong.delete(viTri)
+      bangKe.deNghiThanhToan = deNghi
+    }
+    if (dong.ghiChu !== undefined) {
+      // Chuỗi rỗng cũng là một chỉnh sửa có chủ đích, không phục hồi ghi chú AI.
+      bangKe.ghiChu = dong.ghiChu
+      const duoc = deNghiTheoDong.get(viTri)
+      const khong = khongDeNghiTheoDong.get(viTri)
+      if (duoc) duoc.ghiChu = dong.ghiChu
+      if (khong) khong.ghiChu = dong.ghiChu
+    }
+  }
+  if (coBuffet && tongMonKhacDeNghi > hanMucConSauChinhSua) {
+    return { ...RONG, coBuffet, loi: `Các món ngoài buffet chỉ được đề nghị trong phần định mức còn dư (${hanMucConSauChinhSua.toLocaleString('vi-VN')}đ sau thuế).` }
+  }
+
+  // Giữ đúng thứ tự dòng hóa đơn kể cả khi chỉnh sửa làm dòng chuyển nhóm.
+  const cacKhoanDeNghi = [...deNghiTheoDong.entries()].sort(([a], [b]) => a - b).map(([, dong]) => dong)
+  const cacKhoanKhongDeNghi = [...khongDeNghiTheoDong.entries()].sort(([a], [b]) => a - b).map(([, dong]) => dong)
   const tongDeNghi = cacKhoanDeNghi.reduce((sum, dong) => sum + dong.thanhTien, 0)
   const tongKhongDeNghi = cacKhoanKhongDeNghi.reduce((sum, dong) => sum + dong.thanhTien, 0)
   const tongHoaDon = tongDeNghi + tongKhongDeNghi

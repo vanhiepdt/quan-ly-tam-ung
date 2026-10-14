@@ -16,6 +16,9 @@ export type DongHang = {
   tienThue?: number
   thanhTienSauThue?: number
   laRuouBia?: boolean
+  // Chỉ có khi người dùng chỉnh bảng kê, không sửa dữ liệu gốc từ hóa đơn.
+  deNghiThanhToan?: number
+  ghiChu?: string
 }
 
 export type ChiTietHoaDon = {

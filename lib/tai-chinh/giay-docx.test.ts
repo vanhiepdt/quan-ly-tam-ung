@@ -50,6 +50,27 @@ it('một Word điền giấy tiếp khách, thanh toán và bảng kê sáu c�
   expect(rowOf(bang, 'Tổng cộng')).toEqual(['Tổng cộng', '500.000', '390.000', ''])
 })
 
+it('giấy gộp dùng số đề nghị và ghi chú đã sửa, giữ nguyên các cột hóa đơn', () => {
+  const updated = {
+    ...giaoDich,
+    tienRuouBia: 150_000,
+    tienDuocThanhToan: 350_000,
+    chiTietHoaDon: {
+      ...chiTiet,
+      dongHang: [
+        { ...chiTiet.dongHang[0], deNghiThanhToan: 350_000, ghiChu: 'Theo phê duyệt' },
+        chiTiet.dongHang[1],
+      ],
+    },
+  }
+  const contents = xml(taoGiayDocx(mau, dungGiay(LOAI_GIAY.THANH_TOAN, updated, ctx), updated))
+  const bang = [...contents.matchAll(/<w:tbl(?=[\s>])[^>]*>[\s\S]*?<\/w:tbl>/g)]
+    .find(t => t[0].includes('Đề nghị thanh toán'))![0]
+  expect(rowOf(bang, 'Suất Buffet 450')).toEqual(['1', 'Suất Buffet 450', '1', '450.000', '350.000', 'Theo phê duyệt'])
+  expect(rowOf(bang, 'Bia Tiger')).toEqual(['2', 'Bia Tiger', '1', '50.000', '0', ''])
+  expect(rowOf(bang, 'Tổng cộng')).toEqual(['Tổng cộng', '500.000', '350.000', ''])
+})
+
 it('không phát sinh tiền không thanh toán thì xóa hẳn trang phụ lục và ngắt trang của nó', () => {
   const gd = { ...giaoDich, tienRuouBia: 0, chiTietHoaDon: null }
   const contents = xml(taoGiayDocx(mau, dungGiay(LOAI_GIAY.THANH_TOAN, gd, ctx), gd))

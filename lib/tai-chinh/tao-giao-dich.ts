@@ -2,7 +2,7 @@ import type { PoolClient } from 'pg'
 import { trongTransaction } from '@/lib/db/pool'
 import type { DauVaoGiaoDich } from '@/lib/validation/giao-dich'
 import { canDonVi, coTinhPhiMacDinh, hinhThucThanhToanMacDinh, HINH_THUC_THANH_TOAN, lamTronXuongHangNghinMacDinh, noiDungTheoDonVi, noiDungTheoHinhThuc } from './hinh-thuc'
-import { ngayHienTaiBangkok } from './ngay'
+import { ngayDeNghiMacDinh } from './ngay'
 import { khoaSoTaiChinh, kiemTraHoanTamUng, type CanhBaoHoanTamUng } from './xac-nhan-hoan-ung'
 import { giayChoHinhThuc, giayChinhChoHinhThuc } from './giay'
 import { giayCuaGiaoDich, timGiaoDichTinh, MAU_WORD } from './in-giay'
@@ -119,7 +119,7 @@ export async function taoGiaoDichDaParse(
         lamTronXuongHangNghin,
       })
     : null
-  const ngayDeNghi = canDonVi(d.hinh_thuc) ? ngayHienTaiBangkok() : null
+  const ngayDeNghi = canDonVi(d.hinh_thuc) ? ngayDeNghiMacDinh(d.ngay) : null
   const taiKhoanNhanGhiDe = hinhThucThanhToan === HINH_THUC_THANH_TOAN.CHUYEN_KHOAN && d.dung_tai_khoan_mac_dinh === false
     ? taiKhoanTuNhap({
         soTaiKhoan: d.tai_khoan_nhan_so,

@@ -10,7 +10,8 @@ export function kiemTraChiTietHoaDon(
   if (!chiTiet) return { loi: null, tienKhongThanhToan: null } // giao dịch cũ hoặc hóa đơn không trích được dòng hàng
   const phanBo = phanBoPhuLuc(chiTiet)
   if (phanBo.loi) return { loi: phanBo.loi, tienKhongThanhToan: null }
-  if (phanBo.tongKhongDeNghi > 0 && phanBo.tongHoaDon !== tongTien) {
+  const daSuaTienDeNghi = chiTiet.dongHang.some(dong => dong.deNghiThanhToan !== undefined)
+  if ((phanBo.tongKhongDeNghi > 0 || daSuaTienDeNghi) && phanBo.tongHoaDon !== tongTien) {
     return { loi: `Tổng các dòng hóa đơn (${phanBo.tongHoaDon.toLocaleString('vi-VN')}đ) không khớp tổng giao dịch (${tongTien.toLocaleString('vi-VN')}đ). Hãy đọc lại hoặc kiểm tra hóa đơn trước khi lưu.`, tienKhongThanhToan: null }
   }
   return { loi: null, tienKhongThanhToan: phanBo.tongKhongDeNghi }

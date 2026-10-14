@@ -838,17 +838,22 @@ try {
  const createDialog=page.getByRole('dialog',{name:'Thêm giao dịch',exact:true});
  expect(await createDialog.getAttribute('class')).toContain('max-w-[96rem]');
  await page.evaluate(origin=>{
-   window.fixtureInvoice={trangThai:'hop_le',phatHien:[],deXuat:{ngay:'2026-10-12',kyHieuHd:'1C26MBC',soHd:'00020110',tongTien:450000,tienRuouBia:60000,tenBanHang:'Nhà hàng xem trước',loaiHd:'ban_hang',cotTienHang:'sau_thue',dongHang:[{ten:'Buffet 450',soLuong:1,donGia:450000,thanhTien:450000}]}};
+   window.fixtureInvoice={trangThai:'hop_le',phatHien:[],deXuat:{ngay:'2026-10-11',kyHieuHd:'1C26MBC',soHd:'00020110',tongTien:450000,tienRuouBia:60000,tenBanHang:'Nhà hàng xem trước',loaiHd:'ban_hang',cotTienHang:'sau_thue',dongHang:[{ten:'Buffet 450',soLuong:1,donGia:450000,thanhTien:450000}]}};
    window.fixturePreview={viewer:{script:origin+'/office.js',config:{document:{key:'preview',title:'Bản Word xem trước'},editorConfig:{mode:'view'}}}};
  },origin);
  await page.getByLabel('Đọc từ hóa đơn').setInputFiles({name:'kiem-thu.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 fixture')});
  await expect(page.locator('[name="so_hd"]')).toHaveValue('00020110');
+ await expect(page.getByLabel('Ngày đề nghị *')).toHaveValue('2026-10-09');
  await expect(page.getByRole('columnheader',{name:'Đề nghị thanh toán'})).toBeVisible();
- await page.getByRole('textbox',{name:'Thành tiền theo hóa đơn dòng 1'}).fill('500000');
- await page.getByRole('textbox',{name:'Nội dung dòng 1'}).fill('Buffet tối');
- await expect(page.getByLabel('Tổng tiền (VND) *')).toHaveValue('500.000');
- await expect(page.getByLabel('Tiền không được thanh toán (VND)')).toHaveValue('110.000');
- await expect(page.getByRole('cell',{name:'390.000đ'}).first()).toBeVisible();
+ await expect(page.getByRole('textbox',{name:'Đề nghị thanh toán dòng 1'})).toHaveValue('390.000');
+ await expect(page.getByRole('textbox',{name:'Ghi chú dòng 1'})).toHaveValue('Định mức 390.000đ × 1 suất = 390.000đ');
+ await expect(page.getByRole('textbox',{name:'Nội dung dòng 1'})).toHaveCount(0);
+ await expect(page.getByRole('textbox',{name:'Số lượng dòng 1'})).toHaveCount(0);
+ await expect(page.getByRole('textbox',{name:'Thành tiền theo hóa đơn dòng 1'})).toHaveCount(0);
+ await page.getByRole('textbox',{name:'Đề nghị thanh toán dòng 1'}).fill('350000');
+ await page.getByRole('textbox',{name:'Ghi chú dòng 1'}).fill('Theo định mức đã duyệt');
+ await expect(page.getByLabel('Tổng tiền (VND) *')).toHaveValue('450.000');
+ await expect(page.getByLabel('Tiền không được thanh toán (VND)')).toHaveValue('100.000');
  await page.getByRole('button',{name:'Lập giấy đề nghị',exact:true}).click();
  await page.getByRole('button',{name:'Xem',exact:true}).click();
  const previewDialog=page.getByRole('dialog',{name:'Xem giấy đề nghị',exact:true});
@@ -857,8 +862,8 @@ try {
  expect(await page.evaluate(()=>JSON.parse(window.previewCalls[0].data.chi_tiet_hoa_don).tenBanHang)).toBe('Nhà hàng xem trước');
  expect(await page.evaluate(()=>{
    const data=window.previewCalls[0].data; const detail=JSON.parse(data.chi_tiet_hoa_don);
-   return {ten:detail.dongHang[0].ten,tienSauThue:detail.dongHang[0].thanhTienSauThue,tongTien:data.tong_tien,khongThanhToan:data.tien_ruou_bia,duocThanhToan:data.tien_duoc_thanh_toan};
- })).toEqual({ten:'Buffet tối',tienSauThue:500000,tongTien:'500000',khongThanhToan:'110000',duocThanhToan:'390000'});
+   return {ten:detail.dongHang[0].ten,soLuong:detail.dongHang[0].soLuong,donGia:detail.dongHang[0].donGia,thanhTien:detail.dongHang[0].thanhTien,requested:detail.dongHang[0].deNghiThanhToan,note:detail.dongHang[0].ghiChu,tongTien:data.tong_tien,ngayDeNghi:data.ngay_de_nghi,khongThanhToan:data.tien_ruou_bia,duocThanhToan:data.tien_duoc_thanh_toan};
+ })).toEqual({ten:'Buffet 450',soLuong:1,donGia:450000,thanhTien:450000,requested:350000,note:'Theo định mức đã duyệt',tongTien:'450000',ngayDeNghi:'2026-10-09',khongThanhToan:'100000',duocThanhToan:'350000'});
  expect(await page.evaluate(()=>window.calls)).toEqual([]);
  await expect(previewDialog.getByRole('heading',{name:'Bản Word xem trước'})).toHaveCount(1);
  await previewDialog.getByRole('button',{name:'Đóng',exact:true}).click();

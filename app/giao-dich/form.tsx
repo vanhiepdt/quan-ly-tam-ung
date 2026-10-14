@@ -21,7 +21,7 @@ import { ChonDonVi } from './chon-don-vi'
 import { kiemTraTrungKyHieu } from './trung-ky-hieu-actions'
 import { chuoiTienHopLe } from '@/lib/kiem-tra/tien'
 import { lamTronXuongHangNghin, tienTheoHoaDon } from '@/lib/tai-chinh/tien-thanh-toan'
-import { ngayHienTaiBangkok } from '@/lib/tai-chinh/ngay'
+import { ngayDeNghiMacDinh, ngayHienTaiBangkok } from '@/lib/tai-chinh/ngay'
 
 type BanXem = { script: string; config: Record<string, unknown> }
 type TrinhDocEditor = { DocEditor: new (el: string, cfg: Record<string, unknown>) => { destroyEditor: () => void } }
@@ -216,6 +216,7 @@ export function FormGiaoDich({
       if (name === 'ky_hieu_hd') setCanhBaoKyHieu('')
       setValues((current) => {
         const updated = { ...current, [name]: newValue }
+        if (name === 'ngay' && canDonVi(updated.hinh_thuc)) updated.ngay_de_nghi = ngayDeNghiMacDinh(newValue)
         // Tự động điền loại chứng từ khi đổi hình thức giao dịch
         if (name === 'hinh_thuc') {
           updated.loai_hd = getAutoLoaiHd(newValue) || loaiHdInvoiceOnly[0]
@@ -227,9 +228,7 @@ export function FormGiaoDich({
             updated.ngay_de_nghi = ''
           } else {
             if (!updated.don_vi_id) updated.don_vi_id = donViMacDinh(dsDonVi)?.id ?? ''
-            if (!canDonVi(current.hinh_thuc) || !current.ngay_de_nghi) {
-              updated.ngay_de_nghi = ngayHienTaiBangkok()
-            }
+            updated.ngay_de_nghi = ngayDeNghiMacDinh(updated.ngay)
           }
           const noiDungCoDinh = noiDungTheoHinhThuc(newValue)
           if (noiDungCoDinh) updated.noi_dung = noiDungCoDinh
@@ -388,7 +387,7 @@ export function FormGiaoDich({
     })
   }
 
-  function dienTuHoaDon(deXuat: DuLieuDocTuHoaDon, thayDoiTongTien?: number) {
+  function dienTuHoaDon(deXuat: DuLieuDocTuHoaDon, truongSua?: 'deNghiThanhToan' | 'ghiChu') {
     const chiTiet = chiTietHoaDonTuDeXuat(deXuat)
     const phanBo = chiTiet ? phanBoPhuLuc(chiTiet) : null
     const snapshot = deXuat.dongHang?.length ? {
@@ -397,22 +396,20 @@ export function FormGiaoDich({
       loaiHd: deXuat.loaiHd, cotTienHang: deXuat.cotTienHang, dongHang: deXuat.dongHang,
     } : null
     setValues(hien => {
-      const ngayMoi = deXuat.ngay || hien.ngay
-      const tongTien = thayDoiTongTien === undefined
-        ? chuoiTienHopLe(deXuat.tongTien, hien.tong_tien)
-        : String(Math.max(0, soTienNguyen(hien.tong_tien) + thayDoiTongTien))
+      if (truongSua === 'ghiChu' || (truongSua && phanBo?.loi)) return hien
       const tienKhongThanhToan = phanBo && !phanBo.loi ? phanBo.tongKhongDeNghi : deXuat.tienRuouBia
       const updated: Record<string, string> = {
         ...hien,
-        ngay: ngayMoi,
-        ky_hieu_hd: deXuat.kyHieuHd ?? hien.ky_hieu_hd,
-        so_hd: deXuat.soHd ?? hien.so_hd,
-        tong_tien: tongTien,
+        ...(truongSua ? {} : {
+          ngay: deXuat.ngay || hien.ngay,
+          ngay_de_nghi: canDonVi(hien.hinh_thuc) ? ngayDeNghiMacDinh(deXuat.ngay || hien.ngay) : hien.ngay_de_nghi,
+          ky_hieu_hd: deXuat.kyHieuHd ?? hien.ky_hieu_hd,
+          so_hd: deXuat.soHd ?? hien.so_hd,
+          tong_tien: chuoiTienHopLe(deXuat.tongTien, hien.tong_tien),
+        }),
         tien_ruou_bia: chuoiTienHopLe(tienKhongThanhToan, hien.tien_ruou_bia),
       }
-      if (canDonVi(updated.hinh_thuc)) {
-        capNhatTienTheoHoaDonTrenForm(updated)
-      }
+      if (canDonVi(updated.hinh_thuc)) capNhatTienTheoHoaDonTrenForm(updated)
       return updated
     })
     setChiTietHoaDon(chiTiet ?? snapshot)
@@ -426,14 +423,14 @@ export function FormGiaoDich({
     data.set('xac_nhan_hoan_tam_ung', '1')
     data.set('fingerprint_hoan_tam_ung', canhBao.fingerprint)
     if (tepHoaDon) data.set('tep_hoa_don', tepHoaDon)
-    if (canDonVi(values.hinh_thuc)) data.set('ngay_de_nghi', ngayHienTaiBangkok())
+    if (canDonVi(values.hinh_thuc)) data.set('ngay_de_nghi', ngayDeNghiMacDinh(values.ngay))
     startTransition(() => action(data))
   }
 
   return <>
     <button type="button" className="btn btn-primary" onClick={() => {
       setValues(hien => {
-        const moi: Record<string, string> = { ...hien, chi_thuc_te: '0', ...(canDonVi(hien.hinh_thuc) ? { ngay_de_nghi: ngayHienTaiBangkok() } : {}) }
+        const moi: Record<string, string> = { ...hien, chi_thuc_te: '0', ...(canDonVi(hien.hinh_thuc) ? { ngay_de_nghi: ngayDeNghiMacDinh(hien.ngay) } : {}) }
         if (!canDonVi(moi.hinh_thuc) || moi.don_vi_id) return moi
         const macDinh = donViMacDinh(dsDonVi)
         return macDinh ? { ...moi, don_vi_id: macDinh.id } : moi
@@ -457,7 +454,7 @@ export function FormGiaoDich({
         // on validation/warning responses. Only clear our fields after real success.
         const data = new FormData(event.currentTarget)
         if (tepHoaDon) data.set('tep_hoa_don', tepHoaDon)
-        if (canDonVi(values.hinh_thuc)) data.set('ngay_de_nghi', ngayHienTaiBangkok())
+        if (canDonVi(values.hinh_thuc)) data.set('ngay_de_nghi', ngayDeNghiMacDinh(values.ngay))
         startTransition(() => action(data))
       }} onChange={() => setCanhBao(undefined)}>
         <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur sm:px-7">
@@ -477,7 +474,7 @@ export function FormGiaoDich({
               <h3>Thông tin chung</h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label className="field">Ngày *<input type="date" required {...bind('ngay')} /></label>
-                {needsInvoice && <label className="field">Ngày đề nghị *<input type="date" required readOnly {...bind('ngay_de_nghi')} /><span className="text-xs font-normal text-slate-500">Ngày lập giấy là ngày hiện tại (giờ Việt Nam), không lấy theo ngày hóa đơn.</span></label>}
+                {needsInvoice && <label className="field">Ngày đề nghị *<input type="date" required readOnly {...bind('ngay_de_nghi')} /><span className="text-xs font-normal text-slate-500">Ngày trên giấy tiếp khách theo hóa đơn; nếu rơi vào thứ Bảy hoặc Chủ nhật thì lùi về thứ Sáu gần nhất.</span></label>}
                 <div className="flex flex-wrap items-end gap-3 sm:col-span-2">
                   <label className="field min-w-0 flex-1">
                     Hình thức giao dịch *

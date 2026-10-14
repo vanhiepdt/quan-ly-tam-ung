@@ -7,7 +7,6 @@ import { bangDoiChieuNguoiMua, type HangDoiChieu, type OCotDoiChieu } from '@/li
 import { nhanLoaiHoaDon, tienDongSauThue } from '@/lib/kiem-tra/loai-hoa-don'
 import { hienThiMst } from '@/lib/kiem-tra/so-sanh'
 import { chiTietHoaDonTuDeXuat, phanBoPhuLuc } from '@/lib/kiem-tra/phan-bo-phu-luc'
-import { laDongRuouBia } from '@/lib/kiem-tra/ruou-bia'
 
 const vnd = new Intl.NumberFormat('vi-VN')
 
@@ -31,7 +30,7 @@ function dongThongTin(nhan: string, giaTri?: string | number) {
 }
 
 export function DocHoaDon({ onDien, onTep, tep }: {
-  onDien: (deXuat: DuLieuDocTuHoaDon, thayDoiTongTien?: number) => void
+  onDien: (deXuat: DuLieuDocTuHoaDon, truongSua?: 'deNghiThanhToan' | 'ghiChu') => void
   onTep?: (file: File | null) => void
   tep?: File | null
 }) {
@@ -147,9 +146,9 @@ export function DocHoaDon({ onDien, onTep, tep }: {
     {tep && <p className="mt-2 text-sm text-slate-600" role="status">Sẽ giữ file <b className="font-semibold text-slate-800">{tep.name}</b> khi lưu giao dịch.{onTep && <button type="button" className="ml-2 text-indigo-700 underline" onClick={() => onTep(null)}>Bỏ file</button>}</p>}
     {dangDoc && <ThanhTienTrinh phanTram={phanTram} buoc={buoc} />}
     {loi && <p className="notice error" role="alert">{loi}</p>}
-    {ketQua && <KetQuaDoc ketQua={ketQua} onDien={(deXuat, thayDoiTongTien) => {
+    {ketQua && <KetQuaDoc ketQua={ketQua} onDien={(deXuat, truongSua) => {
       setKetQua(hien => hien ? { ...hien, deXuat } : hien)
-      onDien(deXuat, thayDoiTongTien)
+      onDien(deXuat, truongSua)
     }} />}
   </div>
 }
@@ -178,34 +177,33 @@ function BangDoiChieu({ hang }: { hang: HangDoiChieu[] }) {
 
 function KetQuaDoc({ ketQua, onDien }: {
   ketQua: KetQuaDocHoaDon
-  onDien: (deXuat: DuLieuDocTuHoaDon, thayDoiTongTien?: number) => void
+  onDien: (deXuat: DuLieuDocTuHoaDon, truongSua?: 'deNghiThanhToan' | 'ghiChu') => void
 }) {
   const { deXuat, phatHien } = ketQua
   const [duThaoSo, setDuThaoSo] = useState<Record<string, string>>({})
+  const [loiChinhSua, setLoiChinhSua] = useState('')
   const mstMua = deXuat.mstMuaHang ? hienThiMst(deXuat.mstMuaHang) : undefined
   const chiTiet = chiTietHoaDonTuDeXuat(deXuat)
   const phanBo = chiTiet ? phanBoPhuLuc(chiTiet) : null
 
-  function suaDongHang(viTri: number, thayDoi: Partial<NonNullable<DuLieuDocTuHoaDon['dongHang']>[number]>, thayDoiTongTien = 0) {
+  function suaDongHang(viTri: number, thayDoi: { deNghiThanhToan: number } | { ghiChu: string }): string | null {
     const dongHang = deXuat.dongHang
-    if (!dongHang) return
-    const dongCu = dongHang[viTri]
-    if (!dongCu) return
-    const dongMoi = { ...dongCu, ...thayDoi }
-    if (thayDoi.ten !== undefined) dongMoi.laRuouBia = laDongRuouBia(dongMoi.ten)
-    const danhSachMoi = dongHang.map((dong, i) => i === viTri ? dongMoi : dong)
-    const tongTien = (deXuat.tongTien ?? dongHang.reduce((tong, dong) => tong + tienDongSauThue(dong, deXuat.loaiHd, deXuat.cotTienHang), 0)) + thayDoiTongTien
-    const deXuatMoi: DuLieuDocTuHoaDon = { ...deXuat, tongTien, dongHang: danhSachMoi }
+    if (!dongHang || !dongHang[viTri]) return null
+    const danhSachMoi = dongHang.map((dong, i) => i === viTri ? { ...dong, ...thayDoi } : dong)
+    const deXuatMoi: DuLieuDocTuHoaDon = { ...deXuat, dongHang: danhSachMoi }
     const chiTietMoi = chiTietHoaDonTuDeXuat(deXuatMoi)
-    if (chiTietMoi) {
-      const phanBoMoi = phanBoPhuLuc(chiTietMoi)
-      if (!phanBoMoi.loi) deXuatMoi.tienRuouBia = phanBoMoi.tongKhongDeNghi
-    }
-    onDien(deXuatMoi, thayDoiTongTien)
+    if (!chiTietMoi) { const loi = 'Chi tiết bảng kê không hợp lệ.'; setLoiChinhSua(loi); return loi }
+    const phanBoMoi = phanBoPhuLuc(chiTietMoi)
+    if (phanBoMoi.loi) { setLoiChinhSua(phanBoMoi.loi); return phanBoMoi.loi }
+    deXuatMoi.tienRuouBia = phanBoMoi.tongKhongDeNghi
+    setLoiChinhSua('')
+    onDien(deXuatMoi, 'ghiChu' in thayDoi ? 'ghiChu' : 'deNghiThanhToan')
+    return null
   }
 
   return <div className="mt-3 space-y-3">
     {phatHien.map((p, i) => <p key={`${p.ma}-${i}`} className={mauPhatHien(p.muc)} role={p.muc === 'loi' ? 'alert' : 'status'}>{p.thongDiep}</p>)}
+    {loiChinhSua && <p className="notice error" role="alert">{loiChinhSua}</p>}
     <BangDoiChieu hang={bangDoiChieuNguoiMua(ketQua)} />
     <div className="grid gap-1 rounded-xl border border-slate-200 bg-white p-3 text-sm">
       {dongThongTin('Loại hóa đơn', nhanLoaiHoaDon(deXuat.loaiHd))}
@@ -215,10 +213,11 @@ function KetQuaDoc({ ketQua, onDien }: {
       {dongThongTin('Tiền không được thanh toán', deXuat.tienRuouBia)}
     </div>
     {deXuat.dongHang && deXuat.dongHang.length > 0 && <>
+      <p className="text-sm text-slate-600">Tên món, số lượng và thành tiền giữ nguyên theo hóa đơn. Chỉ sửa cột Đề nghị thanh toán và Ghi chú.</p>
       {phanBo?.loi && <p className="notice error" role="alert">{phanBo.loi} Hãy chỉnh lại chi tiết hóa đơn trước khi xem hoặc lưu giấy.</p>}
       <div className="max-h-80 overflow-auto rounded-lg border border-slate-200 bg-white">
         <table className="w-full min-w-[64rem] text-left text-sm">
-          <caption className="sr-only">Chi tiết hóa đơn theo bảng kê phụ lục</caption>
+          <caption className="sr-only">Chi tiết hóa đơn theo bảng kê thanh toán</caption>
           <thead className="sticky top-0 z-[1] bg-slate-100 text-xs font-semibold text-slate-600">
             <tr>
               <th scope="col" className="w-12 px-2 py-2 text-center">STT</th>
@@ -233,58 +232,47 @@ function KetQuaDoc({ ketQua, onDien }: {
             {deXuat.dongHang.map((d, i) => {
               const tien = tienDongSauThue(d, deXuat.loaiHd, deXuat.cotTienHang)
               const dongPhanBo = phanBo?.cacDongTheoHoaDon[i]
-              const khoaSoLuong = `so-luong-${i}`
-              const khoaThanhTien = `thanh-tien-${i}`
+              const khoaDeNghi = `de-nghi-${i}`
               return <tr key={i} className="border-t border-slate-100 align-top">
                 <td className="px-2 py-2 text-center tabular-nums text-slate-500">{i + 1}</td>
+                <td className="px-2 py-2 text-slate-800">{d.ten}</td>
+                <td className="px-2 py-2 text-right tabular-nums text-slate-700">{d.soLuong === undefined ? '—' : vnd.format(d.soLuong)}</td>
+                <td className="px-2 py-2 text-right tabular-nums text-slate-700">{vnd.format(tien)}đ</td>
                 <td className="px-2 py-2">
                   <input
-                    aria-label={`Nội dung dòng ${i + 1}`}
-                    maxLength={300}
-                    value={d.ten}
-                    onChange={event => suaDongHang(i, { ten: event.target.value })}
+                    aria-label={`Đề nghị thanh toán dòng ${i + 1}`}
+                    inputMode="numeric"
+                    value={duThaoSo[khoaDeNghi] ?? vnd.format(d.deNghiThanhToan ?? dongPhanBo?.deNghiThanhToan ?? 0)}
+                    onFocus={event => event.currentTarget.select()}
+                    onChange={event => {
+                      const raw = event.currentTarget.value
+                      setDuThaoSo(hien => ({ ...hien, [khoaDeNghi]: raw }))
+                      const gon = raw.trim()
+                      const digits = gon.replace(/[.,\s]/g, '')
+                      const soTien = digits ? Number(digits) : 0
+                      const loi = (gon && !/^\d[\d.,\s]*$/.test(gon)) || !Number.isSafeInteger(soTien)
+                        ? 'Số tiền đề nghị phải là số nguyên VND không âm.' : ''
+                      const loiPhanBo = loi ? '' : suaDongHang(i, { deNghiThanhToan: soTien })
+                      event.currentTarget.setCustomValidity(loi || loiPhanBo || '')
+                      if (loi) setLoiChinhSua(loi)
+                    }}
+                    onBlur={event => {
+                      if (event.currentTarget.validity.valid) {
+                        setDuThaoSo(hien => { const moi = { ...hien }; delete moi[khoaDeNghi]; return moi })
+                      }
+                    }}
+                    className="min-h-9 w-full min-w-0 rounded border border-slate-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  />
+                </td>
+                <td className="px-2 py-2">
+                  <input
+                    aria-label={`Ghi chú dòng ${i + 1}`}
+                    maxLength={500}
+                    value={d.ghiChu ?? dongPhanBo?.ghiChu ?? ''}
+                    onChange={event => { suaDongHang(i, { ghiChu: event.target.value }) }}
                     className="min-h-9 w-full min-w-0 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                   />
                 </td>
-                <td className="px-2 py-2">
-                  <input
-                    aria-label={`Số lượng dòng ${i + 1}`}
-                    inputMode="decimal"
-                    value={duThaoSo[khoaSoLuong] ?? (d.soLuong === undefined ? '' : String(d.soLuong))}
-                    onChange={event => setDuThaoSo(hien => ({ ...hien, [khoaSoLuong]: event.target.value }))}
-                    onBlur={() => {
-                      const raw = duThaoSo[khoaSoLuong]
-                      const chuan = raw?.replace(',', '.') ?? ''
-                      setDuThaoSo(hien => { const moi = { ...hien }; delete moi[khoaSoLuong]; return moi })
-                      if (chuan === '') { suaDongHang(i, { soLuong: undefined }); return }
-                      const soLuong = Number(chuan)
-                      if (Number.isFinite(soLuong) && soLuong >= 0) suaDongHang(i, { soLuong })
-                    }}
-                    className="min-h-9 w-full min-w-0 rounded border border-slate-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                  />
-                </td>
-                <td className="px-2 py-2">
-                  <input
-                    aria-label={`Thành tiền theo hóa đơn dòng ${i + 1}`}
-                    inputMode="numeric"
-                    value={duThaoSo[khoaThanhTien] ?? vnd.format(tien)}
-                    onFocus={event => event.currentTarget.select()}
-                    onChange={event => setDuThaoSo(hien => ({ ...hien, [khoaThanhTien]: event.target.value }))}
-                    onBlur={() => {
-                      const digits = (duThaoSo[khoaThanhTien] ?? '').replace(/\D/g, '')
-                      setDuThaoSo(hien => { const moi = { ...hien }; delete moi[khoaThanhTien]; return moi })
-                      const soTien = digits ? Number(digits) : 0
-                      if (!Number.isSafeInteger(soTien)) return
-                      const tienCu = tienDongSauThue(d, deXuat.loaiHd, deXuat.cotTienHang)
-                      const dongMoi = { ...d, thanhTienSauThue: soTien }
-                      const tienMoi = tienDongSauThue(dongMoi, deXuat.loaiHd, deXuat.cotTienHang)
-                      suaDongHang(i, { thanhTienSauThue: soTien }, tienMoi - tienCu)
-                    }}
-                    className="min-h-9 w-full min-w-0 rounded border border-slate-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                  />
-                </td>
-                <td className="px-2 py-2 text-right font-medium tabular-nums text-slate-800">{dongPhanBo ? `${vnd.format(dongPhanBo.deNghiThanhToan)}đ` : '—'}</td>
-                <td className="px-2 py-2 text-slate-600">{dongPhanBo?.ghiChu || ''}</td>
               </tr>
             })}
           </tbody>

@@ -96,6 +96,45 @@ describe('phân bổ phụ lục theo dòng hóa đơn', () => {
     expect(kq.tongKhongDeNghi).toBe(130_000)
   })
 
+
+  it('lưu số tiền đề nghị và ghi chú đã chỉnh, đồng thời dùng phần định mức buffet còn lại', () => {
+    const kq = phanBoPhuLuc({
+      loaiHd: 'ban_hang', cotTienHang: 'sau_thue',
+      dongHang: [
+        { ten: 'Suất Buffet 450', soLuong: 1, donGia: 450_000, thanhTien: 450_000, deNghiThanhToan: 350_000, ghiChu: 'Theo định mức đã duyệt' },
+        { ten: 'Coca', soLuong: 1, donGia: 30_000, thanhTien: 30_000, deNghiThanhToan: 30_000 },
+      ],
+    })
+
+    expect(kq.loi).toBeUndefined()
+    expect(kq.tongDeNghi).toBe(380_000)
+    expect(kq.tongKhongDeNghi).toBe(100_000)
+    expect(kq.cacDongTheoHoaDon.map(d => [d.deNghiThanhToan, d.ghiChu])).toEqual([
+      [350_000, 'Theo định mức đã duyệt'], [30_000, ''],
+    ])
+  })
+
+  it('từ chối số đề nghị vượt giá trị hóa đơn, định mức buffet hoặc định mức dư', () => {
+    const nen = {
+      loaiHd: 'ban_hang' as const, cotTienHang: 'sau_thue' as const,
+      dongHang: [
+        { ten: 'Suất Buffet 450', soLuong: 1, donGia: 450_000, thanhTien: 450_000 },
+        { ten: 'Coca', soLuong: 1, donGia: 30_000, thanhTien: 30_000 },
+      ],
+    }
+    expect(phanBoPhuLuc({ ...nen, dongHang: [{ ...nen.dongHang[0], deNghiThanhToan: 450_001 }, nen.dongHang[1]] }).loi).toContain('không được vượt thành tiền')
+    expect(phanBoPhuLuc({ ...nen, dongHang: [{ ...nen.dongHang[0], deNghiThanhToan: 400_000 }, nen.dongHang[1]] }).loi).toContain('vượt định mức')
+    expect(phanBoPhuLuc({ ...nen, dongHang: [nen.dongHang[0], { ...nen.dongHang[1], deNghiThanhToan: 30_000 }] }).loi).toContain('định mức còn dư')
+  })
+
+  it('không cho ghi đè khoản bia rượu thành khoản được đề nghị', () => {
+    const kq = phanBoPhuLuc({
+      loaiHd: 'ban_hang',
+      dongHang: [{ ten: 'Bia Tiger', thanhTien: 80_000, deNghiThanhToan: 1 }],
+    })
+    expect(kq.loi).toContain('bia, rượu')
+  })
+
   it('báo lỗi thay vì đoán số suất khi dòng buffet thiếu số lượng', () => {
     const kq = phanBoPhuLuc({
       loaiHd: 'ban_hang',
