@@ -53,7 +53,7 @@ export const TRUONG_SUA: readonly TruongSua[] = [
   // Ngày nằm cùng nhóm với người nhập dữ liệu vì form thêm giao dịch cũng do vai trò
   // này chọn ngày; sửa lại ngày gõ nhầm là việc sửa sai sót, không phải đổi số tiền.
   { id: 'ngay', ten: 'Ngày phát sinh', nhom: 'ngayPhatSinh', vaiTro: 'nhap_lieu', kieu: 'ngay', goiY: 'Giao dịch được xếp vào cuối ngày mới, nên số dư của các dòng liên quan được tính lại.' },
-  { id: 'ngay_de_nghi', ten: 'Ngày đề nghị', nhom: 'ngayPhatSinh', vaiTro: 'nhap_lieu', kieu: 'ngay', hinhThuc: HD_CO_DON_VI, goiY: 'Ngày in trên giấy đề nghị tiếp khách; khác với ngày hóa đơn và mặc định lùi về thứ sáu nếu ngày hóa đơn là cuối tuần.' },
+  { id: 'ngay_de_nghi', ten: 'Ngày đề nghị', nhom: 'ngayPhatSinh', vaiTro: 'nhap_lieu', kieu: 'ngay', hinhThuc: HD_CO_DON_VI, goiY: 'Ngày in trên giấy đề nghị tiếp khách; mặc định là ngày lập giao dịch trên hệ thống và không đổi theo ngày hóa đơn.' },
 
   { id: 'hinh_thuc', ten: 'Hình thức giao dịch', nhom: 'hinhThuc', vaiTro: 'admin', kieu: 'lua-chon', luaChon: DS_HINH_THUC, goiY: 'Chỉ quản trị viên được đổi. Máy sẽ cập nhật nội dung, đơn vị, chứng từ và phí theo hình thức mới.' },
 

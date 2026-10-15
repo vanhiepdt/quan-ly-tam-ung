@@ -243,10 +243,9 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
     }
   }
 
-  // Ghi đè chỉ hai cột người dùng được sửa. Không thay dữ liệu gốc, cách chọn
-  // món tự động hay làm tròn; snapshot cũ thiếu ghi đè vẫn giữ kết quả cũ.
-  let tongMonKhacDeNghi = 0
-  let hanMucConSauChinhSua = hanMucCon
+  // Ghi đè chỉ hai cột người dùng được sửa. Người dùng được quyết định số đề nghị
+  // của mọi dòng, kể cả bia rượu hay phần ngoài định mức buffet; chỉ chặn số vượt
+  // thành tiền hóa đơn. Snapshot cũ thiếu ghi đè vẫn giữ kết quả phân bổ tự động.
   for (let viTri = 0; viTri < cacDong.length; viTri++) {
     const { dong, tien, buffet } = cacDong[viTri]
     const bangKe = cacDongTheoHoaDon[viTri]
@@ -254,14 +253,6 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
     if (deNghi > tien) {
       return { ...RONG, coBuffet, loi: `Đề nghị thanh toán dòng ${viTri + 1} không được vượt thành tiền theo hóa đơn.` }
     }
-    if (dong.laRuouBia && deNghi > 0) {
-      return { ...RONG, coBuffet, loi: `Dòng ${viTri + 1} là bia, rượu nên không được đề nghị thanh toán.` }
-    }
-    if (buffet && !dong.laRuouBia && deNghi > DINH_MUC_BUFFET * bangKe.soLuong!) {
-      return { ...RONG, coBuffet, loi: `Đề nghị thanh toán dòng ${viTri + 1} vượt định mức 390.000đ sau thuế × ${bangKe.soLuong} suất buffet.` }
-    }
-    if (coBuffet && buffet) hanMucConSauChinhSua += bangKe.deNghiThanhToan - deNghi
-    if (coBuffet && !buffet && !dong.laRuouBia) tongMonKhacDeNghi += deNghi
 
     if (deNghi !== bangKe.deNghiThanhToan) {
       // Phần người dùng chia theo số tiền không có đơn giá/thuế riêng. Bảng kê
@@ -283,10 +274,6 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
       if (khong) khong.ghiChu = dong.ghiChu
     }
   }
-  if (coBuffet && tongMonKhacDeNghi > hanMucConSauChinhSua) {
-    return { ...RONG, coBuffet, loi: `Các món ngoài buffet chỉ được đề nghị trong phần định mức còn dư (${hanMucConSauChinhSua.toLocaleString('vi-VN')}đ sau thuế).` }
-  }
-
   // Giữ đúng thứ tự dòng hóa đơn kể cả khi chỉnh sửa làm dòng chuyển nhóm.
   const cacKhoanDeNghi = [...deNghiTheoDong.entries()].sort(([a], [b]) => a - b).map(([, dong]) => dong)
   const cacKhoanKhongDeNghi = [...khongDeNghiTheoDong.entries()].sort(([a], [b]) => a - b).map(([, dong]) => dong)

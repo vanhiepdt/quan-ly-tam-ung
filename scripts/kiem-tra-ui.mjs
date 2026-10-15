@@ -843,13 +843,18 @@ try {
  },origin);
  await page.getByLabel('Đọc từ hóa đơn').setInputFiles({name:'kiem-thu.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 fixture')});
  await expect(page.locator('[name="so_hd"]')).toHaveValue('00020110');
- await expect(page.getByLabel('Ngày đề nghị *')).toHaveValue('2026-10-09');
+ // Ngày đề nghị là ngày hôm nay trên hệ thống, không theo ngày hóa đơn.
+ await expect(page.getByLabel('Ngày đề nghị *')).toHaveValue('2026-09-16');
  await expect(page.getByRole('columnheader',{name:'Đề nghị thanh toán'})).toBeVisible();
  await expect(page.getByRole('textbox',{name:'Đề nghị thanh toán dòng 1'})).toHaveValue('390.000');
  await expect(page.getByRole('textbox',{name:'Ghi chú dòng 1'})).toHaveValue('Định mức 390.000đ × 1 suất = 390.000đ');
  await expect(page.getByRole('textbox',{name:'Nội dung dòng 1'})).toHaveCount(0);
  await expect(page.getByRole('textbox',{name:'Số lượng dòng 1'})).toHaveCount(0);
  await expect(page.getByRole('textbox',{name:'Thành tiền theo hóa đơn dòng 1'})).toHaveCount(0);
+ // Được đề nghị cả phần vượt định mức; tổng và tiền không thanh toán đổi theo.
+ await page.getByRole('textbox',{name:'Đề nghị thanh toán dòng 1'}).fill('450000');
+ await expect(page.getByLabel('Tiền không được thanh toán (VND)')).toHaveValue('0');
+ await expect(page.getByLabel('Tiền được hoàn/thanh toán (VND) *')).toHaveValue('450.000');
  await page.getByRole('textbox',{name:'Đề nghị thanh toán dòng 1'}).fill('350000');
  await page.getByRole('textbox',{name:'Ghi chú dòng 1'}).fill('Theo định mức đã duyệt');
  await expect(page.getByLabel('Tổng tiền (VND) *')).toHaveValue('450.000');
@@ -863,7 +868,7 @@ try {
  expect(await page.evaluate(()=>{
    const data=window.previewCalls[0].data; const detail=JSON.parse(data.chi_tiet_hoa_don);
    return {ten:detail.dongHang[0].ten,soLuong:detail.dongHang[0].soLuong,donGia:detail.dongHang[0].donGia,thanhTien:detail.dongHang[0].thanhTien,requested:detail.dongHang[0].deNghiThanhToan,note:detail.dongHang[0].ghiChu,tongTien:data.tong_tien,ngayDeNghi:data.ngay_de_nghi,khongThanhToan:data.tien_ruou_bia,duocThanhToan:data.tien_duoc_thanh_toan};
- })).toEqual({ten:'Buffet 450',soLuong:1,donGia:450000,thanhTien:450000,requested:350000,note:'Theo định mức đã duyệt',tongTien:'450000',ngayDeNghi:'2026-10-09',khongThanhToan:'100000',duocThanhToan:'350000'});
+ })).toEqual({ten:'Buffet 450',soLuong:1,donGia:450000,thanhTien:450000,requested:350000,note:'Theo định mức đã duyệt',tongTien:'450000',ngayDeNghi:'2026-09-16',khongThanhToan:'100000',duocThanhToan:'350000'});
  expect(await page.evaluate(()=>window.calls)).toEqual([]);
  await expect(previewDialog.getByRole('heading',{name:'Bản Word xem trước'})).toHaveCount(1);
  await previewDialog.getByRole('button',{name:'Đóng',exact:true}).click();

@@ -15,7 +15,7 @@ import { taoBanXem } from '@/lib/onlyoffice/xem-truoc'
 
 import { apDungNguoiKy, luaChonNguoiKy } from '@/lib/tai-chinh/chon-nguoi-ky'
 import { taiKhoanTuNhap } from '@/lib/tai-chinh/tai-khoan'
-import { ngayDeNghiMacDinh } from '@/lib/tai-chinh/ngay'
+import { ngayHienTaiBangkok } from '@/lib/tai-chinh/ngay'
 
 export async function taiNguoiKyGiay() {
   const phien = await batBuocVaiTro('admin', 'nhap_lieu')
@@ -49,7 +49,7 @@ export async function xemGiayNhap(form: FormData, loai: string) {
     const lamTronXuongHangNghin = d.lam_tron_xuong_hang_nghin
       ?? lamTronXuongHangNghinMacDinh(d.hinh_thuc, hinhThucThanhToan)
     const giay = dungGiay(giayLoai, {
-      ngay: d.ngay, ngayDeNghi: canDonVi(d.hinh_thuc) ? ngayDeNghiMacDinh(d.ngay) : d.ngay_de_nghi, hinhThuc: d.hinh_thuc,
+      ngay: d.ngay, ngayDeNghi: canDonVi(d.hinh_thuc) ? ngayHienTaiBangkok() : d.ngay_de_nghi, hinhThuc: d.hinh_thuc,
       hinhThucThanhToan,
       tamUngTuCq: d.tam_ung_tu_cq, tongTien: d.tong_tien, tienRuouBia: d.tien_ruou_bia,
       chiTietHoaDon: d.chi_tiet_hoa_don,

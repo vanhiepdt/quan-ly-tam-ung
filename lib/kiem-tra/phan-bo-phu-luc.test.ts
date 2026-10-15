@@ -114,7 +114,7 @@ describe('phân bổ phụ lục theo dòng hóa đơn', () => {
     ])
   })
 
-  it('từ chối số đề nghị vượt giá trị hóa đơn, định mức buffet hoặc định mức dư', () => {
+  it('chỉ từ chối số đề nghị vượt giá trị hóa đơn, còn lại cho người dùng quyết định', () => {
     const nen = {
       loaiHd: 'ban_hang' as const, cotTienHang: 'sau_thue' as const,
       dongHang: [
@@ -123,16 +123,24 @@ describe('phân bổ phụ lục theo dòng hóa đơn', () => {
       ],
     }
     expect(phanBoPhuLuc({ ...nen, dongHang: [{ ...nen.dongHang[0], deNghiThanhToan: 450_001 }, nen.dongHang[1]] }).loi).toContain('không được vượt thành tiền')
-    expect(phanBoPhuLuc({ ...nen, dongHang: [{ ...nen.dongHang[0], deNghiThanhToan: 400_000 }, nen.dongHang[1]] }).loi).toContain('vượt định mức')
-    expect(phanBoPhuLuc({ ...nen, dongHang: [nen.dongHang[0], { ...nen.dongHang[1], deNghiThanhToan: 30_000 }] }).loi).toContain('định mức còn dư')
+    const vuotDinhMuc = phanBoPhuLuc({ ...nen, dongHang: [{ ...nen.dongHang[0], deNghiThanhToan: 450_000 }, { ...nen.dongHang[1], deNghiThanhToan: 30_000 }] })
+    expect(vuotDinhMuc.loi).toBeUndefined()
+    expect(vuotDinhMuc.tongDeNghi).toBe(480_000)
+    expect(vuotDinhMuc.tongKhongDeNghi).toBe(0)
   })
 
-  it('không cho ghi đè khoản bia rượu thành khoản được đề nghị', () => {
+  it('cho đề nghị lại món tự động bị loại như bia rượu, tổng cộng đổi theo', () => {
     const kq = phanBoPhuLuc({
       loaiHd: 'ban_hang',
-      dongHang: [{ ten: 'Bia Tiger', thanhTien: 80_000, deNghiThanhToan: 1 }],
+      dongHang: [
+        { ten: 'Lẩu', thanhTien: 200_000 },
+        { ten: 'Bia Tiger', thanhTien: 80_000, deNghiThanhToan: 50_000 },
+      ],
     })
-    expect(kq.loi).toContain('bia, rượu')
+    expect(kq.loi).toBeUndefined()
+    expect(kq.tongDeNghi).toBe(250_000)
+    expect(kq.tongKhongDeNghi).toBe(30_000)
+    expect(kq.cacDongTheoHoaDon.map(d => d.deNghiThanhToan)).toEqual([200_000, 50_000])
   })
 
   it('báo lỗi thay vì đoán số suất khi dòng buffet thiếu số lượng', () => {
