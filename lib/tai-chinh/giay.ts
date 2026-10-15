@@ -5,6 +5,7 @@ import { dongTaiKhoan } from './tai-khoan'
 import { lamTronXuongHangNghin, soTienThanhToan } from './tien-thanh-toan'
 import type { ThayTheCoDinh } from '@/lib/van-ban/docx'
 import { coPhuLucThanhToan } from './co-phu-luc'
+import { ngayHienTaiBangkok } from './ngay'
 
 export { lamTronXuongHangNghin, soTienThanhToan } from './tien-thanh-toan'
 
@@ -157,7 +158,7 @@ export type BoiCanhGiay = {
 }
 
 // Thiếu liên kết hoặc có nhiều tài khoản cùng cán bộ thì không tự đoán tài khoản nhận.
-export type DuLieuGiay = Pick<GiaoDichTinh, 'ngay' | 'ngayDeNghi' | 'hinhThuc' | 'hinhThucThanhToan' | 'tamUngTuCq' | 'tongTien' | 'tienRuouBia' | 'tienDuocThanhToan' | 'lamTronXuongHangNghin' | 'donViTen' | 'nguoiLayHdId' | 'kyHieuHd' | 'soHd' | 'taiKhoanNhanGhiDe' | 'chiTietHoaDon'>
+export type DuLieuGiay = Pick<GiaoDichTinh, 'ngay' | 'ngayDeNghi' | 'hinhThuc' | 'hinhThucThanhToan' | 'tamUngTuCq' | 'tongTien' | 'tienRuouBia' | 'tienDuocThanhToan' | 'lamTronXuongHangNghin' | 'donViTen' | 'nguoiLayHdId' | 'kyHieuHd' | 'soHd' | 'taiKhoanNhanGhiDe' | 'chiTietHoaDon'> & Partial<Pick<GiaoDichTinh, 'taoLuc'>>
 
 export function taiKhoanNhan(gd: DuLieuGiay, ctx: BoiCanhGiay): TaiKhoanNhan | null {
   const ds = Object.values(ctx.taiKhoanTheoNguoiLayHd).filter(tk => tk.canBoId === ctx.nguoiDeNghi.id)
@@ -178,6 +179,9 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
   const { cauHinh } = ctx
   const { ngay, thang, nam } = phanNgay(gd.ngay)
   const { ngay: ngayDeNghi, thang: thangDeNghi, nam: namDeNghi } = phanNgay(gd.ngayDeNghi ?? gd.ngay)
+  // Ngày đề nghị thanh toán là ngày tạo giao dịch trên hệ thống. Giao dịch đã lưu
+  // dùng tao_luc nên mở lại không đổi; bản xem trước chưa lưu dùng ngày hôm nay.
+  const { ngay: ngayThanhToan, thang: thangThanhToan, nam: namThanhToan } = phanNgay(ngayHienTaiBangkok(gd.taoLuc ? new Date(gd.taoLuc) : new Date()))
   const tenDonVi = cauHinh.tenDonVi
   const phong = ctx.nguoiDeNghi.phong ?? ''
   const phongHoa = vietTatPhong(phong)
@@ -230,9 +234,7 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
     // Mẫu dùng ngày đề nghị ở cả dòng hành chính và ngày phê duyệt. Dòng hành chính
     // giữ dạng văn xuôi; ngày trong nội dung dùng đủ hai chữ số.
     thangdntkVanXuoi: thangDeNghi, namdntk: namDeNghi,
-    // Ngày đề nghị thanh toán (bảng kê/phụ lục): cùng ngày đề nghị đã lưu với giao
-    // dịch, tức ngày lập trên hệ thống, nên mở lại giấy không bị đổi ngày.
-    ngaydntt: ngayHaiChu(ngayDeNghi), thangdntt: ngayHaiChu(thangDeNghi), namdntt: namDeNghi,
+    ngaydntt: ngayHaiChu(ngayThanhToan), thangdntt: ngayHaiChu(thangThanhToan), namdntt: namThanhToan,
     gioi_tinh: ctx.nguoiDeNghi.gioiTinh ?? '', bangiamdoc: lanhDaoTk?.hoTen ?? '', chucdanh: lanhDaoTk?.chucDanh ?? '',
     gioi_tinhtk: lanhDaoTk?.gioiTinh ?? '', bangiamdoctk: lanhDaoTk?.hoTen ?? '', chucdanhtk: lanhDaoTk?.chucDanh ?? '',
     gioi_tinhtt: lanhDaoTt?.gioiTinh ?? '', bangiamdoctt: lanhDaoTt?.hoTen ?? '', chucdanhtt: lanhDaoTt?.chucDanh ?? '',

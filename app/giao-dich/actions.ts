@@ -14,7 +14,7 @@ import { chuanHoaGiaTri, apDungChoHinhThuc, timTruongSua } from '@/lib/tai-chinh
 import { CO_SO_TINH_PHI, HINH_THUC, type CoSoTinhPhi } from '@/lib/tai-chinh/kieu'
 import { khoaSoTaiChinh } from '@/lib/tai-chinh/xac-nhan-hoan-ung'
 import { soTienThanhToan, tienTheoHoaDon } from '@/lib/tai-chinh/tien-thanh-toan'
-import { ngayHienTaiBangkok } from '@/lib/tai-chinh/ngay'
+import { ngayDeNghiMacDinh } from '@/lib/tai-chinh/ngay'
 import { giayChoHinhThuc, giayChinhChoHinhThuc } from '@/lib/tai-chinh/giay'
 import { boiCanhGiay } from '@/lib/tai-chinh/cau-hinh-giay'
 import { giayCuaGiaoDich, MAU_WORD, timGiaoDichTinh } from '@/lib/tai-chinh/in-giay'
@@ -229,9 +229,12 @@ export async function suaGiaoDich(_: KetQua, formData: FormData): Promise<KetQua
         const { rows } = await client.query<{ so_thu_tu: number }>(
           'select coalesce(max(so_thu_tu), 0) + 1 as so_thu_tu from giao_dich where ngay=$1 and not da_xoa and id<>$2',
           [chuanHoa.giaTri, id.data])
-        // Ngày đề nghị là ngày lập giấy đã lưu, không chạy theo ngày hóa đơn.
+        const ngayCu = hienTai.rows[0].ngay
         const ngayDeNghiCu = row.ngay_de_nghi == null ? null : ngayIso(row.ngay_de_nghi)
-        const ngayDeNghiMoi = canDonVi(hinhThuc) ? (ngayDeNghiCu ?? ngayHienTaiBangkok()) : null
+        const giuNgayDeNghi = canDonVi(hinhThuc) && (!ngayDeNghiCu || ngayDeNghiCu === ngayDeNghiMacDinh(ngayCu))
+        const ngayDeNghiMoi = canDonVi(hinhThuc)
+          ? (giuNgayDeNghi ? ngayDeNghiMacDinh(String(chuanHoa.giaTri)) : ngayDeNghiCu)
+          : null
         await client.query('update giao_dich set ngay=$1, so_thu_tu=$2, ngay_de_nghi=$3, sua_luc=now(), nguoi_sua=$4 where id=$5',
           [chuanHoa.giaTri, rows[0].so_thu_tu, ngayDeNghiMoi, phien.id, id.data])
         await lamMoiGiayDangCo(client, phien.id, id.data, phien)
@@ -312,7 +315,7 @@ export async function suaGiaoDich(_: KetQua, formData: FormData): Promise<KetQua
             })
           : null
         const ngayDeNghi = coHoaDonMoi
-          ? (coHoaDonCu && row.ngay_de_nghi ? ngayIso(row.ngay_de_nghi) : ngayHienTaiBangkok())
+          ? (coHoaDonCu && row.ngay_de_nghi ? ngayIso(row.ngay_de_nghi) : ngayDeNghiMacDinh(ngayIso(row.ngay)))
           : null
         // Đổi hình thức luôn xóa mọi khoản thuộc nguồn cũ. Khoản mới được nhập
         // riêng sau khi đổi, tránh vô tình chuyển tiền CQ trả thẳng sang tạm ứng.

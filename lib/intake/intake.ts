@@ -2,7 +2,7 @@ import { db } from '@/lib/db/pool'
 import { docCauHinhGiay } from '@/lib/tai-chinh/cau-hinh-giay'
 import { HINH_THUC } from '@/lib/tai-chinh/kieu'
 import { HINH_THUC_THANH_TOAN, hopLeHinhThucThanhToan, lamTronXuongHangNghinMacDinh } from '@/lib/tai-chinh/hinh-thuc'
-import { ngayHienTaiBangkok } from '@/lib/tai-chinh/ngay'
+import { ngayDeNghiMacDinh } from '@/lib/tai-chinh/ngay'
 import { donViMacDinh, type DonViTiepKhach } from '@/lib/tai-chinh/don-vi'
 import { schemaGiaoDich, type DauVaoGiaoDich } from '@/lib/validation/giao-dich'
 import { taoGiaoDichDaParse, type KetQuaTaoGiaoDich } from '@/lib/tai-chinh/tao-giao-dich'
@@ -197,7 +197,7 @@ export function giaoDichTuIntake(row: IntakeRow, dungMacDinh: boolean): { data: 
   const lamTronXuongHangNghin = lamTronXuongHangNghinMacDinh(hinhThuc, thanhToan)
   const data = schemaGiaoDich.parse({
     ngay: deXuat.ngay,
-    ngay_de_nghi: ngayHienTaiBangkok(),
+    ngay_de_nghi: ngayDeNghiMacDinh(deXuat.ngay),
     noi_dung: '',
     don_vi_id: donViId,
     ky_hieu_hd: dungMacDinh ? deXuat.kyHieuHd : (thayDoi.kyHieuHd ?? deXuat.kyHieuHd),

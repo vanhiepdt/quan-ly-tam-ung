@@ -241,14 +241,13 @@ describe('suaGiaoDich', () => {
     mocks.query.mockImplementation(async (sql: string) => {
       if (sql.includes('to_char(ngay')) return { rows: [{ ngay: '2026-09-16' }] }
       if (sql.includes('max(so_thu_tu)')) return { rows: [{ so_thu_tu: 3 }] }
-      if (sql.includes('from giao_dich')) return { rows: [{ hinh_thuc: 'Hoàn tạm ứng', ngay: '2026-09-16', ngay_de_nghi: '2026-09-15' }] }
+      if (sql.includes('from giao_dich')) return { rows: [{ hinh_thuc: 'Hoàn tạm ứng', ngay: '2026-09-16', ngay_de_nghi: null }] }
       return { rows: [] }
     })
     expect((await suaGiaoDich({}, gui('ngay', '2026-09-20'))).thanhCong).toContain('2026-09-20')
     const [sql, params] = capNhat()[0]
     expect(sql).toContain('set ngay=$1, so_thu_tu=$2')
-    // Ngày đề nghị đã lưu giữ nguyên, không chạy theo ngày hóa đơn.
-    expect(params).toEqual(['2026-09-20', 3, '2026-09-15', actor, id])
+    expect(params).toEqual(['2026-09-20', 3, '2026-09-18', actor, id])
     // Số thứ tự cũ không được dùng lại, nên câu đếm phải loại chính dòng đang sửa.
     const dem = mocks.query.mock.calls.find((call: unknown[]) => String(call[0]).includes('max(so_thu_tu)'))
     expect(String(dem![0])).toContain('id<>$2')

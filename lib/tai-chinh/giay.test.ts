@@ -164,6 +164,14 @@ describe('giấy đề nghị tạm ứng', () => {
 })
 
 describe('giấy tiếp khách và giấy thanh toán', () => {
+  it('ngày đề nghị thanh toán lấy ngày tạo giao dịch, không theo ngày hóa đơn', () => {
+    const g = gd({ ngay: '2026-10-10', ngayDeNghi: '2026-10-09', hinhThuc: HINH_THUC.CQ_TRA_THANG })
+    // 2026-10-14T18:30Z là 15/10 giờ Việt Nam.
+    const daLuu = dungGiay(LOAI_GIAY.THANH_TOAN, { ...g, taoLuc: '2026-10-14T18:30:00.000Z' }, ctx())
+    expect([daLuu.thayThe.ngaydntt, daLuu.thayThe.thangdntt, daLuu.thayThe.namdntt]).toEqual(['15', '10', '2026'])
+    expect([daLuu.thayThe.ngaydntk, daLuu.thayThe.thangdntk, daLuu.thayThe.namdntk]).toEqual(['09', '10', '2026'])
+  })
+
   it('tách ngày đề nghị khỏi ngày tiếp khách và ngày hóa đơn', () => {
     const g = gd({
       ngay: '2026-09-20', ngayDeNghi: '2026-09-18', hinhThuc: HINH_THUC.CQ_TRA_THANG,
@@ -171,9 +179,6 @@ describe('giấy tiếp khách và giấy thanh toán', () => {
     const tiepKhach = dungGiay(LOAI_GIAY.TIEP_KHACH, g, ctx())
     expect(tiepKhach.dongNgay).toBe('Hà Nội, ngày 18 tháng 9 năm 2026')
     expect(tiepKhach.thayThe.ngaydntk).toBe('18')
-    expect(tiepKhach.thayThe.ngaydntt).toBe(tiepKhach.thayThe.ngaydntk)
-    expect(tiepKhach.thayThe.thangdntt).toBe(tiepKhach.thayThe.thangdntk)
-    expect(tiepKhach.thayThe.namdntt).toBe(tiepKhach.thayThe.namdntk)
     expect(tiepKhach.thayThe.ngaytk).toBe('20')
     expect(tiepKhach.than).toContain('Ngày tiếp khách: 20/09/2026')
 
