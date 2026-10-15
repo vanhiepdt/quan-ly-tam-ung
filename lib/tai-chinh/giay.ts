@@ -230,6 +230,9 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
     // Mẫu dùng ngày đề nghị ở cả dòng hành chính và ngày phê duyệt. Dòng hành chính
     // giữ dạng văn xuôi; ngày trong nội dung dùng đủ hai chữ số.
     thangdntkVanXuoi: thangDeNghi, namdntk: namDeNghi,
+    // Ngày đề nghị thanh toán (bảng kê/phụ lục): cùng ngày đề nghị đã lưu với giao
+    // dịch, tức ngày lập trên hệ thống, nên mở lại giấy không bị đổi ngày.
+    ngaydntt: ngayHaiChu(ngayDeNghi), thangdntt: ngayHaiChu(thangDeNghi), namdntt: namDeNghi,
     gioi_tinh: ctx.nguoiDeNghi.gioiTinh ?? '', bangiamdoc: lanhDaoTk?.hoTen ?? '', chucdanh: lanhDaoTk?.chucDanh ?? '',
     gioi_tinhtk: lanhDaoTk?.gioiTinh ?? '', bangiamdoctk: lanhDaoTk?.hoTen ?? '', chucdanhtk: lanhDaoTk?.chucDanh ?? '',
     gioi_tinhtt: lanhDaoTt?.gioiTinh ?? '', bangiamdoctt: lanhDaoTt?.hoTen ?? '', chucdanhtt: lanhDaoTt?.chucDanh ?? '',
