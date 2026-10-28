@@ -38,7 +38,7 @@ const gd = (phan: Partial<GiaoDichTinh>): GiaoDichTinh => ({
   hoanUngTienMat: 0, nguoiDeNghiId: null, nguoiDeNghiTen: null, nguoiLayHdId: null, nguoiLayHdTen: null, phiLayHdGhiDe: null,
   trangThaiTtPhi: 'Không phát sinh', ghiChu: null, donViId: null, donViTen: 'Phòng Kế hoạch', coTinhPhi: true,
   hinhThucThanhToan: null, taiKhoanNhan: null, coHoaDon: true, coChuyenKhoan: false,
-  hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0,
+  hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0, duChiTiepKhachThucTe: 0,
   ...phan,
 })
 

@@ -26,6 +26,7 @@ export function giaTriSoSanh(r: GiaoDichTinh, id: CotId): string | number {
     case 'cqTraThang': return r.cqTraThang
     case 'duaTienCqTraThangChoChiThuy': return r.duaTienCqTraThangChoChiThuy
     case 'duTienCqTraThang': return r.duTienCqTraThang
+    case 'duChiTiepKhachThucTe': return r.duChiTiepKhachThucTe
     case 'phiLayHd': return r.phiLayHd
     case 'tamUngTuCq': return r.tamUngTuCq
     case 'giaoTienChiThuy': return r.giaoTienChiThuy

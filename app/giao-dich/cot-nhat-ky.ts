@@ -19,6 +19,7 @@ export const cotNhatKy = [
   { id: 'cqTraThang', ten: 'CQ trả thẳng', rong: 170, kieu: 'so', congDon: true },
   { id: 'duaTienCqTraThangChoChiThuy', ten: 'Đưa tiền CQ trả thẳng cho Chị Thúy', rong: 260, kieu: 'so', congDon: true },
   { id: 'duTienCqTraThang', ten: 'Dư tiền CQ trả thẳng', rong: 200, kieu: 'so', congDon: false },
+  { id: 'duChiTiepKhachThucTe', ten: 'Dư Chi tiếp khách thực tế', rong: 230, kieu: 'so', congDon: false },
   { id: 'phiLayHd', ten: 'Phí HĐ', rong: 170, kieu: 'so', congDon: true },
   { id: 'tamUngTuCq', ten: 'Tạm ứng', rong: 170, kieu: 'so', congDon: true },
   { id: 'giaoTienChiThuy', ten: 'Giao tiền TƯ cho Chị Thúy', rong: 210, kieu: 'so', congDon: true },

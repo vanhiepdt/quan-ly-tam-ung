@@ -27,7 +27,7 @@ const gd: GiaoDichTinh = {
   giaoTienChiThuy: 0, duaTienCqTraThangChoChiThuy: 0, hoanUngTienMat: 0, nguoiDeNghiId: null, nguoiDeNghiTen: null, nguoiLayHdId: null, nguoiLayHdTen: null, phiLayHdGhiDe: null,
   trangThaiTtPhi: 'Không phát sinh', ghiChu: null, donViId: null, donViTen: null,
   hinhThucThanhToan: 'tien_mat', taiKhoanNhan: null, coHoaDon: false, coChuyenKhoan: false, coTinhPhi: false,
-  hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0,
+  hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0, duChiTiepKhachThucTe: 0,
 }
 const mau = readFileSync(path.join(process.cwd(), 'Mau', 'Tam ung tien.docx'))
 const mauGop = readFileSync(path.join(process.cwd(), 'Mau', 'tiep khach va thanh toan.docx'))

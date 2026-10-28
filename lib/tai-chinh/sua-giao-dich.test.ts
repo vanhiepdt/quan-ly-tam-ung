@@ -10,7 +10,7 @@ const row = {
   tamUngTuCq: 0, giaoTienChiThuy: 0, duaTienCqTraThangChoChiThuy: 0, hoanUngTienMat: 0, nguoiDeNghiId: null, nguoiDeNghiTen: null, nguoiLayHdId: null, nguoiLayHdTen: null,
   phiLayHdGhiDe: null, coTinhPhi: true, trangThaiTtPhi: 'Chưa thanh toán', ghiChu: null,
   donViId: DON_VI, donViTen: 'Phòng Kế hoạch', hinhThucThanhToan: null, taiKhoanNhan: null, coHoaDon: true, coChuyenKhoan: false,
-  hoanTamUng: 5_147_000, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0,
+  hoanTamUng: 5_147_000, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0, duChiTiepKhachThucTe: 0,
 }
 
 describe('danh sách trường được sửa theo vai trò và hình thức', () => {

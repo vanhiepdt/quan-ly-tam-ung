@@ -10,7 +10,7 @@ const dong = (phan: Partial<GiaoDichTinh>): GiaoDichTinh => ({
   nguoiDeNghiId: null, nguoiDeNghiTen: null, nguoiLayHdId: null, nguoiLayHdTen: null, phiLayHdGhiDe: null, trangThaiTtPhi: 'Không phát sinh',
   ghiChu: null, donViId: null, donViTen: null, hinhThucThanhToan: null, taiKhoanNhan: null, coHoaDon: false, coChuyenKhoan: false, coTinhPhi: false,
   duaTienCqTraThangChoChiThuy: 0, hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0,
-  duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0,
+  duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0, duChiTiepKhachThucTe: 0,
   ...phan,
 })
 

@@ -199,6 +199,8 @@ describe('số dư khi chọn Chi thực tế', () => {
       dong({ id: 'handover', soThuTu: 4, hinhThuc: HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY, duaTienCqTraThangChoChiThuy: 500_000 }),
     ])
     expect(rows.map(r => r.duTienCqTraThang)).toEqual([0, 2_800_000, 2_400_000, 1_900_000])
+    // Chỉ dòng CQ trả thẳng có Chi thực tế được cộng Tiền được thanh toán (đã làm tròn).
+    expect(rows.map(r => r.duChiTiepKhachThucTe)).toEqual([0, 0, 1_234_000, 1_234_000])
     expect(rows[2]).toMatchObject({ cqTraThang: 1_234_000, duLyThuyet: 5_000_000, duThucTe: 5_000_000, duDangCam: 5_000_000 })
     expect(rows[3].duHiepDangCam).toBe(6_900_000)
     for (const r of rows) expect(r.duHiepDangCam).toBe(r.duDangCam + r.duTienCqTraThang)

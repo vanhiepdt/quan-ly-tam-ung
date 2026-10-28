@@ -42,7 +42,7 @@ const giaoDich = (ghiDe: Partial<GiaoDichTinh> = {}): GiaoDichTinh => ({
   nguoiDeNghiId: nguoiDeNghiDaLuu.id, nguoiDeNghiTen: nguoiDeNghiDaLuu.hoTen,
   nguoiLayHdId: null, nguoiLayHdTen: null, phiLayHdGhiDe: null, coTinhPhi: false, trangThaiTtPhi: 'Không phát sinh', ghiChu: null,
   donViId: null, donViTen: 'Đơn vị thử', hinhThucThanhToan: 'hoan_tam_ung', taiKhoanNhan: null,
-  coHoaDon: true, coChuyenKhoan: false, hoanTamUng: 2_000_000, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0,
+  coHoaDon: true, coChuyenKhoan: false, hoanTamUng: 2_000_000, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0, duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0, duChiTiepKhachThucTe: 0,
   ...ghiDe,
 })
 

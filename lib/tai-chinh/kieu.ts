@@ -61,6 +61,7 @@ export type GiaoDichTinh = GiaoDichTho & {
   cqTraThang: number
   phiLayHd: number
   duTienCqTraThang: number
+  duChiTiepKhachThucTe: number
   tongTienDuaChiThuy: number
   duLyThuyet: number
   duThucTe: number

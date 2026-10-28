@@ -4,7 +4,7 @@ import { soTienThanhToan } from './tien-thanh-toan'
 export type { GiaoDichTho, GiaoDichTinh } from './kieu'
 export function tinhToan(ds: readonly GiaoDichTho[], thamSo: ThamSoTinh = { tyLePhiChung: 0.15, tyLeTheoNguoi: {} }): GiaoDichTinh[] {
   const daSap = [...ds].sort((a,b) => a.ngay.localeCompare(b.ngay) || a.soThuTu-b.soThuTu || a.taoLuc.localeCompare(b.taoLuc) || a.id.localeCompare(b.id))
-  let lyThuyet=0, thucTe=0, dangCam=0, duTienCqTraThang=0
+  let lyThuyet=0, thucTe=0, dangCam=0, duTienCqTraThang=0, duChiTiepKhachThucTe=0
   return daSap.map(gd => {
     const hopLe=gd.trangThaiHd===TRANG_THAI.HOP_LE, tienRong=soTienThanhToan(gd)
     const hoanTamUng=hopLe&&gd.hinhThuc===HINH_THUC.HOAN_TAM_UNG?tienRong:0
@@ -37,8 +37,11 @@ export function tinhToan(ds: readonly GiaoDichTho[], thamSo: ThamSoTinh = { tyLe
     thucTe+=phatSinhThucTe
     dangCam+=phatSinhThucTe+phiCongLaiDangCam
     duTienCqTraThang+=thayDoiTienCqTraThang-duaTienCqTraThangChoChiThuy
+    // Chỉ để theo dõi: cộng dồn Tiền được hoàn/thanh toán của CQ trả thẳng hợp lệ có
+    // Chi thực tế, kể cả dữ liệu cũ. Không làm thay đổi các số dư khác.
+    if(chiThucTe) duChiTiepKhachThucTe+=cqTraThang
     const tongTienDuaChiThuy=gd.giaoTienChiThuy+duaTienCqTraThangChoChiThuy
     const duHiepDangCam=duTienCqTraThang+dangCam
-    return {...gd,duaTienCqTraThangChoChiThuy,hoanTamUng,cqTraThang,phiLayHd,duTienCqTraThang,tongTienDuaChiThuy,duLyThuyet:lyThuyet,duThucTe:thucTe,duDangCam:dangCam,duHiepDangCam}
+    return {...gd,duaTienCqTraThangChoChiThuy,hoanTamUng,cqTraThang,phiLayHd,duTienCqTraThang,duChiTiepKhachThucTe,tongTienDuaChiThuy,duLyThuyet:lyThuyet,duThucTe:thucTe,duDangCam:dangCam,duHiepDangCam}
   })
 }
