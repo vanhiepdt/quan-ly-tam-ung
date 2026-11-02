@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { tinhChiSo } from './chi-so'
-import { HINH_THUC, TRANG_THAI, type GiaoDichTho } from './kieu'
+import { HINH_THUC, NGUON_BU, TRANG_THAI, type GiaoDichTho } from './kieu'
 import { tinhToan } from './tinh-toan'
 
 const dong = (phan: Partial<GiaoDichTho>): GiaoDichTho => ({
@@ -296,9 +296,9 @@ describe('số dư khi chọn Chi thực tế', () => {
 describe('nguồn bù tiền không được thanh toán của Chi thực tế', () => {
   it('CQ trả thẳng lấy quỹ chị Thúy không trừ Dư tiền CQ trả thẳng, cộng dồn Tổng lấy quỹ chị Thúy', () => {
     const rows = tinhToan([
-      dong({ id: 'a', hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, layTuQuyChiThuy: true, coTinhPhi: false, tongTien: 2_000_000, tienRuouBia: 400_000 }),
+      dong({ id: 'a', hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, nguonBuChiThucTe: NGUON_BU.QUY_CHI_THUY, coTinhPhi: false, tongTien: 2_000_000, tienRuouBia: 400_000 }),
       dong({ id: 'b', soThuTu: 2, hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, coTinhPhi: false, tongTien: 1_000_000, tienRuouBia: 100_000 }),
-      dong({ id: 'c', soThuTu: 3, hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, layTuQuyChiThuy: true, coTinhPhi: false, tongTien: 500_000, tienRuouBia: 50_000 }),
+      dong({ id: 'c', soThuTu: 3, hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, nguonBuChiThucTe: NGUON_BU.QUY_CHI_THUY, coTinhPhi: false, tongTien: 500_000, tienRuouBia: 50_000 }),
     ])
     expect(rows.map(r => r.layQuyChiThuy)).toEqual([400_000, 0, 50_000])
     expect(rows.map(r => r.tongLayQuyChiThuy)).toEqual([400_000, 400_000, 450_000])
@@ -312,16 +312,26 @@ describe('nguồn bù tiền không được thanh toán của Chi thực tế',
       dong({ id: 'actual', soThuTu: 2, chiThucTe: true, coTinhPhi: false, tongTien: 2_000_000, tienRuouBia: 300_000 }),
     ]
     const truDu = tinhToan(base)
-    const quy = tinhToan(base.map(r => r.id === 'actual' ? { ...r, layTuQuyChiThuy: true } : r))
+    const quy = tinhToan(base.map(r => r.id === 'actual' ? { ...r, nguonBuChiThucTe: NGUON_BU.QUY_CHI_THUY } : r))
     expect(truDu[1]).toMatchObject({ duThucTe: 8_000_000, duDangCam: 8_000_000, layQuyChiThuy: 0, tongLayQuyChiThuy: 0 })
     expect(quy[1]).toMatchObject({ duThucTe: 8_300_000, duDangCam: 8_300_000, layQuyChiThuy: 300_000, tongLayQuyChiThuy: 300_000 })
     expect(quy[1].duLyThuyet).toBe(truDu[1].duLyThuyet)
   })
 
+  it('tự chịu: không trừ ở số dư nào và không ghi vào quỹ chị Thúy', () => {
+    const cq = tinhToan([dong({ hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, nguonBuChiThucTe: NGUON_BU.TU_CHIU, coTinhPhi: false, tongTien: 2_000_000, tienRuouBia: 400_000 })])
+    expect(cq[0]).toMatchObject({ duTienCqTraThang: 0, layQuyChiThuy: 0, tongLayQuyChiThuy: 0 })
+    const base = [
+      dong({ id: 'advance', hinhThuc: HINH_THUC.TAM_UNG_THEM, tamUngTuCq: 10_000_000 }),
+      dong({ id: 'actual', soThuTu: 2, chiThucTe: true, nguonBuChiThucTe: NGUON_BU.TU_CHIU, coTinhPhi: false, tongTien: 2_000_000, tienRuouBia: 300_000 }),
+    ]
+    expect(tinhToan(base)[1]).toMatchObject({ duThucTe: 8_300_000, duDangCam: 8_300_000, layQuyChiThuy: 0, tongLayQuyChiThuy: 0 })
+  })
+
   it('bỏ qua lựa chọn khi không có Chi thực tế hoặc hóa đơn không hợp lệ', () => {
     const rows = tinhToan([
-      dong({ hinhThuc: HINH_THUC.CQ_TRA_THANG, layTuQuyChiThuy: true, tongTien: 1_000_000, tienRuouBia: 100_000 }),
-      dong({ soThuTu: 2, hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, layTuQuyChiThuy: true, trangThaiHd: TRANG_THAI.CHO_HD, tongTien: 1_000_000, tienRuouBia: 100_000 }),
+      dong({ hinhThuc: HINH_THUC.CQ_TRA_THANG, nguonBuChiThucTe: NGUON_BU.QUY_CHI_THUY, tongTien: 1_000_000, tienRuouBia: 100_000 }),
+      dong({ soThuTu: 2, hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, nguonBuChiThucTe: NGUON_BU.QUY_CHI_THUY, trangThaiHd: TRANG_THAI.CHO_HD, tongTien: 1_000_000, tienRuouBia: 100_000 }),
     ])
     expect(rows.map(r => r.layQuyChiThuy)).toEqual([0, 0])
     expect(rows.map(r => r.duTienCqTraThang)).toEqual([900_000, 900_000])

@@ -644,7 +644,7 @@ try {
  const chonTruongAdmin = page.getByRole('dialog',{name:'Sửa giao dịch'}).getByLabel('Trường cần sửa')
  await expect(chonTruongAdmin.locator('option[value="tong_tien"]')).toHaveCount(1)
  await expect(chonTruongAdmin.locator('option')).toHaveCount(21)
- await expect(chonTruongAdmin.locator('option[value="lay_tu_quy_chi_thuy"]')).toHaveCount(1)
+ await expect(chonTruongAdmin.locator('option[value="nguon_bu_chi_thuc_te"]')).toHaveCount(1)
  await expect(chonTruongAdmin.locator('option[value="co_so_tinh_phi_lay_hd"]')).toHaveCount(1)
  await expect(chonTruongAdmin.locator('option[value="hinh_thuc"]')).toHaveCount(1)
  await expect(chonTruongAdmin.locator('option[value="tien_duoc_thanh_toan"]')).toHaveCount(1)

@@ -1,4 +1,4 @@
-import { CO_SO_TINH_PHI, HINH_THUC, TRANG_THAI, type GiaoDichTho, type GiaoDichTinh, type ThamSoTinh } from './kieu'
+import { CO_SO_TINH_PHI, HINH_THUC, NGUON_BU, TRANG_THAI, type GiaoDichTho, type GiaoDichTinh, type ThamSoTinh } from './kieu'
 import { coTinhPhiMacDinh } from './hinh-thuc'
 import { soTienThanhToan } from './tien-thanh-toan'
 export type { GiaoDichTho, GiaoDichTinh } from './kieu'
@@ -13,11 +13,14 @@ export function tinhToan(ds: readonly GiaoDichTho[], thamSo: ThamSoTinh = { tyLe
     const laHoanTamUngChiThucTe=hopLe&&chiThucTe&&gd.hinhThuc===HINH_THUC.HOAN_TAM_UNG
     const laCqTraThangChiThucTe=hopLe&&chiThucTe&&gd.hinhThuc===HINH_THUC.CQ_TRA_THANG
     // Nguồn bù Tiền không được thanh toán của dòng Chi thực tế: mặc định trừ ở Dư TƯ
-    // thực tế (hoàn tạm ứng) / Dư tiền CQ trả thẳng; chọn quỹ chị Thúy thì ghi vào cột riêng.
-    const layQuyChiThuy=(laHoanTamUngChiThucTe||laCqTraThangChiThucTe)&&gd.layTuQuyChiThuy===true?gd.tienRuouBia:0
-    const tongTienChiThucTeHoanUng=laHoanTamUngChiThucTe?gd.tongTien-layQuyChiThuy:0
+    // thực tế (hoàn tạm ứng) / Dư tiền CQ trả thẳng; quỹ chị Thúy thì ghi vào cột riêng;
+    // tự chịu thì không trừ vào đâu. Hai lựa chọn sau đều không trừ ở số dư.
+    const nguonBu=laHoanTamUngChiThucTe||laCqTraThangChiThucTe ? gd.nguonBuChiThucTe ?? NGUON_BU.SO_DU : NGUON_BU.SO_DU
+    const layQuyChiThuy=nguonBu===NGUON_BU.QUY_CHI_THUY?gd.tienRuouBia:0
+    const khongTruSoDu=nguonBu===NGUON_BU.SO_DU?0:gd.tienRuouBia
+    const tongTienChiThucTeHoanUng=laHoanTamUngChiThucTe?gd.tongTien-khongTruSoDu:0
     const thayDoiTienCqTraThang=hopLe&&gd.hinhThuc===HINH_THUC.CQ_TRA_THANG
-      ? (chiThucTe ? -(gd.tienRuouBia-layQuyChiThuy) : cqTraThang)
+      ? (chiThucTe ? -(gd.tienRuouBia-khongTruSoDu) : cqTraThang)
       : 0
     const duaTienCqTraThangChoChiThuy=gd.hinhThuc===HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY
       ? gd.duaTienCqTraThangChoChiThuy ?? 0

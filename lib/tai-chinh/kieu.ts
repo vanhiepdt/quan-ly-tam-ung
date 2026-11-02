@@ -14,6 +14,13 @@ export const TRANG_THAI = { HOP_LE: 'Hợp lệ', CHO_HD: 'Chờ HĐ', PHI_DA_TR
 export const CO_SO_TINH_PHI = { TONG_TIEN: 'tong_tien', TIEN_DUOC_THANH_TOAN: 'tien_duoc_thanh_toan' } as const
 export const DS_CO_SO_TINH_PHI = [CO_SO_TINH_PHI.TONG_TIEN, CO_SO_TINH_PHI.TIEN_DUOC_THANH_TOAN] as const
 export type CoSoTinhPhi = typeof DS_CO_SO_TINH_PHI[number]
+// Nguồn bù Tiền không được thanh toán của dòng Chi thực tế.
+export const NGUON_BU = { SO_DU: 'so_du', QUY_CHI_THUY: 'quy_chi_thuy', TU_CHIU: 'tu_chiu' } as const
+export const DS_NGUON_BU = [NGUON_BU.SO_DU, NGUON_BU.QUY_CHI_THUY, NGUON_BU.TU_CHIU] as const
+export type NguonBu = typeof DS_NGUON_BU[number]
+export function laNguonBu(value: unknown): value is NguonBu {
+  return (DS_NGUON_BU as readonly unknown[]).includes(value)
+}
 
 // Tài khoản nhận tiền của người lấy hóa đơn. Một tài khoản dùng cho cả hai việc: nhận
 // tiền thanh toán khi chuyển khoản và trả phí lấy hóa đơn.
@@ -34,8 +41,8 @@ export type GiaoDichTho = {
   duaTienCqTraThangChoChiThuy?: number;
   // Dữ liệu cũ không có cờ này được coi là chưa chọn Chi thực tế.
   chiThucTe?: boolean;
-  // Chi thực tế: Tiền không được thanh toán lấy từ quỹ chị Thúy. Dữ liệu cũ là false.
-  layTuQuyChiThuy?: boolean;
+  // Chi thực tế: nguồn bù Tiền không được thanh toán. Dữ liệu cũ là so_du.
+  nguonBuChiThucTe?: NguonBu;
   // Giá trị thực tế được hoàn/thanh toán cho giao dịch có hóa đơn. Dữ liệu cũ
   // có thể không có trường này, khi đó máy suy ra từ tổng tiền trừ rượu bia.
   tienDuocThanhToan?: number | null; tienDuocThanhToanGoc?: number | null; lamTronXuongHangNghin?: boolean;

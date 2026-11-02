@@ -18,6 +18,7 @@ const NHAN_COT: Record<string, string> = {
   hinh_thuc: 'Hình thức',
   chi_thuc_te: 'Chi thực tế',
   lay_tu_quy_chi_thuy: 'Lấy Tiền không được thanh toán từ quỹ chị Thúy',
+  nguon_bu_chi_thuc_te: 'Nguồn bù tiền không được thanh toán',
   tong_tien: 'Tổng tiền',
   tien_ruou_bia: 'Tiền không được thanh toán',
   tam_ung_tu_cq: 'Tạm ứng từ cơ quan',
@@ -99,6 +100,7 @@ export function hienThiGiaTri(cot: string, giaTri: unknown, boCanh: BoCanh = boC
     return Number.isSafeInteger(so) ? vnd.format(so) : hienThiChuoi(giaTri)
   }
   if (cot === 'da_xoa' || cot === 'chi_thuc_te' || cot === 'lay_tu_quy_chi_thuy') return giaTri === true ? 'Có' : 'Không'
+  if (cot === 'nguon_bu_chi_thuc_te') return giaTri === 'quy_chi_thuy' ? 'Lấy từ quỹ chị Thúy' : giaTri === 'tu_chiu' ? 'Tự chịu' : 'Trừ ở số dư'
   if (cot === 'co_so_tinh_phi_lay_hd') return giaTri === 'tien_duoc_thanh_toan' ? 'Tiền được hoàn/thanh toán' : 'Tổng tiền'
   const khoa = String(giaTri)
   if (cot === 'don_vi_id') return boCanh.donVi[khoa] ?? rut(khoa)

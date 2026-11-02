@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { schemaChiTietHoaDon } from '@/lib/kiem-tra/phan-bo-phu-luc'
 import { canDonVi, HINH_THUC_THANH_TOAN, hopLeHinhThucThanhToan, noiDungTheoHinhThuc } from '@/lib/tai-chinh/hinh-thuc'
-import { CO_SO_TINH_PHI, DS_CO_SO_TINH_PHI, HINH_THUC } from '@/lib/tai-chinh/kieu'
+import { CO_SO_TINH_PHI, DS_CO_SO_TINH_PHI, DS_NGUON_BU, HINH_THUC, NGUON_BU } from '@/lib/tai-chinh/kieu'
 
 const tien = z.coerce.number({ invalid_type_error: 'Số tiền không hợp lệ.' })
   .finite('Số tiền không hợp lệ.')
@@ -51,7 +51,7 @@ export const schemaGiaoDich = z.object({
   trang_thai_hd: stringOrNull,
   hinh_thuc: z.string().min(1),
   chi_thuc_te: checkbox.transform(value => value ?? false),
-  lay_tu_quy_chi_thuy: checkbox.transform(value => value ?? false),
+  nguon_bu_chi_thuc_te: z.union([z.null(), z.undefined(), z.literal(''), z.enum(DS_NGUON_BU)]).transform(value => value || NGUON_BU.SO_DU),
   tong_tien: tien.default(0),
   tien_ruou_bia: tien.default(0),
   chi_tiet_hoa_don: z.preprocess((value) => {
@@ -95,9 +95,9 @@ export const schemaGiaoDich = z.object({
 }).refine((d) => !d.chi_thuc_te || canDonVi(d.hinh_thuc), {
   message: 'Chi thực tế chỉ áp dụng cho Hoàn tạm ứng và Cơ quan trả thẳng.',
   path: ['chi_thuc_te']
-}).refine((d) => !d.lay_tu_quy_chi_thuy || d.chi_thuc_te, {
-  message: 'Chỉ giao dịch Chi thực tế mới chọn được lấy Tiền không được thanh toán từ quỹ chị Thúy.',
-  path: ['lay_tu_quy_chi_thuy']
+}).refine((d) => d.nguon_bu_chi_thuc_te === NGUON_BU.SO_DU || d.chi_thuc_te, {
+  message: 'Chỉ giao dịch Chi thực tế mới chọn được nguồn bù Tiền không được thanh toán.',
+  path: ['nguon_bu_chi_thuc_te']
 }).refine((d) => canDonVi(d.hinh_thuc) || Boolean(noiDungTheoHinhThuc(d.hinh_thuc)) || d.noi_dung.length > 0, {
   message: 'Nội dung không được để trống.',
   path: ['noi_dung']

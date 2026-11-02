@@ -5,7 +5,8 @@ import { suaGiaoDich, suaThongTinGiayGiaoDich, type KetQua } from './actions'
 import { HINH_THUC, type GiaoDichTinh } from '@/lib/tai-chinh/kieu'
 import { canDonVi, dsHinhThucThanhToan, NHAN_HINH_THUC_THANH_TOAN } from '@/lib/tai-chinh/hinh-thuc'
 import type { NguoiLayHdChon } from '@/lib/tai-chinh/tai-khoan'
-import { NHOM_SUA, giaTriHienTai, truongSuaCho, type TruongSua } from '@/lib/tai-chinh/sua-giao-dich'
+import { NHOM_SUA, giaTriHienTai, nhanNguonBu, truongSuaCho, type TruongSua } from '@/lib/tai-chinh/sua-giao-dich'
+import { DS_NGUON_BU } from '@/lib/tai-chinh/kieu'
 import { giayChoHinhThuc } from '@/lib/tai-chinh/giay'
 import { taiNguoiKyGiay } from './xem-giay-actions'
 import { truongPhongTheoNguoi, type LuaChonNguoiKy, type NguoiKyGiay } from '@/lib/tai-chinh/chon-nguoi-ky'
@@ -171,6 +172,7 @@ export function SuaGiaoDich({ row, collectors, donVi, vaiTro }: {
           // Chỉ hiện những hình thức thanh toán mà hình thức giao dịch này dùng được, và
           // in bằng nhãn tiếng Việt chứ không phải mã lưu trong cơ sở dữ liệu.
           : t.id === 'hinh_thuc_thanh_toan' ? dsHinhThucThanhToan(row.hinhThuc).map(v => ({ value: v, nhan: NHAN_HINH_THUC_THANH_TOAN[v] }))
+          : t.id === 'nguon_bu_chi_thuc_te' ? DS_NGUON_BU.map(v => ({ value: v, nhan: nhanNguonBu(row.hinhThuc, v) }))
             : (t.luaChon ?? []).map(v => ({ value: v, nhan: t.nhanLuaChon?.[v] ?? v }))
       return <select {...chung}>
         {t.choPhepRong && <option value="">{t.id === 'don_vi_id' ? '-- Chọn đơn vị --' : '-- Không có --'}</option>}
@@ -267,8 +269,8 @@ export function SuaGiaoDich({ row, collectors, donVi, vaiTro }: {
           <span className="text-xs font-normal text-slate-500">Đổi từ giao dịch nội bộ sang hình thức có hóa đơn thì phải chọn đơn vị.</span>
         </label>}
 
-        {truong?.id === 'lay_tu_quy_chi_thuy' && <p className="notice" role="status">{row.chiThucTe
-          ? 'Lấy từ quỹ chị Thúy: Tiền không được thanh toán ghi vào cột Lấy quỹ chị Thúy và cộng dồn vào Tổng lấy quỹ chị Thúy, không trừ ở ' + (row.hinhThuc === HINH_THUC.CQ_TRA_THANG ? 'Dư tiền CQ trả thẳng.' : 'Dư TƯ thực tế / đang cầm.')
+        {truong?.id === 'nguon_bu_chi_thuc_te' && <p className="notice" role="status">{row.chiThucTe
+          ? 'Lấy từ quỹ chị Thúy: ghi vào cột Lấy quỹ chị Thúy và cộng dồn Tổng lấy quỹ chị Thúy. Tự chịu: không trừ vào đâu. Cả hai đều không trừ ở ' + (row.hinhThuc === HINH_THUC.CQ_TRA_THANG ? 'Dư tiền CQ trả thẳng.' : 'Dư TƯ thực tế / đang cầm.')
           : 'Giao dịch chưa bật Chi thực tế nên chưa chọn được nguồn bù.'}</p>}
         {truong?.id === 'chi_thuc_te' && <p className="notice" role="status">{row.hinhThuc === HINH_THUC.HOAN_TAM_UNG
           ? 'Với Hoàn tạm ứng hợp lệ có Chi thực tế, hai số dư TƯ được cộng dồn riêng từ dòng trước và cùng trừ toàn bộ Tổng tiền. Phí HĐ trừ vào dư thực tế, còn phần phát sinh đang cầm cộng lại phí của dòng này. Chênh lệch các dòng trước được giữ nguyên. Dư TƯ lý thuyết vẫn trừ Tiền được hoàn/thanh toán.'

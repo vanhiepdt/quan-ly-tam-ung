@@ -8,6 +8,10 @@ export default function Home() {
       <h1 className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Quản lý tạm ứng & hóa đơn</h1>
       <p className="my-5 text-base leading-relaxed text-slate-600">Theo dõi giao dịch, đối soát quỹ và quản lý hóa đơn trong cùng một nơi.</p>
       <Link className="btn btn-primary" href="/dang-nhap">Đăng nhập →</Link>
+      <p className="mt-8 flex gap-4 text-sm text-slate-500">
+        <Link className="underline" href="/chinh-sach-bao-mat">Chính sách bảo mật</Link>
+        <Link className="underline" href="/dieu-khoan">Điều khoản sử dụng</Link>
+      </p>
     </section>
   </main>
 }

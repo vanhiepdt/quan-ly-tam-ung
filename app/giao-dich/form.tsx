@@ -3,7 +3,8 @@ import { startTransition, useActionState, useEffect, useId, useMemo, useRef, use
 import { themGiaoDich, type KetQua } from './actions'
 import { unstable_rethrow } from 'next/navigation'
 import { LOAI_HD, LOAI_HD_HOA_DON, TRANG_THAI_HD, TRANG_THAI_PHI } from '@/lib/tai-chinh/danh-muc'
-import { CO_SO_TINH_PHI, HINH_THUC } from '@/lib/tai-chinh/kieu'
+import { CO_SO_TINH_PHI, DS_NGUON_BU, HINH_THUC, laNguonBu, NGUON_BU } from '@/lib/tai-chinh/kieu'
+import { nhanNguonBu } from '@/lib/tai-chinh/sua-giao-dich'
 import { canDonVi, coTinhPhiMacDinh, dsHinhThucThanhToan, HINH_THUC_THANH_TOAN, hinhThucThanhToanMacDinh, lamTronXuongHangNghinMacDinh, NHAN_HINH_THUC_THANH_TOAN, noiDungTheoDonVi, noiDungTheoHinhThuc } from '@/lib/tai-chinh/hinh-thuc'
 import { donViMacDinh, type DonViTiepKhach } from '@/lib/tai-chinh/don-vi'
 import type { NguoiLayHdChon } from '@/lib/tai-chinh/tai-khoan'
@@ -78,7 +79,7 @@ function defaultValues(mac?: {
     trang_thai_tt_phi: phi && (TRANG_THAI_PHI as readonly string[]).includes(phi) ? phi : 'Không phát sinh',
     tong_tien: '0', tien_ruou_bia: '0', tien_duoc_thanh_toan: '0', tien_duoc_thanh_toan_goc: '0', lam_tron_xuong_hang_nghin: '0',
     tam_ung_tu_cq: '0', giao_tien_chi_thuy: '0', dua_tien_cq_tra_thang_cho_chi_thuy: '0',
-    hoan_ung_tien_mat: '0', phi_lay_hd_ghi_de: '', co_tinh_phi_lay_hd: '0', co_so_tinh_phi_lay_hd: CO_SO_TINH_PHI.TONG_TIEN, chi_thuc_te: '0', lay_tu_quy_chi_thuy: '0',
+    hoan_ung_tien_mat: '0', phi_lay_hd_ghi_de: '', co_tinh_phi_lay_hd: '0', co_so_tinh_phi_lay_hd: CO_SO_TINH_PHI.TONG_TIEN, chi_thuc_te: '0', nguon_bu_chi_thuc_te: NGUON_BU.SO_DU,
     nguoi_lay_hd_id: idNguoiLayHdHopLe(mac?.collectors ?? [], mac?.nguoiLayHdMacDinhId),
     dung_tai_khoan_mac_dinh: '1', tai_khoan_nhan_so: '', tai_khoan_nhan_ngan_hang: '',
     tai_khoan_nhan_chi_nhanh: '', tai_khoan_nhan_ten_chu_tk: '',
@@ -224,7 +225,7 @@ export function FormGiaoDich({
           if (!canDonVi(newValue)) {
             updated.co_so_tinh_phi_lay_hd = CO_SO_TINH_PHI.TONG_TIEN
             updated.chi_thuc_te = '0'
-            updated.lay_tu_quy_chi_thuy = '0'
+            updated.nguon_bu_chi_thuc_te = NGUON_BU.SO_DU
             updated.don_vi_id = ''
             updated.ngay_de_nghi = ''
           } else {
@@ -308,7 +309,7 @@ export function FormGiaoDich({
   const hinhThuc = values.hinh_thuc as string
   const needsInvoice = hinhThuc === HINH_THUC.HOAN_TAM_UNG || hinhThuc === HINH_THUC.CQ_TRA_THANG
   const chiThucTe = needsInvoice && values.chi_thuc_te === '1'
-  const layTuQuyChiThuy = chiThucTe && values.lay_tu_quy_chi_thuy === '1'
+  const nguonBuChiThucTe = chiThucTe && laNguonBu(values.nguon_bu_chi_thuc_te) ? values.nguon_bu_chi_thuc_te : NGUON_BU.SO_DU
   const coTinhPhi = values.co_tinh_phi_lay_hd === '1'
   const dangLamTronXuongHangNghin = values.lam_tron_xuong_hang_nghin === '1'
   const canChonDonVi = canDonVi(hinhThuc)
@@ -432,7 +433,7 @@ export function FormGiaoDich({
   return <>
     <button type="button" className="btn btn-primary" onClick={() => {
       setValues(hien => {
-        const moi: Record<string, string> = { ...hien, chi_thuc_te: '0', lay_tu_quy_chi_thuy: '0', ...(canDonVi(hien.hinh_thuc) ? { ngay_de_nghi: ngayDeNghiMacDinh(hien.ngay) } : {}) }
+        const moi: Record<string, string> = { ...hien, chi_thuc_te: '0', nguon_bu_chi_thuc_te: NGUON_BU.SO_DU, ...(canDonVi(hien.hinh_thuc) ? { ngay_de_nghi: ngayDeNghiMacDinh(hien.ngay) } : {}) }
         if (!canDonVi(moi.hinh_thuc) || moi.don_vi_id) return moi
         const macDinh = donViMacDinh(dsDonVi)
         return macDinh ? { ...moi, don_vi_id: macDinh.id } : moi
@@ -495,7 +496,7 @@ export function FormGiaoDich({
                       setValues(current => ({
                         ...current,
                         chi_thuc_te: bat ? '1' : '0',
-                        ...(bat ? {} : { lay_tu_quy_chi_thuy: '0' }),
+                        ...(bat ? {} : { nguon_bu_chi_thuc_te: NGUON_BU.SO_DU }),
                         ...(bat ? { co_tinh_phi_lay_hd: '0', phi_lay_hd_ghi_de: '', trang_thai_tt_phi: 'Không phát sinh' } : {}),
                       }))
                     }} />
@@ -565,13 +566,12 @@ export function FormGiaoDich({
                     <label className="field">Tiền không được thanh toán (VND)<input type="text" {...bindMoney('tien_ruou_bia')} inputMode="numeric" placeholder="0" /></label>
                     <input type="hidden" name="tien_ruou_bia" value={values.tien_ruou_bia} />
                     {chiThucTe && <label className="field">Nguồn bù tiền không được thanh toán
-                      <select aria-label="Nguồn bù tiền không được thanh toán" value={layTuQuyChiThuy ? '1' : '0'}
-                        onChange={event => { const v = event.target.value; setValues(current => ({ ...current, lay_tu_quy_chi_thuy: v === '1' ? '1' : '0' })) }}>
-                        <option value="0">{hinhThuc === HINH_THUC.CQ_TRA_THANG ? 'Trừ ở Dư tiền CQ trả thẳng' : 'Trừ vào Dư TƯ thực tế'}</option>
-                        <option value="1">Lấy từ quỹ chị Thúy</option>
+                      <select aria-label="Nguồn bù tiền không được thanh toán" value={nguonBuChiThucTe}
+                        onChange={event => { const v = event.target.value; setValues(current => ({ ...current, nguon_bu_chi_thuc_te: laNguonBu(v) ? v : NGUON_BU.SO_DU })) }}>
+                        {DS_NGUON_BU.map(n => <option key={n} value={n}>{nhanNguonBu(hinhThuc, n)}</option>)}
                       </select>
                     </label>}
-                    <input type="hidden" name="lay_tu_quy_chi_thuy" value={layTuQuyChiThuy ? '1' : '0'} />
+                    <input type="hidden" name="nguon_bu_chi_thuc_te" value={nguonBuChiThucTe} />
                     <input type="hidden" name="chi_tiet_hoa_don" value={chiTietHoaDon ? JSON.stringify(chiTietHoaDon) : ''} />
                     <label className="field">Tiền được hoàn/thanh toán (VND) *<input type="text" required {...bindMoney('tien_duoc_thanh_toan')} inputMode="numeric" placeholder="0" /></label>
                     <input type="hidden" name="tien_duoc_thanh_toan" value={values.tien_duoc_thanh_toan} />

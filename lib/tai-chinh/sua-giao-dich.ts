@@ -1,6 +1,6 @@
 import { LOAI_HD, TRANG_THAI_HD, TRANG_THAI_PHI } from './danh-muc'
 import { DS_HINH_THUC_THANH_TOAN, dsHinhThucThanhToan } from './hinh-thuc'
-import { CO_SO_TINH_PHI, DS_CO_SO_TINH_PHI, DS_HINH_THUC, HINH_THUC, type GiaoDichTinh } from './kieu'
+import { CO_SO_TINH_PHI, DS_CO_SO_TINH_PHI, DS_HINH_THUC, DS_NGUON_BU, HINH_THUC, NGUON_BU, type GiaoDichTinh, type NguonBu } from './kieu'
 import { soTienThanhToan } from './tien-thanh-toan'
 
 // Sửa giao dịch chỉ cho đổi MỘT trường mỗi lần lưu. Lý do: mỗi nhóm trường dưới đây
@@ -57,7 +57,7 @@ export const TRUONG_SUA: readonly TruongSua[] = [
 
   { id: 'hinh_thuc', ten: 'Hình thức giao dịch', nhom: 'hinhThuc', vaiTro: 'admin', kieu: 'lua-chon', luaChon: DS_HINH_THUC, goiY: 'Chỉ quản trị viên được đổi. Máy sẽ cập nhật nội dung, đơn vị, chứng từ và phí theo hình thức mới.' },
 
-  { id: 'lay_tu_quy_chi_thuy', ten: 'Nguồn bù tiền không được thanh toán', nhom: 'hinhThuc', vaiTro: 'admin', kieu: 'lua-chon', luaChon: ['0', '1'], hinhThuc: HD_CO_DON_VI, nhanLuaChon: { '0': 'Trừ ở số dư (mặc định)', '1': 'Lấy từ quỹ chị Thúy' }, goiY: 'Chỉ áp dụng cho giao dịch Chi thực tế. Mặc định: CQ trả thẳng trừ ở Dư tiền CQ trả thẳng, Hoàn tạm ứng trừ vào Dư TƯ thực tế.' },
+  { id: 'nguon_bu_chi_thuc_te', ten: 'Nguồn bù tiền không được thanh toán', nhom: 'hinhThuc', vaiTro: 'admin', kieu: 'lua-chon', luaChon: DS_NGUON_BU, hinhThuc: HD_CO_DON_VI, nhanLuaChon: { so_du: 'Trừ ở số dư (mặc định)', quy_chi_thuy: 'Lấy từ quỹ chị Thúy', tu_chiu: 'Tự chịu' }, goiY: 'Chỉ áp dụng cho giao dịch Chi thực tế. Mặc định: CQ trả thẳng trừ ở Dư tiền CQ trả thẳng, Hoàn tạm ứng trừ vào Dư TƯ thực tế. Tự chịu: không trừ vào đâu.' },
   { id: 'chi_thuc_te', ten: 'Chi thực tế', nhom: 'hinhThuc', vaiTro: 'admin', kieu: 'lua-chon', luaChon: ['1', '0'], hinhThuc: HD_CO_DON_VI, nhanLuaChon: { '1': 'Có chi thực tế', '0': 'Không chi thực tế' }, goiY: 'Khi bật Chi thực tế, mặc định tắt tính phí hóa đơn. Có thể bật lại phí bằng trường Tính phí hóa đơn.' },
 
   { id: 'ky_hieu_hd', ten: 'Ký hiệu hóa đơn', nhom: 'chungTu', vaiTro: 'nhap_lieu', kieu: 'chuoi', max: 50, choPhepRong: true },
@@ -84,6 +84,13 @@ export const TRUONG_SUA: readonly TruongSua[] = [
   { id: 'hinh_thuc_thanh_toan', ten: 'Hình thức thanh toán', nhom: 'giay', vaiTro: 'nhap_lieu', kieu: 'lua-chon', luaChon: DS_HINH_THUC_THANH_TOAN, choPhepRong: true, goiY: 'Tiền mặt, chuyển khoản hoặc hoàn tạm ứng — tùy hình thức giao dịch. Chỉ đổi chữ in trên giấy đề nghị.' },
   { id: 'ghi_chu', ten: 'Ghi chú', nhom: 'ghiChu', vaiTro: 'nhap_lieu', kieu: 'chuoi', max: 2000, choPhepRong: true },
 ]
+
+// Nhãn từng nguồn bù theo đúng số dư mà hình thức giao dịch đó trừ.
+export function nhanNguonBu(hinhThuc: string, nguon: NguonBu): string {
+  if (nguon === NGUON_BU.QUY_CHI_THUY) return 'Lấy từ quỹ chị Thúy'
+  if (nguon === NGUON_BU.TU_CHIU) return 'Tự chịu (không trừ vào đâu)'
+  return hinhThuc === HINH_THUC.CQ_TRA_THANG ? 'Trừ ở Dư tiền CQ trả thẳng' : 'Trừ vào Dư TƯ thực tế'
+}
 
 export function apDungChoHinhThuc(truong: TruongSua, hinhThuc: string): boolean {
   // Hình thức thanh toán có ở ba hình thức lập giấy, nhưng mỗi hình thức chỉ dùng một
@@ -114,7 +121,7 @@ export function giaTriHienTai(row: GiaoDichTinh, id: string): string {
     case 'trang_thai_hd': return row.trangThaiHd
     case 'hinh_thuc': return row.hinhThuc
     case 'chi_thuc_te': return row.chiThucTe ? '1' : '0'
-    case 'lay_tu_quy_chi_thuy': return row.layTuQuyChiThuy ? '1' : '0'
+    case 'nguon_bu_chi_thuc_te': return row.nguonBuChiThucTe ?? NGUON_BU.SO_DU
     case 'tong_tien': return String(row.tongTien)
     case 'tien_ruou_bia': return String(row.tienRuouBia)
     case 'tien_duoc_thanh_toan': return String(soTienThanhToan(row))
