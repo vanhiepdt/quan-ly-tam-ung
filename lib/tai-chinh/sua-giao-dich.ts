@@ -57,6 +57,7 @@ export const TRUONG_SUA: readonly TruongSua[] = [
 
   { id: 'hinh_thuc', ten: 'Hình thức giao dịch', nhom: 'hinhThuc', vaiTro: 'admin', kieu: 'lua-chon', luaChon: DS_HINH_THUC, goiY: 'Chỉ quản trị viên được đổi. Máy sẽ cập nhật nội dung, đơn vị, chứng từ và phí theo hình thức mới.' },
 
+  { id: 'lay_tu_quy_chi_thuy', ten: 'Nguồn bù tiền không được thanh toán', nhom: 'hinhThuc', vaiTro: 'admin', kieu: 'lua-chon', luaChon: ['0', '1'], hinhThuc: HD_CO_DON_VI, nhanLuaChon: { '0': 'Trừ ở số dư (mặc định)', '1': 'Lấy từ quỹ chị Thúy' }, goiY: 'Chỉ áp dụng cho giao dịch Chi thực tế. Mặc định: CQ trả thẳng trừ ở Dư tiền CQ trả thẳng, Hoàn tạm ứng trừ vào Dư TƯ thực tế.' },
   { id: 'chi_thuc_te', ten: 'Chi thực tế', nhom: 'hinhThuc', vaiTro: 'admin', kieu: 'lua-chon', luaChon: ['1', '0'], hinhThuc: HD_CO_DON_VI, nhanLuaChon: { '1': 'Có chi thực tế', '0': 'Không chi thực tế' }, goiY: 'Khi bật Chi thực tế, mặc định tắt tính phí hóa đơn. Có thể bật lại phí bằng trường Tính phí hóa đơn.' },
 
   { id: 'ky_hieu_hd', ten: 'Ký hiệu hóa đơn', nhom: 'chungTu', vaiTro: 'nhap_lieu', kieu: 'chuoi', max: 50, choPhepRong: true },
@@ -113,6 +114,7 @@ export function giaTriHienTai(row: GiaoDichTinh, id: string): string {
     case 'trang_thai_hd': return row.trangThaiHd
     case 'hinh_thuc': return row.hinhThuc
     case 'chi_thuc_te': return row.chiThucTe ? '1' : '0'
+    case 'lay_tu_quy_chi_thuy': return row.layTuQuyChiThuy ? '1' : '0'
     case 'tong_tien': return String(row.tongTien)
     case 'tien_ruou_bia': return String(row.tienRuouBia)
     case 'tien_duoc_thanh_toan': return String(soTienThanhToan(row))

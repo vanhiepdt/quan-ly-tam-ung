@@ -1,10 +1,13 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { db } from '@/lib/db/pool'
+import { db, trongTransaction } from '@/lib/db/pool'
 import { batBuocVaiTro, LoiKhongDuQuyen } from '@/lib/xac-thuc/bao-ve'
 import { chuyenDongGiaoDich } from '@/lib/tai-chinh/du-lieu'
 import { tinhToan } from '@/lib/tai-chinh/tinh-toan'
+import { TRANG_THAI } from '@/lib/tai-chinh/kieu'
+import { khoaSoTaiChinh } from '@/lib/tai-chinh/xac-nhan-hoan-ung'
 import { taoNoiDungThanhToan, taoPayloadVietQR } from '@/lib/qr/vietqr'
 
 export type ThongTinThanhToan = {
@@ -51,4 +54,40 @@ export async function layQrThanhToan(id: unknown): Promise<KetQuaThanhToan> {
   } catch {
     return { loi: 'Không thể tạo VietQR. Cần số HĐ tối đa 10 ký tự ASCII (sau bỏ dấu), ngày hợp lệ, BIN 6 số, tài khoản 1–19 số và số tiền tối đa 13 chữ số. Nội dung TT HD {số HĐ} {YYYYMMDD} tối đa 25 ký tự; không tự cắt dữ liệu.' }
   }
+}
+
+export type KetQuaXacNhanPhi = { thanhCong?: string; loi?: string }
+
+// Chỉ quản trị viên được đổi Trạng thái thanh toán phí, giống trường sửa tương ứng.
+// Người dùng bấm sau khi đã đối chiếu giao dịch ngân hàng; máy không tự suy ra từ QR.
+export async function xacNhanDaThanhToanPhi(id: unknown): Promise<KetQuaXacNhanPhi> {
+  let phien: Awaited<ReturnType<typeof batBuocVaiTro>>
+  try {
+    phien = await batBuocVaiTro('admin')
+  } catch (error) {
+    return { loi: error instanceof LoiKhongDuQuyen ? 'Chỉ quản trị viên được xác nhận đã thanh toán phí.' : 'Không thể xác thực phiên. Vui lòng thử lại.' }
+  }
+  const parsed = z.string().uuid().safeParse(id)
+  if (!parsed.success) return { loi: 'Mã giao dịch không hợp lệ.' }
+  let ketQua: KetQuaXacNhanPhi
+  try {
+    ketQua = await trongTransaction(phien.id, async client => {
+      await khoaSoTaiChinh(client)
+      const { rows } = await client.query<{ trang_thai_tt_phi: string; co_tinh_phi_lay_hd: boolean | null }>(
+        'select trang_thai_tt_phi, co_tinh_phi_lay_hd from giao_dich where id=$1 and not da_xoa for update', [parsed.data])
+      if (!rows.length) return { loi: 'Giao dịch không tồn tại hoặc đã bị xóa. Vui lòng tải lại bảng.' }
+      if (rows[0].co_tinh_phi_lay_hd === false) return { loi: 'Giao dịch đang chọn Không tính phí hóa đơn.' }
+      if (rows[0].trang_thai_tt_phi !== 'Chưa thanh toán') return { loi: 'Phí không còn ở trạng thái Chưa thanh toán. Vui lòng tải lại bảng.' }
+      await client.query(`update giao_dich set trang_thai_tt_phi=$1, sua_luc=now(), nguoi_sua=$2 where id=$3`,
+        [TRANG_THAI.PHI_DA_TRA, phien.id, parsed.data])
+      return { thanhCong: 'Đã chuyển Thanh toán phí sang Đã thanh toán.' }
+    })
+  } catch {
+    return { loi: 'Không thể cập nhật trạng thái phí. Vui lòng thử lại.' }
+  }
+  if (ketQua.thanhCong) {
+    revalidatePath('/giao-dich')
+    revalidatePath('/dashboard')
+  }
+  return ketQua
 }

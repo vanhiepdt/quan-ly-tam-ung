@@ -98,11 +98,17 @@ export async function thucHienSaoLuu(): Promise<{ file: string; driveFileId: str
       'source=quan-ly-tam-ung',
     ].join('\n') + '\n'
     await taoTarGzip(archivePath, dumpPath, GOC_TEP, manifest)
-    const driveFileId = await taiLenGoogleDrive(archivePath, archiveName)
-    await donDep(dir)
-    return { file: archiveName, driveFileId }
+    try {
+      const driveFileId = await taiLenGoogleDrive(archivePath, archiveName)
+      return { file: archiveName, driveFileId }
+    } catch (error) {
+      // Gói vẫn nằm trên VPS và tải về được từ Cài đặt; ghi rõ để người dùng biết.
+      throw new Error(thongBaoLoi(error) + ' Gói ' + archiveName + ' vẫn được giữ trên VPS, tải về ở Cài đặt → Sao lưu dữ liệu.')
+    }
   } finally {
     await rm(work, { recursive: true, force: true }).catch(() => undefined)
+    // Dọn gói cũ cả khi tải lên Drive thất bại, tránh đầy ổ đĩa VPS.
+    await donDep(dir).catch(() => undefined)
   }
 }
 

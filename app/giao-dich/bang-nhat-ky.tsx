@@ -42,7 +42,7 @@ function giaTri(r: Dong, id: CotId, coTheSua: boolean, phuTro: PhuTro): ReactNod
       <span className={`badge ${badge(r.trangThaiHd)}`}>{r.trangThaiHd}</span>
       {canDonVi(r.hinhThuc) && <span className={`badge ${r.chiThucTe ? 'good' : 'neutral'}`}>{r.chiThucTe ? 'Chi thực tế' : 'Không chi thực tế'}</span>}
     </div>
-    case 'trangThaiTtPhi': return <div className="flex flex-col items-start gap-2"><span className={`badge ${badge(r.trangThaiTtPhi)}`}>{r.trangThaiTtPhi}</span>{coTheSua && r.trangThaiTtPhi === 'Chưa thanh toán' && <ThanhToan id={r.id} />}</div>
+    case 'trangThaiTtPhi': return <div className="flex flex-col items-start gap-2"><span className={`badge ${badge(r.trangThaiTtPhi)}`}>{r.trangThaiTtPhi}</span>{coTheSua && r.trangThaiTtPhi === 'Chưa thanh toán' && <ThanhToan id={r.id} coTheXacNhan={phuTro.vaiTro === 'admin'} />}</div>
     case 'hinhThuc': return r.hinhThuc
     case 'tep': return <Link href={`/tep/${r.id}`} prefetch={false} className="text-indigo-700 hover:underline">
       {r.coHoaDon ? '✓ HĐ' : TRONG}<br />{r.coChuyenKhoan ? '✓ CK' : TRONG}

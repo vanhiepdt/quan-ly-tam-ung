@@ -34,6 +34,8 @@ export type GiaoDichTho = {
   duaTienCqTraThangChoChiThuy?: number;
   // Dữ liệu cũ không có cờ này được coi là chưa chọn Chi thực tế.
   chiThucTe?: boolean;
+  // Chi thực tế: Tiền không được thanh toán lấy từ quỹ chị Thúy. Dữ liệu cũ là false.
+  layTuQuyChiThuy?: boolean;
   // Giá trị thực tế được hoàn/thanh toán cho giao dịch có hóa đơn. Dữ liệu cũ
   // có thể không có trường này, khi đó máy suy ra từ tổng tiền trừ rượu bia.
   tienDuocThanhToan?: number | null; tienDuocThanhToanGoc?: number | null; lamTronXuongHangNghin?: boolean;
@@ -62,6 +64,8 @@ export type GiaoDichTinh = GiaoDichTho & {
   phiLayHd: number
   duTienCqTraThang: number
   duChiTiepKhachThucTe: number
+  layQuyChiThuy: number
+  tongLayQuyChiThuy: number
   tongTienDuaChiThuy: number
   duLyThuyet: number
   duThucTe: number

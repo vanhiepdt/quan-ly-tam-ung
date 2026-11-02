@@ -28,6 +28,7 @@ export function chuyenDongGiaoDich(g: DongGiaoDich): GiaoDichTho {
   const chiThucTe = g.chi_thuc_te === true || g.chi_thuc_te === 'true'
   return {
     chiThucTe,
+    layTuQuyChiThuy: chiThucTe && (g.lay_tu_quy_chi_thuy === true || g.lay_tu_quy_chi_thuy === 'true'),
     id: String(g.id), ngay: ngayIso(g.ngay), ngayDeNghi: g.ngay_de_nghi == null ? null : ngayIso(g.ngay_de_nghi), soThuTu: Number(g.so_thu_tu), taoLuc: new Date(String(g.tao_luc)).toISOString(),
     noiDung: String(g.noi_dung), kyHieuHd: g.ky_hieu_hd === null ? null : String(g.ky_hieu_hd), soHd: g.so_hd === null ? null : String(g.so_hd), loaiHd: g.loai_hd === null ? null : String(g.loai_hd),
     trangThaiHd: String(g.trang_thai_hd), hinhThuc: String(g.hinh_thuc), tongTien: so(g.tong_tien), tienRuouBia: so(g.tien_ruou_bia),

@@ -10,6 +10,22 @@ export type CauHinhAiPhu = {
   moHinh: string
   khoaApi: string
   urlCoSo: string
+  /** Danh sách model đã tìm được từ nhà cung cấp, dùng cho ô chọn Model. */
+  dsMoHinh?: string[]
+}
+
+export const GIOI_HAN_DS_MO_HINH = 80
+
+// Chỉ giữ chuỗi tên model hợp lệ, không trùng; dữ liệu cũ không có trường này.
+export function chuanHoaDsMoHinh(giaTri: unknown): string[] {
+  if (!Array.isArray(giaTri)) return []
+  const ds: string[] = []
+  for (const m of giaTri) {
+    const ten = typeof m === 'string' ? m.trim() : ''
+    if (ten && ten.length <= 200 && !ds.includes(ten)) ds.push(ten)
+    if (ds.length >= GIOI_HAN_DS_MO_HINH) break
+  }
+  return ds
 }
 
 export type CauHinhAi = CauHinhAiPhu & {
@@ -66,6 +82,7 @@ function docCauHinhPhu(
     moHinh: chuoi(o.moHinh) || nha.moHinhMacDinh,
     khoaApi: chuoi(o.khoaApi),
     urlCoSo: nhaCungCap === 'custom' ? chuoi(o.urlCoSo) : '',
+    dsMoHinh: chuanHoaDsMoHinh(o.dsMoHinh),
   }
 }
 
@@ -119,12 +136,14 @@ export type DuLieuCauHinhAi = {
   urlCoSo: string
   daCoKhoaLuu: boolean
   dungKhoaMoiTruong: boolean
+  dsMoHinh: string[]
   ai2: {
     nhaCungCap: NhaCungCapId
     moHinh: string
     urlCoSo: string
     daCoKhoaLuu: boolean
     dungKhoaMoiTruong: boolean
+    dsMoHinh: string[]
   }
 }
 
@@ -140,12 +159,14 @@ export function anKhoaChoGiaoDien(cauHinhDb: CauHinhAi): DuLieuCauHinhAi {
     urlCoSo: cauHinhDb.urlCoSo,
     daCoKhoaLuu: Boolean(cauHinhDb.khoaApi),
     dungKhoaMoiTruong: !cauHinhDb.khoaApi && Boolean(khoaEnv),
+    dsMoHinh: chuanHoaDsMoHinh(cauHinhDb.dsMoHinh),
     ai2: {
       nhaCungCap: ai2.nhaCungCap,
       moHinh: ai2.moHinh,
       urlCoSo: ai2.urlCoSo,
       daCoKhoaLuu: Boolean(ai2.khoaApi),
       dungKhoaMoiTruong: !ai2.khoaApi && Boolean(khoaEnv2),
+      dsMoHinh: chuanHoaDsMoHinh(ai2.dsMoHinh),
     },
   }
 }

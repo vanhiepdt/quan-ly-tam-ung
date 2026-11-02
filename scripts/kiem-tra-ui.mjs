@@ -15,6 +15,7 @@ export async function suaThongTinGiayGiaoDich(_, data) { window.paperEditCalls.p
 export async function xoaMemGiaoDich() { throw Error('Deletion forbidden in harness'); }
 export async function luuTuyChonCot(data) { window.preferenceCalls.push(data); const result = await answer(window.responses); if (result.ok && location.pathname === '/ledger') sessionStorage.setItem('fixture-ledger-preferences', JSON.stringify(data)); return result; }
 export async function layQrThanhToan(id) { window.qrCalls.push(id); return answer(window.responses); }
+export async function xacNhanDaThanhToanPhi(id) { window.paidCalls = window.paidCalls || []; window.paidCalls.push(id); return answer(window.responses); }
 export async function layLichSuGiaoDich(id) { window.historyCalls.push(id); return answer(window.historyResponses); }
 export async function xemGiayNhap(form, loai) { window.previewCalls = window.previewCalls || []; window.previewCalls.push({loai, data: Object.fromEntries(form)}); return window.fixturePreview || { loi: 'Harness' } }
 export async function taiNguoiKyGiay() { return window.fixturePaperSigners ?? { canBo: [], macDinh: { nguoiDeNghiId: '', lanhDaoTiepKhachId: '', lanhDaoThanhToanId: '', truongPhongId: '', keToanKiemSoatId: '' }, taiKhoanTheoNguoiLayHd: {} } }
@@ -89,7 +90,7 @@ window.fixtureActualRows = tinhToan(location.search.includes('fees') ? [
   dong({id:'a2', soThuTu:2, noiDung:'Học phí 08 học viên', tongTien:16800000, tienDuocThanhToanGoc:16800000, chiThucTe:true, coTinhPhi:false}),
 ]);
 const ledgerPreferences = JSON.parse(sessionStorage.getItem('fixture-ledger-preferences') || 'null') ?? {...cotMacDinh(), an: location.search.includes('hidden') ? ['chungTu','tongTien'] : []};
-createRoot(document.getElementById('root')).render(screen === '/settings' ? <TuyChonCot banDau={null} loiBanDau={null}/> : screen === '/ledger' ? <BangNhatKy rows={[]} coTheSua={false} banDau={ledgerPreferences} phuTro={phuTro}/> : screen === '/ledger-actual' ? <BangNhatKy rows={window.fixtureActualRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-readonly' ? <BangNhatKy rows={window.fixtureRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-edit' ? <BangNhatKy rows={window.fixtureRows} coTheSua={true} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: location.search.includes('admin') ? 'admin' : 'nhap_lieu'}}/> : screen === '/ledger-paper' ? <BangNhatKy rows={window.fixturePaperRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/paper' ? <SoanThao id="r2" loai="thanh_toan"/> : screen === '/payment' ? <table><tbody><tr><td><ThanhToan id="fixture"/></td></tr></tbody></table> : <FormGiaoDich collectors={[{id:'fixture-collector',ten:'Người lấy HĐ thử'}]} donVi={[{id:'fixture-unit-2',ten:'Đơn vị thử hai',so_lan:3,lan_cuoi:'01/01/2026'},{id:'fixture-unit',ten:'Đơn vị thử nghiệm'}]} nguoiLayHdMacDinhId="fixture-collector" trangThaiTtPhiMacDinh="Chưa thanh toán"/>);
+createRoot(document.getElementById('root')).render(screen === '/settings' ? <TuyChonCot banDau={null} loiBanDau={null}/> : screen === '/ledger' ? <BangNhatKy rows={[]} coTheSua={false} banDau={ledgerPreferences} phuTro={phuTro}/> : screen === '/ledger-actual' ? <BangNhatKy rows={window.fixtureActualRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-readonly' ? <BangNhatKy rows={window.fixtureRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/ledger-edit' ? <BangNhatKy rows={window.fixtureRows} coTheSua={true} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: location.search.includes('admin') ? 'admin' : 'nhap_lieu'}}/> : screen === '/ledger-paper' ? <BangNhatKy rows={window.fixturePaperRows} coTheSua={false} banDau={ledgerPreferences} phuTro={{...phuTro, vaiTro: 'chi_doc'}}/> : screen === '/paper' ? <SoanThao id="r2" loai="thanh_toan"/> : screen === '/payment' ? <table><tbody><tr><td><ThanhToan id="fixture"/></td></tr></tbody></table> : screen === '/payment-admin' ? <table><tbody><tr><td><ThanhToan id="fixture" coTheXacNhan/></td></tr></tbody></table> : <FormGiaoDich collectors={[{id:'fixture-collector',ten:'Người lấy HĐ thử'}]} donVi={[{id:'fixture-unit-2',ten:'Đơn vị thử hai',so_lan:3,lan_cuoi:'01/01/2026'},{id:'fixture-unit',ten:'Đơn vị thử nghiệm'}]} nguoiLayHdMacDinhId="fixture-collector" trangThaiTtPhiMacDinh="Chưa thanh toán"/>);
 `
 // next/link kéo theo mã dùng chung của Next, thứ đọc process.env ở cấp module. Next tự thay
 // biến này khi đóng gói, còn esbuild thì không, nên phải khai báo để trang thử không vỡ.
@@ -642,7 +643,8 @@ try {
  await page.getByRole('button',{name:'Sửa',exact:true}).first().click()
  const chonTruongAdmin = page.getByRole('dialog',{name:'Sửa giao dịch'}).getByLabel('Trường cần sửa')
  await expect(chonTruongAdmin.locator('option[value="tong_tien"]')).toHaveCount(1)
- await expect(chonTruongAdmin.locator('option')).toHaveCount(20)
+ await expect(chonTruongAdmin.locator('option')).toHaveCount(21)
+ await expect(chonTruongAdmin.locator('option[value="lay_tu_quy_chi_thuy"]')).toHaveCount(1)
  await expect(chonTruongAdmin.locator('option[value="co_so_tinh_phi_lay_hd"]')).toHaveCount(1)
  await expect(chonTruongAdmin.locator('option[value="hinh_thuc"]')).toHaveCount(1)
  await expect(chonTruongAdmin.locator('option[value="tien_duoc_thanh_toan"]')).toHaveCount(1)
@@ -790,6 +792,20 @@ try {
  await queue([qr]); await page.getByRole('button',{name:'Tải lại QR theo dữ liệu mới nhất'}).click(); await expect(page.getByRole('img')).toHaveAttribute('src',/^data:image\/png;base64,/); await expect(page.getByText('FIXTURE OWNER')).toBeVisible(); await page.getByRole('button',{name:'Đóng',exact:true}).click(); await expect(page.getByRole('dialog')).toHaveCount(0)
  await queue([{delay:300,result:{loi:'STALE QR ERROR'}},qr]); await page.getByRole('button',{name:'Thanh toán',exact:true}).click(); await page.getByRole('button',{name:'Đóng',exact:true}).click(); await page.getByRole('button',{name:'Thanh toán',exact:true}).click(); await page.clock.runFor(500); await expect(page.getByText('FIXTURE OWNER')).toBeVisible(); await expect(page.getByText('STALE QR ERROR')).toHaveCount(0); await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0)
  console.log('PASS payment portal, local QR, error retry, close/reopen stale-response guard and Escape')
+ // Vai trò không phải admin không thấy nút xác nhận; admin bấm, hộp xác nhận hiện ra rồi mới gọi máy chủ.
+ await page.goto(origin+'/payment'); await queue([qr]); await page.getByRole('button',{name:'Thanh toán',exact:true}).click(); await expect(page.getByText('FIXTURE OWNER')).toBeVisible()
+ await expect(page.getByRole('button',{name:'Đã thanh toán',exact:true})).toHaveCount(0); await page.keyboard.press('Escape')
+ await page.goto(origin+'/payment-admin'); await queue([qr]); await page.getByRole('button',{name:'Thanh toán',exact:true}).click(); await expect(page.getByText('FIXTURE OWNER')).toBeVisible()
+ page.once('dialog',d=>d.dismiss()); await page.getByRole('button',{name:'Đã thanh toán',exact:true}).click()
+ expect(await page.evaluate(()=>window.paidCalls?.length ?? 0)).toBe(0)
+ await queue([{loi:'Phí không còn ở trạng thái Chưa thanh toán. Vui lòng tải lại bảng.'}]); page.once('dialog',d=>d.accept()); await page.getByRole('button',{name:'Đã thanh toán',exact:true}).click()
+ await expect(page.getByRole('alert')).toContainText('Phí không còn ở trạng thái Chưa thanh toán')
+ await queue([{thanhCong:'Đã chuyển Thanh toán phí sang Đã thanh toán.'}]); page.once('dialog',d=>d.accept()); await page.getByRole('button',{name:'Đã thanh toán',exact:true}).click()
+ await expect(page.getByRole('status')).toContainText('Đã chuyển Thanh toán phí sang Đã thanh toán.')
+ await expect(page.getByRole('button',{name:'Đã thanh toán',exact:true})).toHaveCount(0)
+ expect(await page.evaluate(()=>window.paidCalls)).toEqual(['fixture','fixture'])
+ await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0)
+ console.log('PASS admin-only Đã thanh toán button confirms first, reports errors and marks the fee paid')
 
  // Mẫu gộp chỉ có một giấy thanh toán; phụ lục không còn là tài liệu OnlyOffice riêng.
  await context.addInitScript(() => {

@@ -292,3 +292,38 @@ describe('số dư khi chọn Chi thực tế', () => {
     expect(r).toMatchObject({ cqTraThang: 1_000_000, duTienCqTraThang: 0 })
   })
 })
+
+describe('nguồn bù tiền không được thanh toán của Chi thực tế', () => {
+  it('CQ trả thẳng lấy quỹ chị Thúy không trừ Dư tiền CQ trả thẳng, cộng dồn Tổng lấy quỹ chị Thúy', () => {
+    const rows = tinhToan([
+      dong({ id: 'a', hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, layTuQuyChiThuy: true, coTinhPhi: false, tongTien: 2_000_000, tienRuouBia: 400_000 }),
+      dong({ id: 'b', soThuTu: 2, hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, coTinhPhi: false, tongTien: 1_000_000, tienRuouBia: 100_000 }),
+      dong({ id: 'c', soThuTu: 3, hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, layTuQuyChiThuy: true, coTinhPhi: false, tongTien: 500_000, tienRuouBia: 50_000 }),
+    ])
+    expect(rows.map(r => r.layQuyChiThuy)).toEqual([400_000, 0, 50_000])
+    expect(rows.map(r => r.tongLayQuyChiThuy)).toEqual([400_000, 400_000, 450_000])
+    expect(rows.map(r => r.duTienCqTraThang)).toEqual([0, -100_000, -100_000])
+    for (const r of rows) expect(r.duHiepDangCam).toBe(r.duDangCam + r.duTienCqTraThang)
+  })
+
+  it('Hoàn tạm ứng lấy quỹ chị Thúy chỉ trừ phần được thanh toán khỏi Dư TƯ thực tế và đang cầm', () => {
+    const base = [
+      dong({ id: 'advance', hinhThuc: HINH_THUC.TAM_UNG_THEM, tamUngTuCq: 10_000_000 }),
+      dong({ id: 'actual', soThuTu: 2, chiThucTe: true, coTinhPhi: false, tongTien: 2_000_000, tienRuouBia: 300_000 }),
+    ]
+    const truDu = tinhToan(base)
+    const quy = tinhToan(base.map(r => r.id === 'actual' ? { ...r, layTuQuyChiThuy: true } : r))
+    expect(truDu[1]).toMatchObject({ duThucTe: 8_000_000, duDangCam: 8_000_000, layQuyChiThuy: 0, tongLayQuyChiThuy: 0 })
+    expect(quy[1]).toMatchObject({ duThucTe: 8_300_000, duDangCam: 8_300_000, layQuyChiThuy: 300_000, tongLayQuyChiThuy: 300_000 })
+    expect(quy[1].duLyThuyet).toBe(truDu[1].duLyThuyet)
+  })
+
+  it('bỏ qua lựa chọn khi không có Chi thực tế hoặc hóa đơn không hợp lệ', () => {
+    const rows = tinhToan([
+      dong({ hinhThuc: HINH_THUC.CQ_TRA_THANG, layTuQuyChiThuy: true, tongTien: 1_000_000, tienRuouBia: 100_000 }),
+      dong({ soThuTu: 2, hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, layTuQuyChiThuy: true, trangThaiHd: TRANG_THAI.CHO_HD, tongTien: 1_000_000, tienRuouBia: 100_000 }),
+    ])
+    expect(rows.map(r => r.layQuyChiThuy)).toEqual([0, 0])
+    expect(rows.map(r => r.duTienCqTraThang)).toEqual([900_000, 900_000])
+  })
+})

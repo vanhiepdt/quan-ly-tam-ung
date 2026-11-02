@@ -22,10 +22,10 @@ describe('đọc cấu hình AI', () => {
       khoaApi: 'sk-live', urlCoSo: 'https://khong-dung.example',
     }))).toEqual({
       dangHoatDong: false, nhaCungCap: 'openai', moHinh: 'gpt-4o',
-      khoaApi: 'sk-live', urlCoSo: '',
+      khoaApi: 'sk-live', urlCoSo: '', dsMoHinh: [],
       ai2: {
         nhaCungCap: 'google', moHinh: 'gemini-2.5-flash',
-        khoaApi: '', urlCoSo: '',
+        khoaApi: '', urlCoSo: '', dsMoHinh: [],
       },
     })
   })

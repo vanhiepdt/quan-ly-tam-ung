@@ -208,9 +208,34 @@ function chuanHoaHang(
   ]
 }
 
-export function taoPhuLucDocx(mau: Buffer, chiTiet: ChiTietHoaDon, thayThe: Record<string, string>, thayCoDinh: readonly ThayTheCoDinh[] = []): Buffer {
+// Tổng cột Đề nghị thanh toán phải bằng "Tổng số tiền đề nghị thanh toán" của giấy, kể cả
+// khi số đó đã làm tròn xuống hàng nghìn hoặc được sửa tay. Phần chênh lệch dồn vào dòng
+// được thanh toán cuối cùng; nếu dòng đó không đủ thì lùi dần lên các dòng trước. Mỗi dòng
+// giữ trong khoảng 0..thành tiền hóa đơn, nên không bao giờ đề nghị vượt hóa đơn.
+export function canBangDeNghi(dong: readonly DongBangKe[], mucTieu: number | undefined): DongBangKe[] {
+  const ketQua = dong.map(row => ({ ...row }))
+  if (mucTieu === undefined || !Number.isSafeInteger(mucTieu) || mucTieu < 0) return ketQua
+  let conLai = mucTieu - ketQua.reduce((sum, row) => sum + row.deNghiThanhToan, 0)
+  if (conLai === 0) return ketQua
+  const coDeNghi = ketQua.map((row, i) => row.deNghiThanhToan > 0 ? i : -1).filter(i => i >= 0)
+  // Tăng thì ưu tiên các dòng đang được đề nghị rồi mới tới dòng khác; giảm chỉ chạm dòng có đề nghị.
+  const thuTu = [...coDeNghi].reverse()
+  if (conLai > 0) for (let i = ketQua.length - 1; i >= 0; i--) if (!coDeNghi.includes(i)) thuTu.push(i)
+  for (const i of thuTu) {
+    if (conLai === 0) break
+    const row = ketQua[i]
+    const moi = Math.min(row.thanhTienHoaDon, Math.max(0, row.deNghiThanhToan + conLai))
+    conLai -= moi - row.deNghiThanhToan
+    row.deNghiThanhToan = moi
+  }
+  return ketQua
+}
+
+export function taoPhuLucDocx(mau: Buffer, chiTiet: ChiTietHoaDon, thayThe: Record<string, string>, thayCoDinh: readonly ThayTheCoDinh[] = [], tongDeNghiGiay?: number): Buffer {
   const phanBo = phanBoPhuLuc(chiTiet)
   if (phanBo.loi) throw new Error(phanBo.loi)
+  const cacDong = canBangDeNghi(phanBo.cacDongTheoHoaDon, tongDeNghiGiay)
+  const tongDeNghi = cacDong.reduce((sum, row) => sum + row.deNghiThanhToan, 0)
   if (phanBo.tongKhongDeNghi <= 0) throw new Error('Hóa đơn không có khoản không đề nghị thanh toán.')
 
   // Dùng đúng biến của giấy thanh toán, kể cả số tiền đã qua luồng làm tròn cũ.
@@ -229,17 +254,17 @@ export function taoPhuLucDocx(mau: Buffer, chiTiet: ChiTietHoaDon, thayThe: Reco
   if (tong <= headerIndex) throw new LoiMauPhuLuc('Không nhận diện được dòng Tổng cộng trong mẫu bảng kê.')
   const mauHang = dong.slice(headerIndex + 1, tong)
     .filter(row => row.cells.length === 6 && row.text.every(text => !text.trim()))
-  const edits = chuanHoaHang(bangXml, mauHang, phanBo.cacDongTheoHoaDon)
+  const edits = chuanHoaHang(bangXml, mauHang, cacDong)
   const tongRow = dong[tong]
   const totalRow = bangXml.slice(tongRow.khoang.batDau, tongRow.khoang.ketThuc)
   // Dòng tổng có ô nhãn gộp ba cột. Điền đúng hai ô tiền đứng độc lập,
   // không ghi đè nhãn, số lượng hoặc ghi chú của mẫu OnlyOffice.
   const tongHoaDon = oTaiCot(totalRow, 3, 6)
-  const tongDeNghi = oTaiCot(totalRow, 4, 6)
+  const oTongDeNghi = oTaiCot(totalRow, 4, 6)
   const totalCells = cellTrucTiepTrongHang(totalRow)
   const totalEdit = [
     { khoang: totalCells[tongHoaDon], text: DINH_DANG_TIEN.format(phanBo.tongHoaDon) },
-    { khoang: totalCells[tongDeNghi], text: DINH_DANG_TIEN.format(phanBo.tongDeNghi) },
+    { khoang: totalCells[oTongDeNghi], text: DINH_DANG_TIEN.format(tongDeNghi) },
   ]
   const tongMoi = thayNhieu(totalRow, totalEdit.map(({ khoang, text }) => ({
     khoang, text: dienCell(totalRow.slice(khoang.batDau, khoang.ketThuc), text),

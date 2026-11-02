@@ -70,7 +70,7 @@ describe('luuCauHinhAi', () => {
     const giaTri = giaTriLuu()
     expect(giaTri).toEqual({
       dangHoatDong: true, nhaCungCap: 'openai', moHinh: 'gpt-4o',
-      khoaApi: 'sk-moi', urlCoSo: '',
+      khoaApi: 'sk-moi', urlCoSo: '', dsMoHinh: [],
       ai2: {
         nhaCungCap: 'google', moHinh: 'gemini-2.5-flash',
         khoaApi: '', urlCoSo: '',
@@ -209,5 +209,53 @@ describe('thuNghiemAi / timMoHinhAi', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.openai.com/v1/chat/completions')
     expect(JSON.stringify(kq)).not.toContain('sk-moi')
     expect(query).not.toHaveBeenCalled()
+  })
+})
+
+describe('timMoHinhAi lưu danh sách model', () => {
+  const fetchMock = vi.fn()
+  beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('API ngoài chưa có model vẫn tìm được, và lưu danh sách khi trùng URL đã lưu', async () => {
+    docCauHinhAiTuDb.mockResolvedValue({
+      dangHoatDong: true, nhaCungCap: 'custom', moHinh: 'cu', khoaApi: 'sk-ngoai', urlCoSo: 'https://ai.example/v1',
+    })
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: [{ id: 'qwen-vl' }, { id: 'llava' }] }) })
+    const kq = await timMoHinhAi(form({ nha_cung_cap: 'custom', mo_hinh: '', khoa_api: '', url_co_so: 'https://ai.example/v1/' }))
+    expect(kq.loi).toBeUndefined()
+    expect(kq.moHinh).toEqual(['qwen-vl', 'llava'])
+    expect(fetchMock.mock.calls[0][0]).toBe('https://ai.example/v1/models')
+    const luu = giaTriLuu()
+    expect(luu).toMatchObject({ nhaCungCap: 'custom', moHinh: 'cu', dsMoHinh: ['qwen-vl', 'llava'] })
+    expect(JSON.stringify(kq)).not.toContain('sk-ngoai')
+  })
+
+  it('lưu danh sách cho AI 2 khi trùng nhà cung cấp đã lưu', async () => {
+    docCauHinhAiTuDb.mockResolvedValue({
+      dangHoatDong: true, nhaCungCap: 'anthropic', moHinh: 'claude-sonnet-5', khoaApi: 'sk-cu', urlCoSo: '',
+      ai2: { nhaCungCap: 'google', moHinh: 'gemini-2.5-flash', khoaApi: 'g-key', urlCoSo: '' },
+    })
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ models: [{ name: 'models/gemini-3-flash' }] }) })
+    const data = form({ nha_cung_cap_2: 'google', mo_hinh_2: 'gemini-2.5-flash', ai: '2' })
+    const kq = await timMoHinhAi(data)
+    expect(kq.moHinh?.length).toBeGreaterThan(0)
+    const luu = giaTriLuu()
+    expect(luu.ai2).toMatchObject({ nhaCungCap: 'google', dsMoHinh: kq.moHinh })
+    expect(luu).toMatchObject({ nhaCungCap: 'anthropic', khoaApi: 'sk-cu' })
+  })
+
+  it('khác nhà đã lưu thì không ghi DB, danh sách được lưu khi bấm Lưu', async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: [{ id: 'gpt-5' }] }) })
+    const kq = await timMoHinhAi(form())
+    // Model đang chọn trên form luôn được giữ trong danh sách.
+    expect(kq.moHinh).toEqual(['gpt-4o', 'gpt-5'])
+    expect(query).not.toHaveBeenCalled()
+    query.mockClear()
+    await luuCauHinhAi({}, form({ mo_hinh: 'gpt-5', ds_mo_hinh: JSON.stringify(['gpt-5', 'gpt-5']) }))
+    expect(giaTriLuu()).toMatchObject({ moHinh: 'gpt-5', dsMoHinh: ['gpt-5'] })
   })
 })

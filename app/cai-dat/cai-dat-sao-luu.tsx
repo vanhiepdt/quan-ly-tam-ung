@@ -27,6 +27,10 @@ function thoiGian(value: string | null) {
   }).format(new Date(value))
 }
 
+function kichThuoc(byte: number) {
+  return byte >= 1024 * 1024 ? (byte / 1024 / 1024).toFixed(1) + ' MB' : Math.max(1, Math.round(byte / 1024)) + ' KB'
+}
+
 function ThongBao({ state }: { state: KetQuaSaoLuu }) {
   return <>
     {state.loi && <p className="notice error mt-2" role="alert">{state.loi}</p>}
@@ -84,12 +88,22 @@ export function CaiDatSaoLuu({ banDau, oauthStatus }: { banDau: DuLieuCaiDatSaoL
           {banDau.lanChay?.loi && <p className="notice error mt-3" role="alert">{banDau.lanChay.loi}</p>}
         </div>
         <form action={manualAction}>
-          <button disabled={manualPending || active || !banDau.googleDriveDaCauHinh} className="btn btn-primary">{manualPending ? 'Đang gửi yêu cầu…' : 'Backup ngay'}</button>
+          <button disabled={manualPending || active} className="btn btn-primary">{manualPending ? 'Đang gửi yêu cầu…' : 'Backup ngay'}</button>
           <ThongBao state={manualState} />
         </form>
-        <p className="text-xs text-slate-500">Sao lưu gồm PostgreSQL và tệp giao dịch. VPS xử lý yêu cầu trong vòng một phút; chỉ khi trạng thái “Đã sao lưu lên Google Drive” mới xác nhận thành công.</p>
+        <p className="text-xs text-slate-500">Sao lưu gồm PostgreSQL và tệp giao dịch. VPS xử lý yêu cầu trong vòng một phút. Gói sao lưu luôn được giữ trên VPS (tải về ở bảng dưới), kể cả khi tải lên Google Drive thất bại.</p>
       </section>
     </div>
+    <section className="border-t border-slate-200 pt-5">
+      <h3 className="font-semibold text-slate-900">Tải bản sao lưu trên VPS</h3>
+      {banDau.tepCucBo.length === 0 ? <p className="mt-2 text-sm text-slate-500">Chưa có gói sao lưu nào trên VPS.</p> : <ul className="mt-3 divide-y divide-slate-100 text-sm">
+        {banDau.tepCucBo.map(tep => <li key={tep.ten} className="flex flex-wrap items-center justify-between gap-3 py-2">
+          <span className="min-w-0 break-all"><span className="font-mono">{tep.ten}</span> <span className="text-slate-500">· {kichThuoc(tep.kichThuoc)} · {thoiGian(tep.suaLuc)}</span></span>
+          <a className="btn btn-secondary min-h-8 px-3 py-1" href={`/api/sao-luu/tai-ve/${encodeURIComponent(tep.ten)}`} download>Tải về</a>
+        </li>)}
+      </ul>}
+      <p className="mt-2 text-xs text-slate-500">VPS giữ các gói trong số ngày cấu hình (mặc định 14 ngày) rồi tự xóa.</p>
+    </section>
     <section className="border-t border-slate-200 pt-5">
       <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold text-slate-900">Lịch sử sao lưu (30 lần gần nhất)</h3><button type="button" className="btn btn-secondary" onClick={() => router.refresh()}>Làm mới lịch sử</button></div>
       {banDau.lichSu.length === 0 ? <p className="mt-2 text-sm text-slate-500">Chưa có lần sao lưu hoàn tất.</p> : <div className="mt-3 overflow-x-auto">

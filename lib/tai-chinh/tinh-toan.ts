@@ -4,16 +4,20 @@ import { soTienThanhToan } from './tien-thanh-toan'
 export type { GiaoDichTho, GiaoDichTinh } from './kieu'
 export function tinhToan(ds: readonly GiaoDichTho[], thamSo: ThamSoTinh = { tyLePhiChung: 0.15, tyLeTheoNguoi: {} }): GiaoDichTinh[] {
   const daSap = [...ds].sort((a,b) => a.ngay.localeCompare(b.ngay) || a.soThuTu-b.soThuTu || a.taoLuc.localeCompare(b.taoLuc) || a.id.localeCompare(b.id))
-  let lyThuyet=0, thucTe=0, dangCam=0, duTienCqTraThang=0, duChiTiepKhachThucTe=0
+  let lyThuyet=0, thucTe=0, dangCam=0, duTienCqTraThang=0, duChiTiepKhachThucTe=0, tongLayQuyChiThuy=0
   return daSap.map(gd => {
     const hopLe=gd.trangThaiHd===TRANG_THAI.HOP_LE, tienRong=soTienThanhToan(gd)
     const hoanTamUng=hopLe&&gd.hinhThuc===HINH_THUC.HOAN_TAM_UNG?tienRong:0
     const cqTraThang=hopLe&&gd.hinhThuc===HINH_THUC.CQ_TRA_THANG?tienRong:0
     const chiThucTe=gd.chiThucTe === true
     const laHoanTamUngChiThucTe=hopLe&&chiThucTe&&gd.hinhThuc===HINH_THUC.HOAN_TAM_UNG
-    const tongTienChiThucTeHoanUng=laHoanTamUngChiThucTe?gd.tongTien:0
+    const laCqTraThangChiThucTe=hopLe&&chiThucTe&&gd.hinhThuc===HINH_THUC.CQ_TRA_THANG
+    // Nguồn bù Tiền không được thanh toán của dòng Chi thực tế: mặc định trừ ở Dư TƯ
+    // thực tế (hoàn tạm ứng) / Dư tiền CQ trả thẳng; chọn quỹ chị Thúy thì ghi vào cột riêng.
+    const layQuyChiThuy=(laHoanTamUngChiThucTe||laCqTraThangChiThucTe)&&gd.layTuQuyChiThuy===true?gd.tienRuouBia:0
+    const tongTienChiThucTeHoanUng=laHoanTamUngChiThucTe?gd.tongTien-layQuyChiThuy:0
     const thayDoiTienCqTraThang=hopLe&&gd.hinhThuc===HINH_THUC.CQ_TRA_THANG
-      ? (chiThucTe ? -gd.tienRuouBia : cqTraThang)
+      ? (chiThucTe ? -(gd.tienRuouBia-layQuyChiThuy) : cqTraThang)
       : 0
     const duaTienCqTraThangChoChiThuy=gd.hinhThuc===HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY
       ? gd.duaTienCqTraThangChoChiThuy ?? 0
@@ -40,8 +44,9 @@ export function tinhToan(ds: readonly GiaoDichTho[], thamSo: ThamSoTinh = { tyLe
     // Chỉ để theo dõi: cộng dồn Tiền được hoàn/thanh toán của CQ trả thẳng hợp lệ có
     // Chi thực tế, kể cả dữ liệu cũ. Không làm thay đổi các số dư khác.
     if(chiThucTe) duChiTiepKhachThucTe+=cqTraThang
+    tongLayQuyChiThuy+=layQuyChiThuy
     const tongTienDuaChiThuy=gd.giaoTienChiThuy+duaTienCqTraThangChoChiThuy
     const duHiepDangCam=duTienCqTraThang+dangCam
-    return {...gd,duaTienCqTraThangChoChiThuy,hoanTamUng,cqTraThang,phiLayHd,duTienCqTraThang,duChiTiepKhachThucTe,tongTienDuaChiThuy,duLyThuyet:lyThuyet,duThucTe:thucTe,duDangCam:dangCam,duHiepDangCam}
+    return {...gd,duaTienCqTraThangChoChiThuy,hoanTamUng,cqTraThang,phiLayHd,duTienCqTraThang,duChiTiepKhachThucTe,layQuyChiThuy,tongLayQuyChiThuy,tongTienDuaChiThuy,duLyThuyet:lyThuyet,duThucTe:thucTe,duDangCam:dangCam,duHiepDangCam}
   })
 }

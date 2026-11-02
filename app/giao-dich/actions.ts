@@ -39,6 +39,7 @@ type DongSua = {
   ngay_de_nghi: string | Date | null
   hinh_thuc: string
   chi_thuc_te?: boolean | string | null
+  lay_tu_quy_chi_thuy?: boolean | string | null
   noi_dung: string
   don_vi_id: string | null
   ky_hieu_hd: string | null
@@ -144,7 +145,7 @@ function layDuLieu(formData: FormData) {
   return {
     ngay: get('ngay'), noi_dung: get('noi_dung'), don_vi_id: get('don_vi_id'),
     ky_hieu_hd: get('ky_hieu_hd'), so_hd: get('so_hd'), loai_hd: get('loai_hd'),
-    trang_thai_hd: get('trang_thai_hd'), hinh_thuc: get('hinh_thuc'), chi_thuc_te: get('chi_thuc_te'),
+    trang_thai_hd: get('trang_thai_hd'), hinh_thuc: get('hinh_thuc'), chi_thuc_te: get('chi_thuc_te'), lay_tu_quy_chi_thuy: get('lay_tu_quy_chi_thuy'),
     tong_tien: get('tong_tien') || 0, tien_ruou_bia: get('tien_ruou_bia') || 0,
     chi_tiet_hoa_don: get('chi_tiet_hoa_don'),
     tien_duoc_thanh_toan: get('tien_duoc_thanh_toan'), tien_duoc_thanh_toan_goc: get('tien_duoc_thanh_toan_goc'),
@@ -272,6 +273,7 @@ export async function suaGiaoDich(_: KetQua, formData: FormData): Promise<KetQua
         }
 
         const chiThucTe = coHoaDonMoi && coHoaDonCu && dung(row.chi_thuc_te)
+        const layTuQuyChiThuy = chiThucTe && dung(row.lay_tu_quy_chi_thuy)
         const coTinhPhi = coHoaDonMoi
           ? (coHoaDonCu ? coTinhPhiDong(row) : hinhThucMoi === HINH_THUC.HOAN_TAM_UNG)
           : false
@@ -333,14 +335,14 @@ export async function suaGiaoDich(_: KetQua, formData: FormData): Promise<KetQua
           nguoi_lay_hd_id=$18, phi_lay_hd_ghi_de=$19, co_tinh_phi_lay_hd=$20, trang_thai_tt_phi=$21,
           hinh_thuc_thanh_toan=$22, tai_khoan_nhan_so=$23, tai_khoan_nhan_ngan_hang=$24,
           tai_khoan_nhan_chi_nhanh=$25, tai_khoan_nhan_ten_chu_tk=$26, chi_thuc_te=$29,
-          co_so_tinh_phi_lay_hd=$30, sua_luc=now(), nguoi_sua=$27 where id=$28`, [
+          co_so_tinh_phi_lay_hd=$30, lay_tu_quy_chi_thuy=$31, sua_luc=now(), nguoi_sua=$27 where id=$28`, [
           hinhThucMoi, noiDung, donViId, invoiceFields.kyHieuHd, invoiceFields.soHd, invoiceFields.loaiHd, invoiceFields.trangThaiHd,
           invoiceFields.tongTien, invoiceFields.tienRuouBia, tienDuocThanhToan, invoiceFields.tienDuocThanhToanGoc,
           lamTronXuongHangNghin, ngayDeNghi,
           dongTien.tamUngTuCq, dongTien.giaoTienChiThuy, dongTien.duaTienCqTraThangChoChiThuy, dongTien.hoanUngTienMat,
           invoiceFields.nguoiLayHdId, invoiceFields.phiLayHdGhiDe, coTinhPhi, invoiceFields.trangThaiTtPhi,
           hinhThucThanhToan, taiKhoanGhiDe.so, taiKhoanGhiDe.nganHang, taiKhoanGhiDe.chiNhanh, taiKhoanGhiDe.tenChuTk,
-          phien.id, id.data, chiThucTe, invoiceFields.coSoTinhPhi,
+          phien.id, id.data, chiThucTe, invoiceFields.coSoTinhPhi, layTuQuyChiThuy,
         ])
         await lamMoiGiayDangCo(client, phien.id, id.data, phien)
         return { thanhCong: 'Đã đổi hình thức giao dịch và làm sạch các trường không còn phù hợp.' }
@@ -443,13 +445,21 @@ export async function suaGiaoDich(_: KetQua, formData: FormData): Promise<KetQua
       if (truong.id === 'chi_thuc_te') {
         const bat = chuanHoa.giaTri === '1'
         if (bat === dung(row.chi_thuc_te)) return { thanhCong: 'Lựa chọn Chi thực tế không thay đổi.' }
-        await client.query(`update giao_dich set chi_thuc_te=$1,
+        // Tắt Chi thực tế thì nguồn bù quay về mặc định (ràng buộc DB cũng yêu cầu vậy).
+        await client.query(`update giao_dich set chi_thuc_te=$1, lay_tu_quy_chi_thuy=lay_tu_quy_chi_thuy and $1,
           co_tinh_phi_lay_hd=$2, phi_lay_hd_ghi_de=$3, trang_thai_tt_phi=$4,
           sua_luc=now(), nguoi_sua=$5 where id=$6`, [
           bat, bat ? false : dangTinhPhi, bat ? null : row.phi_lay_hd_ghi_de,
           bat ? 'Không phát sinh' : row.trang_thai_tt_phi, phien.id, id.data,
         ])
         return { thanhCong: bat ? 'Đã bật Chi thực tế và tắt tính phí hóa đơn.' : 'Đã tắt Chi thực tế.' }
+      }
+      if (truong.id === 'lay_tu_quy_chi_thuy') {
+        const bat = chuanHoa.giaTri === '1'
+        if (bat && !dung(row.chi_thuc_te)) return { loi: 'Chỉ giao dịch Chi thực tế mới chọn được nguồn bù từ quỹ chị Thúy.' }
+        if (bat === dung(row.lay_tu_quy_chi_thuy)) return { thanhCong: 'Nguồn bù không thay đổi.' }
+        await client.query('update giao_dich set lay_tu_quy_chi_thuy=$1, sua_luc=now(), nguoi_sua=$2 where id=$3', [bat, phien.id, id.data])
+        return { thanhCong: bat ? 'Tiền không được thanh toán sẽ lấy từ quỹ chị Thúy.' : 'Tiền không được thanh toán sẽ trừ ở số dư.' }
       }
       if (truong.id === 'co_tinh_phi_lay_hd') {
         const bat = chuanHoa.giaTri === '1'

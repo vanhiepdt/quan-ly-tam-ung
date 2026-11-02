@@ -64,6 +64,8 @@ export function giaTriXuatNhatKy(row: GiaoDichTinh, id: CotXuatId): GiaTriExcel 
     case 'duaTienCqTraThangChoChiThuy': return row.duaTienCqTraThangChoChiThuy
     case 'duTienCqTraThang': return row.duTienCqTraThang
     case 'duChiTiepKhachThucTe': return row.duChiTiepKhachThucTe
+    case 'layQuyChiThuy': return row.layQuyChiThuy
+    case 'tongLayQuyChiThuy': return row.tongLayQuyChiThuy
     case 'phiLayHd': return row.phiLayHd
     case 'tamUngTuCq': return row.tamUngTuCq
     case 'giaoTienChiThuy': return row.giaoTienChiThuy

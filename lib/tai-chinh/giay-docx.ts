@@ -41,7 +41,7 @@ export function taoGiayDocx(mau: Buffer, giay: GiayDeNghi, gd: DuLieuPhuLuc): Bu
     return dienMauDocx(mau, giay.thayThe, giay.thayCoDinh).duLieu
   }
   if (coPhuLucThanhToan({ chiTietHoaDon: gd.chiTietHoaDon ?? null, tienRuouBia: gd.tienRuouBia })) {
-    return taoPhuLucDocx(mau, gd.chiTietHoaDon!, giay.thayThe, giay.thayCoDinh)
+    return taoPhuLucDocx(mau, gd.chiTietHoaDon!, giay.thayThe, giay.thayCoDinh, giay.soTienDeNghiThanhToan)
   }
   return boPhuLuc(dienMauDocx(mau, { ...giay.thayThe, benban: gd.chiTietHoaDon?.tenBanHang ?? '' }, giay.thayCoDinh).duLieu)
 }

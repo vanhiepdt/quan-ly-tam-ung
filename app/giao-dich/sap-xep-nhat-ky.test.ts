@@ -10,7 +10,7 @@ const dong = (phan: Partial<GiaoDichTinh>): GiaoDichTinh => ({
   nguoiDeNghiId: null, nguoiDeNghiTen: null, nguoiLayHdId: null, nguoiLayHdTen: null, phiLayHdGhiDe: null, trangThaiTtPhi: 'Không phát sinh',
   ghiChu: null, donViId: null, donViTen: null, hinhThucThanhToan: null, taiKhoanNhan: null, coHoaDon: false, coChuyenKhoan: false, coTinhPhi: false,
   duaTienCqTraThangChoChiThuy: 0, hoanTamUng: 0, cqTraThang: 0, phiLayHd: 0, duTienCqTraThang: 0, tongTienDuaChiThuy: 0,
-  duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0, duChiTiepKhachThucTe: 0,
+  duLyThuyet: 0, duThucTe: 0, duDangCam: 0, duHiepDangCam: 0, duChiTiepKhachThucTe: 0, layQuyChiThuy: 0, tongLayQuyChiThuy: 0,
   ...phan,
 })
 
@@ -116,14 +116,14 @@ describe('hàng tổng', () => {
   })
 
   it('không cộng cột chữ, cột số dư luỹ kế hay cột thao tác', () => {
-    for (const id of ['ngay', 'noiDung', 'donVi', 'nguoiDeNghi', 'nguoiLayHd', 'trangThaiHd', 'trangThaiTtPhi', 'tep', 'thaoTac', 'duTienCqTraThang', 'duLyThuyet', 'duThucTe', 'duDangCam', 'duHiepDangCam', 'duChiTiepKhachThucTe'] as const) {
+    for (const id of ['ngay', 'noiDung', 'donVi', 'nguoiDeNghi', 'nguoiLayHd', 'trangThaiHd', 'trangThaiTtPhi', 'tep', 'thaoTac', 'duTienCqTraThang', 'duLyThuyet', 'duThucTe', 'duDangCam', 'duHiepDangCam', 'duChiTiepKhachThucTe', 'tongLayQuyChiThuy'] as const) {
       expect(tongCot(rows, id)).toBeNull()
     }
   })
 
   it('cột tiền nào cũng cộng được', () => {
     const congDon = cotNhatKy.filter(c => c.congDon).map(c => c.id)
-    expect(congDon).toEqual(['tongTien', 'tienRuouBia', 'hoanTamUng', 'cqTraThang', 'duaTienCqTraThangChoChiThuy', 'phiLayHd', 'tamUngTuCq', 'giaoTienChiThuy', 'tongTienDuaChiThuy', 'hoanUngTienMat'])
+    expect(congDon).toEqual(['tongTien', 'tienRuouBia', 'hoanTamUng', 'cqTraThang', 'duaTienCqTraThangChoChiThuy', 'layQuyChiThuy', 'phiLayHd', 'tamUngTuCq', 'giaoTienChiThuy', 'tongTienDuaChiThuy', 'hoanUngTienMat'])
     for (const id of congDon) expect(typeof tongCot(rows, id)).toBe('number')
   })
 

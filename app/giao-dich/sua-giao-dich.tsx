@@ -267,6 +267,9 @@ export function SuaGiaoDich({ row, collectors, donVi, vaiTro }: {
           <span className="text-xs font-normal text-slate-500">Đổi từ giao dịch nội bộ sang hình thức có hóa đơn thì phải chọn đơn vị.</span>
         </label>}
 
+        {truong?.id === 'lay_tu_quy_chi_thuy' && <p className="notice" role="status">{row.chiThucTe
+          ? 'Lấy từ quỹ chị Thúy: Tiền không được thanh toán ghi vào cột Lấy quỹ chị Thúy và cộng dồn vào Tổng lấy quỹ chị Thúy, không trừ ở ' + (row.hinhThuc === HINH_THUC.CQ_TRA_THANG ? 'Dư tiền CQ trả thẳng.' : 'Dư TƯ thực tế / đang cầm.')
+          : 'Giao dịch chưa bật Chi thực tế nên chưa chọn được nguồn bù.'}</p>}
         {truong?.id === 'chi_thuc_te' && <p className="notice" role="status">{row.hinhThuc === HINH_THUC.HOAN_TAM_UNG
           ? 'Với Hoàn tạm ứng hợp lệ có Chi thực tế, hai số dư TƯ được cộng dồn riêng từ dòng trước và cùng trừ toàn bộ Tổng tiền. Phí HĐ trừ vào dư thực tế, còn phần phát sinh đang cầm cộng lại phí của dòng này. Chênh lệch các dòng trước được giữ nguyên. Dư TƯ lý thuyết vẫn trừ Tiền được hoàn/thanh toán.'
           : 'Khi tích Chi thực tế, dư tiền CQ trả thẳng chỉ trừ tiền không được thanh toán, không cộng tiền được hoàn/thanh toán.'}</p>}

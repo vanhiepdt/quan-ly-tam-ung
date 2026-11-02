@@ -1,5 +1,6 @@
 import { cauHinhOAuthHopLe, emailDaKetNoi } from './google-drive'
 import { db } from '@/lib/db/pool'
+import { dsTepSaoLuuCucBo, type TepSaoLuuCucBo } from './tep-cuc-bo'
 
 export const KHOA_MUI_GIO_SAO_LUU = 'Asia/Ho_Chi_Minh'
 export const GIO_SAO_LUU_MAC_DINH = '17:00'
@@ -30,6 +31,7 @@ export type DuLieuCaiDatSaoLuu = {
   lichSu: LanChaySaoLuu[]
   googleDriveDaCauHinh: boolean
   googleDriveEmail: string | null
+  tepCucBo: TepSaoLuuCucBo[]
 }
 
 type RowCauHinh = { bat_tu_dong: boolean; gio_chay: string | null }
@@ -93,9 +95,10 @@ export async function docDuLieuCaiDatSaoLuu(client: Pick<typeof db, 'query'> = d
       where trang_thai in ('thanh_cong','that_bai') order by tao_luc desc limit 30`),
     emailDaKetNoi(), cauHinhOAuthHopLe(),
   ])
+  const tepCucBo = await dsTepSaoLuuCucBo()
   return {
     cauHinh: config, lanChay: run, lichSu: history.rows.map(row => lanChaySaoLuuTuRow(row)!),
-    googleDriveDaCauHinh: Boolean(email && ready), googleDriveEmail: email,
+    googleDriveDaCauHinh: Boolean(email && ready), googleDriveEmail: email, tepCucBo,
   }
 }
 export function tachNgayGio(value: Date = new Date(), timeZone = KHOA_MUI_GIO_SAO_LUU) {

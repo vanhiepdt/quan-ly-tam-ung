@@ -88,6 +88,10 @@ async function tokenRequest(body: URLSearchParams): Promise<{ access_token?: str
     signal: AbortSignal.timeout(30_000),
   })
   if (!response.ok) {
+    const loi = await response.json().catch(() => null) as { error?: string } | null
+    // invalid_grant: refresh token hết hạn/bị thu hồi. App OAuth để ở chế độ Testing thì
+    // Google tự thu hồi sau 7 ngày; chuyển sang In production rồi kết nối lại để dùng lâu dài.
+    if (loi?.error === 'invalid_grant') throw new Error('Quyền Google Drive đã hết hạn hoặc bị thu hồi. Nếu lỗi lặp lại sau 7 ngày, OAuth app đang ở chế độ Testing: chuyển sang In production trong Google Cloud Console rồi kết nối lại. Bản sao lưu vẫn được giữ trên VPS và tải về được.')
     if (response.status === 400 || response.status === 401) throw new Error('Quyền Google Drive đã hết hạn hoặc bị thu hồi. Hãy kết nối lại.')
     throw new Error('Google chưa cấp được quyền truy cập Drive. Vui lòng thử lại.')
   }

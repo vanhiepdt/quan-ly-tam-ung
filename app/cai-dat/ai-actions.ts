@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db/pool'
 import { batBuocVaiTro } from '@/lib/xac-thuc/bao-ve'
 import {
-  anKhoaChoGiaoDien, boSungKhoaTuMoiTruong, docCauHinhAiTuDb, KHOA_CAU_HINH_AI,
+  anKhoaChoGiaoDien, boSungKhoaTuMoiTruong, chuanHoaDsMoHinh, docCauHinhAiTuDb, KHOA_CAU_HINH_AI,
   layCauHinhAi2, type CauHinhAi, type CauHinhAiPhu, type DuLieuCauHinhAi,
 } from '@/lib/kiem-tra/cau-hinh-ai'
 import { kiemThuApi, layDanhSachMoHinh, pingHello } from '@/lib/kiem-tra/kiem-api-ai'
@@ -21,7 +21,12 @@ const schema = z.object({
   urlCoSo: z.string().trim().max(300),
   khoaApi: z.string().max(500),
   xoaKhoa: z.boolean(),
+  dsMoHinh: z.array(z.string()),
 })
+
+function docDsMoHinh(formData: FormData, ten: string): string[] {
+  try { return chuanHoaDsMoHinh(JSON.parse(giaTri(formData, ten) || '[]')) } catch { return [] }
+}
 
 function urlCustom(url: string): string {
   return url.replace(/\/+$/, '')
@@ -32,7 +37,8 @@ function giaTri(formData: FormData, ten: string): string {
   return typeof value === 'string' ? value : ''
 }
 
-function docNhap(formData: FormData, hauTo: '' | '_2', coBat = false): { data?: z.infer<typeof schema>; loi?: string } {
+// canMoHinh=false khi chỉ tìm model: API ngoài chưa biết model nào trước khi hỏi /models.
+function docNhap(formData: FormData, hauTo: '' | '_2', coBat = false, canMoHinh = true): { data?: z.infer<typeof schema>; loi?: string } {
   const parsed = schema.safeParse({
     dangHoatDong: coBat ? formData.get('dang_hoat_dong') === '1' : true,
     nhaCungCap: giaTri(formData, `nha_cung_cap${hauTo}`),
@@ -40,6 +46,7 @@ function docNhap(formData: FormData, hauTo: '' | '_2', coBat = false): { data?: 
     urlCoSo: giaTri(formData, `url_co_so${hauTo}`),
     khoaApi: giaTri(formData, `khoa_api${hauTo}`).trim(),
     xoaKhoa: formData.get(`xoa_khoa${hauTo}`) === '1',
+    dsMoHinh: docDsMoHinh(formData, `ds_mo_hinh${hauTo}`),
   })
   if (!parsed.success) return { loi: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ.' }
   const d = parsed.data
@@ -51,12 +58,12 @@ function docNhap(formData: FormData, hauTo: '' | '_2', coBat = false): { data?: 
     if (!urlAnToan(urlCoSo)) return { loi: 'URL API ngoài phải là http hoặc https, không chứa tài khoản trong địa chỉ.' }
   }
   const moHinh = d.moHinh || nha.moHinhMacDinh
-  if (!moHinh) return { loi: `Hãy điền tên model ${nha.ten}.` }
+  if (!moHinh && canMoHinh) return { loi: `Hãy chọn hoặc điền tên model ${nha.ten}. Bấm Tìm model hiện có để lấy danh sách.` }
   return { data: { ...d, moHinh, urlCoSo } }
 }
 
 function phu(d: z.infer<typeof schema>): CauHinhAiPhu {
-  return { nhaCungCap: d.nhaCungCap, moHinh: d.moHinh, khoaApi: d.khoaApi, urlCoSo: d.urlCoSo }
+  return { nhaCungCap: d.nhaCungCap, moHinh: d.moHinh, khoaApi: d.khoaApi, urlCoSo: d.urlCoSo, dsMoHinh: d.dsMoHinh }
 }
 
 function khoaSauKhiLuu(
@@ -102,9 +109,9 @@ export async function docDuLieuCauHinhAi(): Promise<DuLieuCauHinhAi> {
   return anKhoaChoGiaoDien(await docCauHinhAiTuDb())
 }
 
-function cauHinhNhap(formData: FormData): { cauHinh?: CauHinhAi; loi?: string } {
+function cauHinhNhap(formData: FormData, canMoHinh = true): { cauHinh?: CauHinhAi; loi?: string } {
   const hauTo = formData.get('ai') === '2' ? '_2' : ''
-  const nhap = docNhap(formData, hauTo)
+  const nhap = docNhap(formData, hauTo, false, canMoHinh)
   if (nhap.loi || !nhap.data) return { loi: nhap.loi }
   return { cauHinh: { dangHoatDong: true, ...phu(nhap.data) } }
 }
@@ -128,15 +135,43 @@ export async function thuNghiemAi(formData: FormData): Promise<KetQuaKiemAi> {
   return { thanhCong: kq.thanhCong, moHinh: kq.moHinh, nhatKy: kq.nhatKy }
 }
 
+// Lưu ngay danh sách model vào đúng AI đang tìm, nhưng chỉ khi nhà cung cấp (và URL với
+// API ngoài) trùng cấu hình đã lưu; nếu khác thì danh sách đi theo form và lưu khi bấm Lưu.
+async function luuDsMoHinhNeuKhop(ai: '1' | '2', nhap: CauHinhAi, dsMoHinh: string[]): Promise<boolean> {
+  const hienTai = await docCauHinhAiTuDb()
+  const slot = ai === '1' ? hienTai : layCauHinhAi2(hienTai)
+  if (slot.nhaCungCap !== nhap.nhaCungCap) return false
+  if (nhap.nhaCungCap === 'custom' && urlCustom(slot.urlCoSo) !== urlCustom(nhap.urlCoSo)) return false
+  const moi: CauHinhAi = ai === '1'
+    ? { ...hienTai, dsMoHinh }
+    : { ...hienTai, ai2: { ...layCauHinhAi2(hienTai), dsMoHinh } }
+  await db.query(
+    `insert into cau_hinh (khoa, gia_tri, mo_ta)
+     values ($1, $2::jsonb, $3)
+     on conflict (khoa) do update set gia_tri=excluded.gia_tri, sua_luc=now()`,
+    [KHOA_CAU_HINH_AI, JSON.stringify(moi), 'Cấu hình hai AI đọc và đối chiếu hóa đơn'],
+  )
+  revalidatePath('/cai-dat')
+  return true
+}
+
 export async function timMoHinhAi(formData: FormData): Promise<KetQuaKiemAi> {
   await batBuocVaiTro('admin')
-  const nhap = cauHinhNhap(formData)
+  const nhap = cauHinhNhap(formData, false)
   if (nhap.loi || !nhap.cauHinh) return { loi: nhap.loi }
   const nhatKy: string[] = []
   const kq = await layDanhSachMoHinh(await khoaDeThu(nhap.cauHinh), nhatKy)
   if ('loi' in kq) return { loi: kq.loi, nhatKy }
   const nha = timNhaCungCap(nhap.cauHinh.nhaCungCap)
-  return { thanhCong: `Tìm được ${kq.moHinh.length} model ${nha?.ten ?? ''}.`.trim(), moHinh: kq.moHinh, nhatKy }
+  const dsMoHinh = chuanHoaDsMoHinh(kq.moHinh)
+  let daLuu = false
+  try {
+    daLuu = await luuDsMoHinhNeuKhop(formData.get('ai') === '2' ? '2' : '1', nhap.cauHinh, dsMoHinh)
+  } catch {
+    nhatKy.push('Không lưu được danh sách model vào cài đặt; bấm Lưu cài đặt AI để thử lại.')
+  }
+  const loiNhan = daLuu ? 'Đã lưu danh sách model.' : 'Bấm Lưu cài đặt AI để lưu danh sách và model đã chọn.'
+  return { thanhCong: `Tìm được ${dsMoHinh.length} model ${nha?.ten ?? ''}. ${loiNhan}`.replace('  ', ' '), moHinh: dsMoHinh, nhatKy }
 }
 
 export async function pingHelloAi(formData: FormData): Promise<KetQuaKiemAi> {

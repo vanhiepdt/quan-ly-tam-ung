@@ -116,6 +116,8 @@ export type GiayDeNghi = {
   thayThe: Record<string, string>
   // Những chỗ mẫu Word gõ cứng, thay bằng biểu thức chính quy.
   thayCoDinh: ThayTheCoDinh[]
+  // Tổng số tiền đề nghị thanh toán (đã làm tròn/sửa tay); bảng kê cân tổng theo số này.
+  soTienDeNghiThanhToan?: number
 }
 
 const NGAY_ISO = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -312,6 +314,7 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
       chuKy: [[{ tieuDe: 'DUYỆT CỦA LÃNH ĐẠO', hoTen: hoTen(lanhDaoTk), chucDanh: lanhDaoTk?.chucDanh ?? null }],
         [{ tieuDe: 'TM. Bộ phận tiếp khách', hoTen: oNguoiDeNghi.hoTen, chucDanh: null }]],
       thayThe: chung, thayCoDinh: dungThayCoDinh, hinhThucThanhToan: nhanThanhToan, taiKhoan: tk,
+      soTienDeNghiThanhToan: sotientt,
     }
   }
 
@@ -334,6 +337,7 @@ export function dungGiay(loai: LoaiGiay, gd: DuLieuGiay, ctx: BoiCanhGiay): Giay
       [{ tieuDe: 'KIỂM SOÁT', hoTen: hoTen(keToan), chucDanh: null }],
       [{ tieuDe: 'NGƯỜI ĐỀ NGHỊ', hoTen: oNguoiDeNghi.hoTen, chucDanh: null }]],
     thayThe: chung, thayCoDinh: dungThayCoDinh, hinhThucThanhToan: nhanThanhToan, taiKhoan: tk,
+    soTienDeNghiThanhToan: sotientt,
   }
 }
 

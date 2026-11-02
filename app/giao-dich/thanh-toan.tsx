@@ -3,9 +3,10 @@
 import { useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import QRCode from 'qrcode'
-import { layQrThanhToan, type ThongTinThanhToan } from './thanh-toan-actions'
+import { layQrThanhToan, xacNhanDaThanhToanPhi, type ThongTinThanhToan } from './thanh-toan-actions'
 
-export function ThanhToan({ id }: { id: string }) {
+// coTheXacNhan: chỉ quản trị viên thấy nút Đã thanh toán; máy chủ vẫn kiểm tra lại quyền.
+export function ThanhToan({ id, coTheXacNhan = false }: { id: string; coTheXacNhan?: boolean }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const request = useRef(0)
   const titleId = useId()
@@ -13,6 +14,8 @@ export function ThanhToan({ id }: { id: string }) {
   const [busy, setBusy] = useState(false)
   const [loi, setLoi] = useState('')
   const [data, setData] = useState<(ThongTinThanhToan & { image: string }) | null>(null)
+  const [dangXacNhan, setDangXacNhan] = useState(false)
+  const [daXacNhan, setDaXacNhan] = useState('')
 
   async function taiQr() {
     const current = ++request.current
@@ -30,7 +33,20 @@ export function ThanhToan({ id }: { id: string }) {
       if (current === request.current) setBusy(false)
     }
   }
-  function dong() { request.current++; dialog.current?.close(); setMounted(false); setData(null); setBusy(false) }
+  async function xacNhan() {
+    if (!window.confirm('Xác nhận đã chuyển khoản phí lấy hóa đơn và chuyển trạng thái sang Đã thanh toán?')) return
+    setDangXacNhan(true); setLoi('')
+    try {
+      const result = await xacNhanDaThanhToanPhi(id)
+      if (result.thanhCong) setDaXacNhan(result.thanhCong)
+      else setLoi(result.loi ?? 'Không thể cập nhật trạng thái phí.')
+    } catch {
+      setLoi('Không thể cập nhật trạng thái phí. Vui lòng thử lại.')
+    } finally {
+      setDangXacNhan(false)
+    }
+  }
+  function dong() { request.current++; dialog.current?.close(); setMounted(false); setData(null); setBusy(false); setDaXacNhan('') }
   return <>
     <button type="button" className="rounded border border-blue-300 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50" onClick={() => { setMounted(true); void taiQr() }}>Thanh toán</button>
     {mounted && createPortal(<dialog ref={node => { dialog.current = node; if (node && !node.open) node.showModal() }} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); dong() }} className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 text-slate-900 shadow-xl backdrop:bg-black/40">
@@ -52,8 +68,12 @@ export function ThanhToan({ id }: { id: string }) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={data.image} alt="Mã VietQR thanh toán phí lấy hóa đơn" width={320} height={320} className="mx-auto h-auto max-w-full" />
       </div>}
-      <p className="mt-4 rounded bg-amber-50 p-3 text-sm text-amber-900">Tạo hoặc quét QR không xác nhận đã chuyển tiền và không đổi trạng thái phí. Chỉ cập nhật trạng thái sau khi đã kiểm tra giao dịch ngân hàng.</p>
-      <button type="button" disabled={busy} onClick={() => void taiQr()} className="mt-4 rounded border px-3 py-2 text-sm disabled:opacity-50">Tải lại QR theo dữ liệu mới nhất</button>
+      <p className="mt-4 rounded bg-amber-50 p-3 text-sm text-amber-900">Tạo hoặc quét QR không tự đổi trạng thái phí. Chỉ bấm Đã thanh toán sau khi đã kiểm tra giao dịch ngân hàng.</p>
+      {daXacNhan && <p role="status" className="mt-4 rounded bg-green-50 p-3 text-sm text-green-800">{daXacNhan}</p>}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" disabled={busy} onClick={() => void taiQr()} className="rounded border px-3 py-2 text-sm disabled:opacity-50">Tải lại QR theo dữ liệu mới nhất</button>
+        {coTheXacNhan && !daXacNhan && <button type="button" disabled={dangXacNhan} onClick={() => void xacNhan()} className="rounded bg-green-700 px-3 py-2 text-sm font-medium text-white hover:bg-green-800 disabled:opacity-50">{dangXacNhan ? 'Đang cập nhật…' : 'Đã thanh toán'}</button>}
+      </div>
     </dialog>, document.body)}
   </>
 }

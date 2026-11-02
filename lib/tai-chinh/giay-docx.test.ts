@@ -81,3 +81,26 @@ it('không phát sinh tiền không thanh toán thì xóa hẳn trang phụ lụ
   expect(contents.match(/w:type="page"/g)).toHaveLength(1)
   expect(contents).not.toContain('[[')
 })
+
+it('làm tròn số tiền đề nghị thì tổng cột Đề nghị thanh toán bằng đúng số đã làm tròn', () => {
+  const tron = {
+    ...giaoDich,
+    tongTien: 350_500, tienRuouBia: 50_000,
+    tienDuocThanhToan: 300_000, tienDuocThanhToanGoc: 300_500, lamTronXuongHangNghin: true,
+    chiTietHoaDon: {
+      ...chiTiet,
+      dongHang: [
+        { ten: 'Lẩu hải sản', soLuong: 1, donGia: 300_500, thanhTien: 300_500, deNghiThanhToan: 300_500 },
+        { ten: 'Bia Tiger', soLuong: 1, donGia: 50_000, thanhTien: 50_000 },
+      ],
+    },
+  }
+  const giay = dungGiay(LOAI_GIAY.THANH_TOAN, tron, ctx)
+  expect(giay.thayThe.sotientt).toBe('300.000')
+  const contents = xml(taoGiayDocx(mau, giay, tron))
+  const bang = [...contents.matchAll(/<w:tbl(?=[\s>])[^>]*>[\s\S]*?<\/w:tbl>/g)]
+    .find(t => t[0].includes('Đề nghị thanh toán'))![0]
+  expect(rowOf(bang, 'Lẩu hải sản').slice(3, 5)).toEqual(['300.500', '300.000'])
+  expect(rowOf(bang, 'Bia Tiger').slice(3, 5)).toEqual(['50.000', '0'])
+  expect(rowOf(bang, 'Tổng cộng')).toEqual(['Tổng cộng', '350.500', '300.000', ''])
+})

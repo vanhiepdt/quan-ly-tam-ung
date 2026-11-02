@@ -51,6 +51,7 @@ export const schemaGiaoDich = z.object({
   trang_thai_hd: stringOrNull,
   hinh_thuc: z.string().min(1),
   chi_thuc_te: checkbox.transform(value => value ?? false),
+  lay_tu_quy_chi_thuy: checkbox.transform(value => value ?? false),
   tong_tien: tien.default(0),
   tien_ruou_bia: tien.default(0),
   chi_tiet_hoa_don: z.preprocess((value) => {
@@ -94,6 +95,9 @@ export const schemaGiaoDich = z.object({
 }).refine((d) => !d.chi_thuc_te || canDonVi(d.hinh_thuc), {
   message: 'Chi thực tế chỉ áp dụng cho Hoàn tạm ứng và Cơ quan trả thẳng.',
   path: ['chi_thuc_te']
+}).refine((d) => !d.lay_tu_quy_chi_thuy || d.chi_thuc_te, {
+  message: 'Chỉ giao dịch Chi thực tế mới chọn được lấy Tiền không được thanh toán từ quỹ chị Thúy.',
+  path: ['lay_tu_quy_chi_thuy']
 }).refine((d) => canDonVi(d.hinh_thuc) || Boolean(noiDungTheoHinhThuc(d.hinh_thuc)) || d.noi_dung.length > 0, {
   message: 'Nội dung không được để trống.',
   path: ['noi_dung']

@@ -35,6 +35,8 @@ describe('column preference validation', () => {
       ['duaTienCqTraThangChoChiThuy', 'Đưa tiền CQ trả thẳng cho Chị Thúy'],
       ['duTienCqTraThang', 'Dư tiền CQ trả thẳng'],
       ['duChiTiepKhachThucTe', 'Dư Chi tiếp khách thực tế'],
+      ['layQuyChiThuy', 'Lấy quỹ chị Thúy'],
+      ['tongLayQuyChiThuy', 'Tổng lấy quỹ chị Thúy'],
       ['tongTienDuaChiThuy', 'Tổng Tiền đưa chị Thúy'],
       ['duHiepDangCam', 'Dư Hiệp đang cầm'],
       ['giaoTienChiThuy', 'Giao tiền TƯ cho Chị Thúy'],

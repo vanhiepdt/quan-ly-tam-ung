@@ -16,7 +16,9 @@ type TrangThaiSlot = {
   urlCoSo: string
   daCoKhoaLuu: boolean
   dungKhoaMoiTruong: boolean
+  dsMoHinh: string[]
 }
+type GiaTriSlot = { nha: NhaCungCapId; moHinh: string; urlCoSo: string; dsMoHinh: string[] }
 
 function TieuDeAi({ slot }: { slot: Slot }) {
   return <h3 className="text-base font-semibold text-slate-900">{slot === 'ai1' ? 'AI 1' : 'AI 2'}</h3>
@@ -28,8 +30,8 @@ function CauHinhSlot({
 }: {
   slot: Slot
   banDau: TrangThaiSlot
-  giaTri: { nha: NhaCungCapId; moHinh: string; urlCoSo: string }
-  setGiaTri: (value: { nha: NhaCungCapId; moHinh: string; urlCoSo: string }) => void
+  giaTri: GiaTriSlot
+  setGiaTri: (value: GiaTriSlot) => void
   xoaKhoa: boolean
   setXoaKhoa: (value: boolean) => void
   daKiem: KetQuaKiemAi
@@ -39,15 +41,17 @@ function CauHinhSlot({
 }) {
   const suffix = slot === 'ai1' ? '' : '_2'
   const nhaHien = useMemo(() => NHA_CUNG_CAP_AI.find(n => n.id === giaTri.nha) ?? NHA_CUNG_CAP_AI[1], [giaTri.nha])
-  const luaChon = giaTri.moHinh && !nhaHien.moHinhGoiY.includes(giaTri.moHinh)
-    ? [giaTri.moHinh, ...nhaHien.moHinhGoiY]
-    : [...nhaHien.moHinhGoiY]
+  // Danh sách đã tìm (hoặc đã lưu) đứng trước gợi ý cố định; model đang chọn luôn có mặt.
+  const luaChon = [...new Set([giaTri.moHinh, ...giaTri.dsMoHinh, ...nhaHien.moHinhGoiY].filter(Boolean))]
   const daCoKhoa = banDau.daCoKhoaLuu && giaTri.nha === banDau.nhaCungCap && !xoaKhoa
   const dungEnv = banDau.dungKhoaMoiTruong && giaTri.nha === banDau.nhaCungCap && !xoaKhoa && !banDau.daCoKhoaLuu
 
   function doiNha(id: NhaCungCapId) {
     const ke = NHA_CUNG_CAP_AI.find(n => n.id === id)
-    setGiaTri({ nha: id, moHinh: ke?.moHinhMacDinh ?? '', urlCoSo: id === 'custom' ? giaTri.urlCoSo : '' })
+    // Quay về nhà đã lưu thì dùng lại danh sách model đã lưu của nhà đó.
+    const ds = id === banDau.nhaCungCap ? banDau.dsMoHinh : []
+    const moHinh = id === banDau.nhaCungCap ? banDau.moHinh : ke?.moHinhMacDinh ?? ''
+    setGiaTri({ nha: id, moHinh, urlCoSo: id === 'custom' ? giaTri.urlCoSo || (banDau.nhaCungCap === 'custom' ? banDau.urlCoSo : '') : '', dsMoHinh: ds })
     setXoaKhoa(false)
   }
 
@@ -62,10 +66,14 @@ function CauHinhSlot({
       </label>
 
       <label className={`field ${nhaHien.id === 'custom' ? '' : 'sm:col-span-2'}`}>Model
-        <select name={`mo_hinh${suffix}`} value={giaTri.moHinh} onChange={e => setGiaTri({ ...giaTri, moHinh: e.target.value })}>
-          {luaChon.map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
-        <small>{nhaHien.docAnh === false ? 'Model này chỉ dùng được với hóa đơn XML.' : 'Chọn model có khả năng đọc ảnh nếu xử lý PDF.'}</small>
+        {luaChon.length
+          ? <select name={`mo_hinh${suffix}`} value={giaTri.moHinh} onChange={e => setGiaTri({ ...giaTri, moHinh: e.target.value })}>
+            {!giaTri.moHinh && <option value="">— Chọn model —</option>}
+            {luaChon.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          : <input name={`mo_hinh${suffix}`} value={giaTri.moHinh} onChange={e => setGiaTri({ ...giaTri, moHinh: e.target.value })} maxLength={200} placeholder="Bấm Tìm model hiện có, hoặc gõ tên model" />}
+        <input type="hidden" name={`ds_mo_hinh${suffix}`} value={JSON.stringify(giaTri.dsMoHinh)} />
+        <small>{nhaHien.id === 'custom' && !giaTri.dsMoHinh.length ? 'Điền URL và khóa, rồi bấm Tìm model hiện có để lấy danh sách model của API ngoài.' : nhaHien.docAnh === false ? 'Model này chỉ dùng được với hóa đơn XML.' : 'Chọn model có khả năng đọc ảnh nếu xử lý PDF.'}</small>
       </label>
 
       {nhaHien.id === 'custom' && <label className="field">URL API ngoài
@@ -100,8 +108,8 @@ function CauHinhSlot({
 
 export function CaiDatAi({ banDau }: { banDau: DuLieuCauHinhAi }) {
   const [state, action, pending] = useActionState(luuCauHinhAi, initial)
-  const [ai1, setAi1] = useState({ nha: banDau.nhaCungCap, moHinh: banDau.moHinh, urlCoSo: banDau.nhaCungCap === 'custom' ? banDau.urlCoSo : '' })
-  const [ai2, setAi2] = useState({ nha: banDau.ai2.nhaCungCap, moHinh: banDau.ai2.moHinh, urlCoSo: banDau.ai2.nhaCungCap === 'custom' ? banDau.ai2.urlCoSo : '' })
+  const [ai1, setAi1] = useState<GiaTriSlot>({ nha: banDau.nhaCungCap, moHinh: banDau.moHinh, urlCoSo: banDau.nhaCungCap === 'custom' ? banDau.urlCoSo : '', dsMoHinh: banDau.dsMoHinh ?? [] })
+  const [ai2, setAi2] = useState<GiaTriSlot>({ nha: banDau.ai2.nhaCungCap, moHinh: banDau.ai2.moHinh, urlCoSo: banDau.ai2.nhaCungCap === 'custom' ? banDau.ai2.urlCoSo : '', dsMoHinh: banDau.ai2.dsMoHinh ?? [] })
   const [xoa1, setXoa1] = useState(false)
   const [xoa2, setXoa2] = useState(false)
   const [ds, setDs] = useState<Record<Slot, KetQuaKiemAi>>({ ai1: {}, ai2: {} })
@@ -117,6 +125,13 @@ export function CaiDatAi({ banDau }: { banDau: DuLieuCauHinhAi }) {
         data.set('ai', slot === 'ai1' ? '1' : '2')
         const kq = await hanh(data)
         setDs(hien => ({ ...hien, [slot]: kq }))
+        // Tìm được model thì nạp ngay vào ô chọn; giữ model đang chọn nếu còn trong danh sách.
+        if (loai === 'tim' && kq.moHinh?.length) {
+          const ds = kq.moHinh
+          const capNhat = (hien: GiaTriSlot): GiaTriSlot => ({ ...hien, dsMoHinh: ds, moHinh: hien.moHinh && ds.includes(hien.moHinh) ? hien.moHinh : ds[0] })
+          if (slot === 'ai1') setAi1(capNhat)
+          else setAi2(capNhat)
+        }
       } finally { setViecKiem(null) }
     })
   }
@@ -131,8 +146,8 @@ export function CaiDatAi({ banDau }: { banDau: DuLieuCauHinhAi }) {
       <small>PDF được gửi dưới dạng ảnh trang đầu; XML được gửi dưới dạng văn bản cho cả hai cấu hình.</small>
     </label>
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-      <CauHinhSlot slot="ai1" banDau={{ nhaCungCap: banDau.nhaCungCap, moHinh: banDau.moHinh, urlCoSo: banDau.urlCoSo, daCoKhoaLuu: banDau.daCoKhoaLuu, dungKhoaMoiTruong: banDau.dungKhoaMoiTruong }} giaTri={ai1} setGiaTri={setAi1} xoaKhoa={xoa1} setXoaKhoa={setXoa1} daKiem={ds.ai1} dangKiem={dangKiem || pending} viecKiem={viecKiem} thu={thu} />
-      <CauHinhSlot slot="ai2" banDau={{ nhaCungCap: banDau.ai2.nhaCungCap, moHinh: banDau.ai2.moHinh, urlCoSo: banDau.ai2.urlCoSo, daCoKhoaLuu: banDau.ai2.daCoKhoaLuu, dungKhoaMoiTruong: banDau.ai2.dungKhoaMoiTruong }} giaTri={ai2} setGiaTri={setAi2} xoaKhoa={xoa2} setXoaKhoa={setXoa2} daKiem={ds.ai2} dangKiem={dangKiem || pending} viecKiem={viecKiem} thu={thu} />
+      <CauHinhSlot slot="ai1" banDau={{ nhaCungCap: banDau.nhaCungCap, moHinh: banDau.moHinh, urlCoSo: banDau.urlCoSo, daCoKhoaLuu: banDau.daCoKhoaLuu, dungKhoaMoiTruong: banDau.dungKhoaMoiTruong, dsMoHinh: banDau.dsMoHinh ?? [] }} giaTri={ai1} setGiaTri={setAi1} xoaKhoa={xoa1} setXoaKhoa={setXoa1} daKiem={ds.ai1} dangKiem={dangKiem || pending} viecKiem={viecKiem} thu={thu} />
+      <CauHinhSlot slot="ai2" banDau={{ nhaCungCap: banDau.ai2.nhaCungCap, moHinh: banDau.ai2.moHinh, urlCoSo: banDau.ai2.urlCoSo, daCoKhoaLuu: banDau.ai2.daCoKhoaLuu, dungKhoaMoiTruong: banDau.ai2.dungKhoaMoiTruong, dsMoHinh: banDau.ai2.dsMoHinh ?? [] }} giaTri={ai2} setGiaTri={setAi2} xoaKhoa={xoa2} setXoaKhoa={setXoa2} daKiem={ds.ai2} dangKiem={dangKiem || pending} viecKiem={viecKiem} thu={thu} />
     </div>
     {state.loi && <p className="notice error" role="alert">{state.loi}</p>}
     {state.thanhCong && <p className="notice success" role="status">{state.thanhCong}</p>}

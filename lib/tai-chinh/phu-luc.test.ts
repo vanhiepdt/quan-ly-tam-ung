@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { ChiTietHoaDon } from '@/lib/kiem-tra/giao-dien'
-import { coPhuLucThanhToan, LoiMauPhuLuc, taoPhuLucDocx } from './phu-luc'
+import { canBangDeNghi, coPhuLucThanhToan, LoiMauPhuLuc, taoPhuLucDocx } from './phu-luc'
 import { docZip, ghiZip } from '@/lib/van-ban/zip'
 import { TEP_NOI_DUNG } from '@/lib/van-ban/docx'
 import { CAU_HINH_GIAY_MAC_DINH, dungGiay, LOAI_GIAY, type DuLieuGiay } from './giay'
@@ -179,4 +179,24 @@ it('từ chối dòng tổng cộng khi ô nhãn gộp qua cột Thành tiền h
   const document = files.find(x => x.ten === TEP_NOI_DUNG)!
   document.duLieu = Buffer.from(document.duLieu.toString().replace('<w:gridSpan w:val="3"', '<w:gridSpan w:val="4"'))
   expect(() => taoPhuLucDocx(ghiZip(files), chiTiet, thayThe)).toThrow(LoiMauPhuLuc)
+})
+
+describe('canBangDeNghi', () => {
+  const dong = (ten: string, thanhTienHoaDon: number, deNghiThanhToan: number) => ({ ten, soLuong: 1, thanhTienHoaDon, deNghiThanhToan, ghiChu: '' })
+  it('trừ phần làm tròn vào dòng được thanh toán cuối cùng', () => {
+    const kq = canBangDeNghi([dong('A', 200_300, 200_300), dong('B', 100_400, 100_400), dong('Bia', 50_000, 0)], 300_000)
+    expect(kq.map(r => r.deNghiThanhToan)).toEqual([200_300, 99_700, 0])
+  })
+  it('dòng cuối không đủ thì lùi lên dòng trước, không xuống dưới 0', () => {
+    const kq = canBangDeNghi([dong('A', 500_000, 500_000), dong('B', 400, 400)], 499_000)
+    expect(kq.map(r => r.deNghiThanhToan)).toEqual([499_000, 0])
+  })
+  it('tăng tối đa tới thành tiền hóa đơn, ưu tiên dòng đang được đề nghị', () => {
+    const kq = canBangDeNghi([dong('A', 100_000, 90_000), dong('Bia', 50_000, 0)], 120_000)
+    expect(kq.map(r => r.deNghiThanhToan)).toEqual([100_000, 20_000])
+  })
+  it('không có số đề nghị của giấy thì giữ nguyên', () => {
+    const vao = [dong('A', 100_000, 90_000)]
+    expect(canBangDeNghi(vao, undefined)).toEqual(vao)
+  })
 })
