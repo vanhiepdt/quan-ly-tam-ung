@@ -71,8 +71,11 @@ function dongHangAi(v: unknown): DongHang | undefined {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return
   const o = v as Record<string, unknown>
   const ten = chuoiAi(o.ten, 300)
-  const thanhTien = tienAi(o.thanhTien)
+  // Dòng chiết khấu có thể được AI ghi số âm; giữ trị tuyệt đối và gắn cờ để trừ.
+  const am = typeof o.thanhTien === 'number' ? o.thanhTien < 0 : typeof o.thanhTien === 'string' && /^\s*[-−(]/.test(o.thanhTien)
+  const thanhTien = am ? tienAi(typeof o.thanhTien === 'number' ? -o.thanhTien : String(o.thanhTien).replace(/[-−()]/g, '')) : tienAi(o.thanhTien)
   if (!ten || thanhTien === undefined) return
+  const laChietKhau = am || booleanAi(o.laChietKhau) === true
   const soLuong = soThucAi(o.soLuong)
   const donGia = tienAi(o.donGia)
   const thueSuat = thueSuatAi(o.thueSuat)
@@ -88,6 +91,7 @@ function dongHangAi(v: unknown): DongHang | undefined {
     ...(tienThue !== undefined ? { tienThue } : {}),
     ...(thanhTienSauThue !== undefined ? { thanhTienSauThue } : {}),
     ...(laRuouBia !== undefined ? { laRuouBia } : {}),
+    ...(laChietKhau ? { laChietKhau } : {}),
   }
 }
 
@@ -108,6 +112,7 @@ function tienXuLyJsonAi(tho: unknown): unknown {
     tongTien: tienAi(o.tongTien),
     tienThue: tienAi(o.tienThue),
     tienRuouBia: tienAi(o.tienRuouBia),
+    chietKhau: tienAi(typeof o.chietKhau === 'number' ? Math.abs(o.chietKhau) : o.chietKhau),
     loaiHd: chuoiAi(o.loaiHd, 40),
     cotTienHang: chuoiAi(o.cotTienHang, 40),
     ...(dong.length ? { dongHang: dong } : {}),
@@ -123,6 +128,7 @@ const dongHangSchema = z.object({
   tienThue: z.number().int().nonnegative().optional(),
   thanhTienSauThue: z.number().int().nonnegative().optional(),
   laRuouBia: z.boolean().optional(),
+  laChietKhau: z.boolean().optional(),
 })
 
 const aiSchema = z.object({
@@ -137,6 +143,7 @@ const aiSchema = z.object({
   tongTien: z.number().int().nonnegative().optional(),
   tienThue: z.number().int().nonnegative().optional(),
   tienRuouBia: z.number().int().nonnegative().optional(),
+  chietKhau: z.number().int().nonnegative().optional(),
   loaiHd: z.string().trim().max(40).optional(),
   cotTienHang: z.string().trim().max(40).optional(),
   dongHang: z.array(dongHangSchema).max(100).optional(),
@@ -145,9 +152,10 @@ const aiSchema = z.object({
 export const HUONG_DAN = `Bạn đọc hóa đơn điện tử Việt Nam từ PDF hoặc XML. Trả về DUY NHẤT một JSON, không markdown, không lời giải thích.
 Khóa JSON:
 kyHieuHd, soHd, ngay (yyyy-mm-dd), mstBanHang, tenBanHang, mstMuaHang, tenMuaHang, diaChiMuaHang,
-tongTien (số nguyên đồng, tổng thanh toán), tienThue, tienRuouBia,
+tongTien (số nguyên đồng, tổng thanh toán), tienThue, tienRuouBia, chietKhau (tổng chiết khấu thương mại/giảm giá ghi ở phần tổng, nếu có),
 loaiHd ("gtgt" hoặc "ban_hang"), cotTienHang ("truoc_thue" hoặc "sau_thue"),
-dongHang: [{ten, soLuong, donGia, thanhTien, thueSuat, tienThue, thanhTienSauThue, laRuouBia}].
+dongHang: [{ten, soLuong, donGia, thanhTien, thueSuat, tienThue, thanhTienSauThue, laRuouBia, laChietKhau}].
+CHIẾT KHẤU: nếu dòng hàng có cột chiết khấu thì thanhTien là số SAU chiết khấu đúng như cột thành tiền. Dòng “Chiết khấu”/“Giảm giá” riêng thì vẫn trích thành một dòng với laChietKhau=true và thanhTien là số dương cần trừ. Chiết khấu chỉ ghi ở phần tổng thì điền chietKhau. Không bỏ qua chiết khấu.
 soHd là chuỗi và phải giữ nguyên mọi số 0 ở đầu đúng như trên hóa đơn; không tự thêm hoặc bỏ số 0.
 BẮT BUỘC tìm đúng khối người mua, không nhầm với người bán:
 - tenMuaHang: dòng “Tên đơn vị” / “Đơn vị mua hàng”
@@ -198,6 +206,7 @@ function chuanHoa(tho: z.infer<typeof aiSchema>): DuLieuDocTuHoaDon {
     tongCong: tho.tongTien,
     tienThue: tho.tienThue,
     tienRuouBia,
+    ...(tho.chietKhau ? { chietKhau: tho.chietKhau } : {}),
     ...(loaiHd ? { loaiHd } : {}),
     ...(cotTienHang ? { cotTienHang } : {}),
     ...(dongHang ? { dongHang } : {}),

@@ -214,6 +214,7 @@ function KetQuaDoc({ ketQua, onDien }: {
     </div>
     {deXuat.dongHang && deXuat.dongHang.length > 0 && <>
       <p className="text-sm text-slate-600">Tên món, số lượng và thành tiền giữ nguyên theo hóa đơn. Chỉ sửa cột Đề nghị thanh toán và Ghi chú.</p>
+      {(deXuat.chietKhau ?? 0) > 0 && <p className="notice" role="status">Hóa đơn có chiết khấu {vnd.format(deXuat.chietKhau!)}đ, đã trừ vào Thành tiền theo hóa đơn của từng dòng.</p>}
       {phanBo?.loi && <p className="notice error" role="alert">{phanBo.loi} Hãy chỉnh lại chi tiết hóa đơn trước khi xem hoặc lưu giấy.</p>}
       <div className="max-h-80 overflow-auto rounded-lg border border-slate-200 bg-white">
         <table className="w-full min-w-[64rem] text-left text-sm">
@@ -237,7 +238,7 @@ function KetQuaDoc({ ketQua, onDien }: {
                 <td className="px-2 py-2 text-center tabular-nums text-slate-500">{i + 1}</td>
                 <td className="px-2 py-2 text-slate-800">{d.ten}</td>
                 <td className="px-2 py-2 text-right tabular-nums text-slate-700">{d.soLuong === undefined ? '—' : vnd.format(d.soLuong)}</td>
-                <td className="px-2 py-2 text-right tabular-nums text-slate-700">{vnd.format(tien)}đ</td>
+                <td className="px-2 py-2 text-right tabular-nums text-slate-700">{vnd.format(tien)}đ{d.chietKhau ? <span className="block text-xs text-slate-500">đã trừ CK {vnd.format(d.chietKhau)}đ</span> : null}</td>
                 <td className="px-2 py-2">
                   <input
                     aria-label={`Đề nghị thanh toán dòng ${i + 1}`}

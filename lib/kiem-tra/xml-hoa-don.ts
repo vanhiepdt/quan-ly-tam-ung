@@ -2,6 +2,7 @@ import type { CotTienHang, DongHang, DuLieuDocTuHoaDon, LoaiHoaDon } from './gia
 import { doanLoaiTuKyHieu, tienDongSauThue } from './loai-hoa-don'
 import { chuanHoaNgay, chuanHoaMst } from './so-sanh'
 import { congTienRuouBia } from './ruou-bia'
+import { truChietKhauHoaDon } from './chiet-khau'
 
 function tenTag(name: string): string {
   return name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -104,6 +105,8 @@ function docDongHang(khoiXml: string): DongHang | undefined {
   const tienThue = soTien(giaTri(khoiXml, ['TThue', 'TienThue', 'ThueGTGT']))
   const thanhTienSauThue = soTien(giaTri(khoiXml, ['TTSThue', 'ThTienSauThue', 'ThanhTienSauThue', 'TienSauThue']))
   const thue = thueSuat(giaTri(khoiXml, ['TSuat', 'TSThue', 'ThueSuat']))
+  // TChat 3 = chiết khấu thương mại: số ghi dương nhưng phải trừ khỏi tổng.
+  const laChietKhau = giaTri(khoiXml, ['TChat'])?.trim() === '3'
   return {
     ten,
     ...(soLuong !== undefined ? { soLuong } : {}),
@@ -112,6 +115,7 @@ function docDongHang(khoiXml: string): DongHang | undefined {
     ...(thue !== undefined ? { thueSuat: thue } : {}),
     ...(tienThue !== undefined ? { tienThue } : {}),
     ...(thanhTienSauThue !== undefined ? { thanhTienSauThue } : {}),
+    ...(laChietKhau ? { laChietKhau } : {}),
   }
 }
 
@@ -151,6 +155,7 @@ export function docHoaDonXml(xml: string): DuLieuDocTuHoaDon {
   const cot = cotTienHang(trimmed, loaiHd, dongHang)
   const tongTien = soTien(giaTriCuoi(trimmed, ['TgTTTBSo', 'TgTToan', 'TongTienThanhToan', 'TToan', 'TgTCThue']))
   const tienThue = soTien(giaTriCuoi(trimmed, ['TgTThue', 'TongTienThue', 'TThue', 'TGTGT']))
+  const chietKhau = soTien(giaTriCuoi(trimmed, ['TTCKTMai', 'TgTCKTMai', 'TongChietKhau']))
   const ketQua: DuLieuDocTuHoaDon = {
     ...(kyHieuHd ? { kyHieuHd } : {}),
     ...(soHd ? { soHd } : {}),
@@ -162,12 +167,14 @@ export function docHoaDonXml(xml: string): DuLieuDocTuHoaDon {
     ...(mua.diaChi ? { diaChiMuaHang: mua.diaChi } : {}),
     ...(tongTien !== undefined ? { tongTien, tongCong: tongTien } : {}),
     ...(tienThue !== undefined ? { tienThue } : {}),
+    ...(chietKhau ? { chietKhau } : {}),
     ...(loaiHd ? { loaiHd } : {}),
     ...(cot ? { cotTienHang: cot } : {}),
     ...(dongHang.length ? { dongHang } : {}),
   }
   if (dongHang.length) {
-    const { tien, dong } = congTienRuouBia(dongHang, loaiHd, cot)
+    const daTru = truChietKhauHoaDon(dongHang, loaiHd, cot, chietKhau, tongTien).dong
+    const { tien, dong } = congTienRuouBia(daTru, loaiHd, cot)
     ketQua.dongHang = dong
     ketQua.tienRuouBia = tien
   }

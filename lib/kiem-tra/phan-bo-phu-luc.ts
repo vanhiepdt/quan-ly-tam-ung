@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { ChiTietHoaDon, DuLieuDocTuHoaDon, DongHang, LoaiHoaDon, CotTienHang } from './giao-dien'
 import { laDongRuouBia } from './ruou-bia'
 import { tienDongSauThue } from './loai-hoa-don'
+import { apDungChietKhau } from './chiet-khau'
 
 export const DINH_MUC_BUFFET = 390_000
 
@@ -15,6 +16,8 @@ const schemaDongHang = z.object({
   tienThue: soTien.optional(),
   thanhTienSauThue: soTien.optional(),
   laRuouBia: z.boolean().optional(),
+  laChietKhau: z.boolean().optional(),
+  chietKhau: soTien.optional(),
   deNghiThanhToan: soTien.optional(),
   ghiChu: z.string().max(500).optional(),
 })
@@ -174,7 +177,10 @@ function chonMonToiDa(ds: readonly { viTri: number; tien: number }[], hanMuc: nu
 export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
   const parsed = schemaChiTietHoaDon.safeParse(chiTiet)
   if (!parsed.success) return { ...RONG, loi: 'Chi tiết hóa đơn không hợp lệ. Hãy đọc lại hóa đơn.' }
-  const { loaiHd, cotTienHang, dongHang } = parsed.data
+  const { loaiHd, cotTienHang } = parsed.data
+  // Bảng kê không in dòng chiết khấu: chiết khấu đã chia vào thành tiền từng dòng hàng.
+  const dongHang = apDungChietKhau(parsed.data.dongHang as DongHang[], loaiHd, cotTienHang)
+  if (!dongHang.length) return { ...RONG, loi: 'Chi tiết hóa đơn không có dòng hàng.' }
   const cacDong = dongHang.map(dong => ({
     dong: { ...dong, laRuouBia: dong.laRuouBia ?? laDongRuouBia(dong.ten) },
     tien: tienDongSauThue(dong, loaiHd, cotTienHang),

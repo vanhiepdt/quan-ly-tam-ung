@@ -3,6 +3,7 @@ import { doanCotTienHang, doanLoaiHoaDon, nhanLoaiHoaDon } from './loai-hoa-don'
 import { giongChuoi, giongMst, giongTien, hienThiMst } from './so-sanh'
 import { congTienRuouBia, tienRuouBiaCuaLop } from './ruou-bia'
 import { chiTietHoaDonTuDeXuat, phanBoPhuLuc } from './phan-bo-phu-luc'
+import { truChietKhauHoaDon } from './chiet-khau'
 import { laSoTienHopLe } from './tien'
 
 type Nguon = 'ai1' | 'ai2' | 'xml'
@@ -262,7 +263,13 @@ function hopNhatNoiBo(ai1: DuLieuDocTuHoaDon | null, ai2: DuLieuDocTuHoaDon | nu
   })
 
   if (dong?.length) {
-    const tinh = congTienRuouBia(dong, loaiHd, cotTienHang)
+    const khaiBaoCk = docDongHang?.chietKhau ?? xml?.chietKhau ?? ai1?.chietKhau ?? ai2?.chietKhau
+    const ck = truChietKhauHoaDon(dong, loaiHd, cotTienHang, khaiBaoCk, deXuat.tongTien)
+    if (ck.daTru > 0) {
+      deXuat.chietKhau = ck.daTru
+      phatHien.push({ muc: 'thong_tin', ma: 'chiet_khau', truong: 'dongHang', thongDiep: `Hóa đơn có chiết khấu ${ck.daTru.toLocaleString('vi-VN')}đ; đã trừ vào thành tiền từng dòng hàng theo tỷ lệ.` })
+    }
+    const tinh = congTienRuouBia(ck.dong, loaiHd, cotTienHang)
     deXuat.dongHang = tinh.dong
     deXuat.tienRuouBia = tinh.tien
     const baoCao = lop.map(l => ({ lop: l.nhan, tien: tienRuouBiaCuaLop(l.doc, loaiHd, cotTienHang) }))

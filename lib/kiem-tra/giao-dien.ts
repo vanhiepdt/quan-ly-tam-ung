@@ -16,6 +16,11 @@ export type DongHang = {
   tienThue?: number
   thanhTienSauThue?: number
   laRuouBia?: boolean
+  // Dòng chiết khấu/giảm giá đọc từ hóa đơn; thanhTien là số dương cần trừ. Bị bỏ
+  // khỏi bảng kê sau khi apDungChietKhau() chia vào các dòng hàng.
+  laChietKhau?: boolean
+  // Phần chiết khấu (sau thuế) đã trừ vào thanhTienSauThue của dòng.
+  chietKhau?: number
   // Chỉ có khi người dùng chỉnh bảng kê, không sửa dữ liệu gốc từ hóa đơn.
   deNghiThanhToan?: number
   ghiChu?: string
@@ -44,6 +49,8 @@ export interface DuLieuDocTuHoaDon {
   tongTien?: number
   tienThue?: number
   tongCong?: number
+  // Tổng chiết khấu thương mại khai ở phần tổng hóa đơn (nếu có).
+  chietKhau?: number
   tienRuouBia?: number
   loaiHd?: LoaiHoaDon
   cotTienHang?: CotTienHang
