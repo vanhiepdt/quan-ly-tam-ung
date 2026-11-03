@@ -267,7 +267,7 @@ function hopNhatNoiBo(ai1: DuLieuDocTuHoaDon | null, ai2: DuLieuDocTuHoaDon | nu
     const ck = truChietKhauHoaDon(dong, loaiHd, cotTienHang, khaiBaoCk, deXuat.tongTien)
     if (ck.daTru > 0) {
       deXuat.chietKhau = ck.daTru
-      phatHien.push({ muc: 'thong_tin', ma: 'chiet_khau', truong: 'dongHang', thongDiep: `Hóa đơn có chiết khấu ${ck.daTru.toLocaleString('vi-VN')}đ; đã trừ vào thành tiền từng dòng hàng theo tỷ lệ.` })
+      phatHien.push({ muc: 'thong_tin', ma: 'chiet_khau', truong: 'dongHang', thongDiep: `Hóa đơn có chiết khấu ${ck.daTru.toLocaleString('vi-VN')}đ; ghi thành dòng chiết khấu riêng trong bảng kê.` })
     }
     const tinh = congTienRuouBia(ck.dong, loaiHd, cotTienHang)
     deXuat.dongHang = tinh.dong

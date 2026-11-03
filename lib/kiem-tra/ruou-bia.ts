@@ -38,7 +38,7 @@ export function congTienRuouBia(
   loaiHd?: LoaiHoaDon,
   cotTienHang?: CotTienHang,
 ): { tien: number; dong: DongHang[] } {
-  const dong = dongHang.map(d => ({ ...d, laRuouBia: d.laRuouBia ?? laDongRuouBia(d.ten) }))
+  const dong = dongHang.map(d => ({ ...d, laRuouBia: d.laChietKhau ? false : d.laRuouBia ?? laDongRuouBia(d.ten) }))
   const tien = dong.reduce((tong, d) => tong + (d.laRuouBia ? tienDongSauThue(d, loaiHd, cotTienHang) : 0), 0)
   return { tien, dong }
 }

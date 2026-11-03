@@ -2,7 +2,6 @@ import { z } from 'zod'
 import type { ChiTietHoaDon, DuLieuDocTuHoaDon, DongHang, LoaiHoaDon, CotTienHang } from './giao-dien'
 import { laDongRuouBia } from './ruou-bia'
 import { tienDongSauThue } from './loai-hoa-don'
-import { apDungChietKhau } from './chiet-khau'
 
 export const DINH_MUC_BUFFET = 390_000
 
@@ -17,7 +16,6 @@ const schemaDongHang = z.object({
   thanhTienSauThue: soTien.optional(),
   laRuouBia: z.boolean().optional(),
   laChietKhau: z.boolean().optional(),
-  chietKhau: soTien.optional(),
   deNghiThanhToan: soTien.optional(),
   ghiChu: z.string().max(500).optional(),
 })
@@ -50,6 +48,8 @@ export type DongBangKe = {
   thanhTienHoaDon: number
   deNghiThanhToan: number
   ghiChu: string
+  // Dòng chiết khấu: hai cột tiền là số âm, không sửa được số đề nghị.
+  laChietKhau?: boolean
 }
 
 export type KetQuaPhanBoPhuLuc = {
@@ -178,20 +178,19 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
   const parsed = schemaChiTietHoaDon.safeParse(chiTiet)
   if (!parsed.success) return { ...RONG, loi: 'Chi tiết hóa đơn không hợp lệ. Hãy đọc lại hóa đơn.' }
   const { loaiHd, cotTienHang } = parsed.data
-  // Bảng kê không in dòng chiết khấu: chiết khấu đã chia vào thành tiền từng dòng hàng.
-  const dongHang = apDungChietKhau(parsed.data.dongHang as DongHang[], loaiHd, cotTienHang)
-  if (!dongHang.length) return { ...RONG, loi: 'Chi tiết hóa đơn không có dòng hàng.' }
+  const dongHang = parsed.data.dongHang as DongHang[]
+  if (!dongHang.some(d => !d.laChietKhau)) return { ...RONG, loi: 'Chi tiết hóa đơn không có dòng hàng.' }
   const cacDong = dongHang.map(dong => ({
-    dong: { ...dong, laRuouBia: dong.laRuouBia ?? laDongRuouBia(dong.ten) },
+    dong: { ...dong, laRuouBia: dong.laChietKhau ? false : dong.laRuouBia ?? laDongRuouBia(dong.ten) },
     tien: tienDongSauThue(dong, loaiHd, cotTienHang),
-    buffet: laBuffet(dong.ten),
+    buffet: !dong.laChietKhau && laBuffet(dong.ten),
   }))
   const coBuffet = cacDong.some(d => d.buffet)
   const deNghiTheoDong = new Map<number, DongPhuLuc>()
   const khongDeNghiTheoDong = new Map<number, DongPhuLuc>()
   const cacDongTheoHoaDon: DongBangKe[] = cacDong.map(({ dong, tien }) => ({
-    ten: dong.ten, soLuong: dong.soLuong ?? null, thanhTienHoaDon: tien,
-    deNghiThanhToan: 0, ghiChu: '',
+    ten: dong.ten, soLuong: dong.soLuong ?? null, thanhTienHoaDon: dong.laChietKhau ? -tien : tien,
+    deNghiThanhToan: 0, ghiChu: '', ...(dong.laChietKhau ? { laChietKhau: true } : {}),
   }))
   const monKhac: Array<{ viTri: number; tien: number }> = []
   let hanMucCon = 0
@@ -199,6 +198,7 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
   for (let viTri = 0; viTri < cacDong.length; viTri++) {
     const { dong, tien, buffet } = cacDong[viTri]
     if (!Number.isSafeInteger(tien) || tien < 0) return { ...RONG, coBuffet, loi: `Không xác định được thành tiền sau thuế của “${dong.ten}”.` }
+    if (dong.laChietKhau) continue
     if (dong.laRuouBia) {
       khongDeNghiTheoDong.set(viTri, dongPhuLuc(dong, tien, loaiHd, cotTienHang))
       continue
@@ -255,6 +255,10 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
   for (let viTri = 0; viTri < cacDong.length; viTri++) {
     const { dong, tien, buffet } = cacDong[viTri]
     const bangKe = cacDongTheoHoaDon[viTri]
+    if (dong.laChietKhau) {
+      if (dong.ghiChu !== undefined) bangKe.ghiChu = dong.ghiChu
+      continue
+    }
     const deNghi = dong.deNghiThanhToan ?? bangKe.deNghiThanhToan
     if (deNghi > tien) {
       return { ...RONG, coBuffet, loi: `Đề nghị thanh toán dòng ${viTri + 1} không được vượt thành tiền theo hóa đơn.` }
@@ -279,6 +283,19 @@ export function phanBoPhuLuc(chiTiet: ChiTietHoaDon): KetQuaPhanBoPhuLuc {
       if (duoc) duoc.ghiChu = dong.ghiChu
       if (khong) khong.ghiChu = dong.ghiChu
     }
+  }
+  // Chiết khấu giữ một dòng riêng, trừ vào phần đề nghị thanh toán; phần vượt quá số
+  // đang đề nghị (hóa đơn gần như toàn khoản không thanh toán) trừ vào phần không đề nghị.
+  let deNghiCon = [...deNghiTheoDong.values()].reduce((sum, dong) => sum + dong.thanhTien, 0)
+  for (let viTri = 0; viTri < cacDong.length; viTri++) {
+    const { dong, tien } = cacDong[viTri]
+    if (!dong.laChietKhau || tien <= 0) continue
+    const bangKe = cacDongTheoHoaDon[viTri]
+    const truDeNghi = Math.min(tien, Math.max(0, deNghiCon))
+    deNghiCon -= truDeNghi
+    bangKe.deNghiThanhToan = -truDeNghi
+    if (truDeNghi > 0) deNghiTheoDong.set(viTri, dongPhuLuc(dong, -truDeNghi, loaiHd, cotTienHang, bangKe.ghiChu, { tienThue: null }))
+    if (tien > truDeNghi) khongDeNghiTheoDong.set(viTri, dongPhuLuc(dong, truDeNghi - tien, loaiHd, cotTienHang, bangKe.ghiChu, { tienThue: null }))
   }
   // Giữ đúng thứ tự dòng hóa đơn kể cả khi chỉnh sửa làm dòng chuyển nhóm.
   const cacKhoanDeNghi = [...deNghiTheoDong.entries()].sort(([a], [b]) => a - b).map(([, dong]) => dong)

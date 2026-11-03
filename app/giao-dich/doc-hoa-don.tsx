@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { docHoaDon, tinhTrangHaiAiHoaDon, type TinhTrangHaiAi } from './doc-hoa-don-actions'
 import type { DuLieuDocTuHoaDon, KetQuaDocHoaDon, PhatHien } from '@/lib/kiem-tra/giao-dien'
 import { bangDoiChieuNguoiMua, type HangDoiChieu, type OCotDoiChieu } from '@/lib/kiem-tra/bang-doi-chieu'
-import { nhanLoaiHoaDon, tienDongSauThue } from '@/lib/kiem-tra/loai-hoa-don'
+import { nhanLoaiHoaDon } from '@/lib/kiem-tra/loai-hoa-don'
+import { tienDongCoDau } from '@/lib/kiem-tra/chiet-khau'
 import { hienThiMst } from '@/lib/kiem-tra/so-sanh'
 import { chiTietHoaDonTuDeXuat, phanBoPhuLuc } from '@/lib/kiem-tra/phan-bo-phu-luc'
 
@@ -214,7 +215,7 @@ function KetQuaDoc({ ketQua, onDien }: {
     </div>
     {deXuat.dongHang && deXuat.dongHang.length > 0 && <>
       <p className="text-sm text-slate-600">Tên món, số lượng và thành tiền giữ nguyên theo hóa đơn. Chỉ sửa cột Đề nghị thanh toán và Ghi chú.</p>
-      {(deXuat.chietKhau ?? 0) > 0 && <p className="notice" role="status">Hóa đơn có chiết khấu {vnd.format(deXuat.chietKhau!)}đ, đã trừ vào Thành tiền theo hóa đơn của từng dòng.</p>}
+      {(deXuat.chietKhau ?? 0) > 0 && <p className="notice" role="status">Hóa đơn có chiết khấu {vnd.format(deXuat.chietKhau!)}đ, ghi thành dòng chiết khấu riêng (số âm) và trừ vào Đề nghị thanh toán.</p>}
       {phanBo?.loi && <p className="notice error" role="alert">{phanBo.loi} Hãy chỉnh lại chi tiết hóa đơn trước khi xem hoặc lưu giấy.</p>}
       <div className="max-h-80 overflow-auto rounded-lg border border-slate-200 bg-white">
         <table className="w-full min-w-[64rem] text-left text-sm">
@@ -231,16 +232,16 @@ function KetQuaDoc({ ketQua, onDien }: {
           </thead>
           <tbody>
             {deXuat.dongHang.map((d, i) => {
-              const tien = tienDongSauThue(d, deXuat.loaiHd, deXuat.cotTienHang)
+              const tien = tienDongCoDau(d, deXuat.loaiHd, deXuat.cotTienHang)
               const dongPhanBo = phanBo?.cacDongTheoHoaDon[i]
               const khoaDeNghi = `de-nghi-${i}`
               return <tr key={i} className="border-t border-slate-100 align-top">
                 <td className="px-2 py-2 text-center tabular-nums text-slate-500">{i + 1}</td>
                 <td className="px-2 py-2 text-slate-800">{d.ten}</td>
                 <td className="px-2 py-2 text-right tabular-nums text-slate-700">{d.soLuong === undefined ? '—' : vnd.format(d.soLuong)}</td>
-                <td className="px-2 py-2 text-right tabular-nums text-slate-700">{vnd.format(tien)}đ{d.chietKhau ? <span className="block text-xs text-slate-500">đã trừ CK {vnd.format(d.chietKhau)}đ</span> : null}</td>
+                <td className="px-2 py-2 text-right tabular-nums text-slate-700">{vnd.format(tien)}đ</td>
                 <td className="px-2 py-2">
-                  <input
+                  {d.laChietKhau ? <p className="px-2 py-1.5 text-right tabular-nums text-slate-700" aria-label={`Đề nghị thanh toán dòng ${i + 1}`}>{vnd.format(dongPhanBo?.deNghiThanhToan ?? -tien)}đ</p> : <input
                     aria-label={`Đề nghị thanh toán dòng ${i + 1}`}
                     inputMode="numeric"
                     value={duThaoSo[khoaDeNghi] ?? vnd.format(d.deNghiThanhToan ?? dongPhanBo?.deNghiThanhToan ?? 0)}
@@ -263,7 +264,7 @@ function KetQuaDoc({ ketQua, onDien }: {
                       }
                     }}
                     className="min-h-9 w-full min-w-0 rounded border border-slate-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                  />
+                  />}
                 </td>
                 <td className="px-2 py-2">
                   <input

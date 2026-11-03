@@ -218,9 +218,10 @@ export function canBangDeNghi(dong: readonly DongBangKe[], mucTieu: number | und
   let conLai = mucTieu - ketQua.reduce((sum, row) => sum + row.deNghiThanhToan, 0)
   if (conLai === 0) return ketQua
   const coDeNghi = ketQua.map((row, i) => row.deNghiThanhToan > 0 ? i : -1).filter(i => i >= 0)
+  // Dòng chiết khấu (số âm) giữ nguyên.
   // Tăng thì ưu tiên các dòng đang được đề nghị rồi mới tới dòng khác; giảm chỉ chạm dòng có đề nghị.
   const thuTu = [...coDeNghi].reverse()
-  if (conLai > 0) for (let i = ketQua.length - 1; i >= 0; i--) if (!coDeNghi.includes(i)) thuTu.push(i)
+  if (conLai > 0) for (let i = ketQua.length - 1; i >= 0; i--) if (!coDeNghi.includes(i) && !ketQua[i].laChietKhau) thuTu.push(i)
   for (const i of thuTu) {
     if (conLai === 0) break
     const row = ketQua[i]
