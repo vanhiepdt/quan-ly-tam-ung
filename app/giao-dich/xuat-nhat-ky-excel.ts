@@ -47,6 +47,7 @@ function chungTu(row: GiaoDichTinh): string {
 export function giaTriXuatNhatKy(row: GiaoDichTinh, id: CotXuatId): GiaTriExcel {
   switch (id) {
     case 'ngay': return ngayExcel(row.ngay)
+    case 'hoiNghi': return vanBanExcel(row.hoiNghiTen ?? '—')
     case 'noiDung': return vanBanExcel(row.ghiChu ? row.noiDung + '\nGhi chú: ' + row.ghiChu : row.noiDung)
     case 'donVi': return vanBanExcel(row.donViTen ?? '—')
     case 'nguoiDeNghi': return vanBanExcel(row.nguoiDeNghiTen ?? '—')

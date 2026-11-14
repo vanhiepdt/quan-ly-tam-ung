@@ -5,6 +5,7 @@ import { z } from 'zod'
 // nên cộng chúng lại không có ý nghĩa kế toán.
 export const cotNhatKy = [
   { id: 'ngay', ten: 'Ngày', rong: 130, kieu: 'chuoi', congDon: false },
+  { id: 'hoiNghi', ten: 'Hội nghị', rong: 200, kieu: 'chuoi', congDon: false },
   { id: 'noiDung', ten: 'Nội dung', rong: 260, kieu: 'chuoi', congDon: false },
   { id: 'donVi', ten: 'Đơn vị tiếp khách', rong: 200, kieu: 'chuoi', congDon: false },
   { id: 'nguoiDeNghi', ten: 'Người đề nghị', rong: 200, kieu: 'chuoi', congDon: false },
@@ -105,7 +106,20 @@ export function catTrangNhatKy<T>(dong: readonly T[], soDong: number, trang: num
 
 export function thuTuCot(tuyChon: TuyChonCot): CotId[] {
   if (!tuyChon.thuTu) return [...thuTuMacDinh]
-  const hopLe = tuyChon.thuTu.filter(id => cotNhatKy.some(c => c.id === id))
-  const daCo = new Set(hopLe)
-  return [...hopLe, ...thuTuMacDinh.filter(id => !daCo.has(id))]
+  const ket = tuyChon.thuTu.filter(id => cotNhatKy.some(c => c.id === id))
+  const daCo = new Set(ket)
+  // Cột mới thêm vào sau này được chèn ngay sau cột đứng trước nó trong thứ tự
+  // mặc định, thay vì dồn hết ra cuối bảng nơi phải cuộn ngang mới thấy.
+  for (let i = 0; i < thuTuMacDinh.length; i++) {
+    const id = thuTuMacDinh[i]
+    if (daCo.has(id)) continue
+    let viTri = ket.length
+    for (let j = i - 1; j >= 0; j--) {
+      const truoc = ket.indexOf(thuTuMacDinh[j])
+      if (truoc >= 0) { viTri = truoc + 1; break }
+    }
+    ket.splice(viTri, 0, id)
+    daCo.add(id)
+  }
+  return ket
 }

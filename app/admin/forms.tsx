@@ -94,7 +94,7 @@ export function TaoDonVi() {
 
 export function NhapDonViExcel() {
   const [state, action, pending] = useActionState(nhapDonViExcel, initial)
-  return <form action={action} encType="multipart/form-data" className="mt-5 grid grid-cols-1 gap-5 border-t border-slate-200 pt-5 sm:grid-cols-2">
+  return <form action={action} className="mt-5 grid grid-cols-1 gap-5 border-t border-slate-200 pt-5 sm:grid-cols-2">
     <label className="field sm:col-span-2">Nhập danh sách bằng Excel
       <input name="tep_excel" type="file" required accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" />
       <small>Tệp tối đa 5 MB. Dùng trang tính đầu tiên, có cột “Tên đơn vị” (hoặc <code>ten</code>/<code>ten_don_vi</code>); cột “Ghi chú” là tùy chọn. Tối đa 5.000 dòng.</small>

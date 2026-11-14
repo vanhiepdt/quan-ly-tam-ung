@@ -38,9 +38,14 @@ export type TuyChonTaoGiaoDich = {
   loaiGiay?: string[]
   xacNhanHoanTamUng?: boolean
   fingerprintHoanTamUng?: string | null
+  boQuaGiay?: boolean
 }
 
 export class LoiDonVi extends Error {}
+
+// Lỗi nghiệp vụ của Hội nghị: thông điệp được hiện nguyên văn cho người nhập,
+// khác với lỗi kỹ thuật vốn chỉ trả về câu chung để không lộ chi tiết máy chủ.
+export class LoiHoiNghi extends Error {}
 
 function laLoiTrungHoaDon(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505'
@@ -53,7 +58,9 @@ async function chuanHoaDonVi(
   hinhThuc: string,
   donViId: string | null,
   noiDung: string,
+  boQuaDonVi = false,
 ) {
+  if (boQuaDonVi) return { donViId: null, noiDung: noiDung.trim() }
   if (!canDonVi(hinhThuc)) return { donViId: null, noiDung: noiDungTheoHinhThuc(hinhThuc) ?? noiDung }
   if (!donViId) throw new LoiDonVi()
   const { rows } = await client.query<{ ten: string }>('select ten from don_vi where id=$1 and dang_hoat_dong', [donViId])
@@ -129,6 +136,7 @@ export async function taoGiaoDichDaParse(
         tenChuTk: d.tai_khoan_nhan_ten_chu_tk,
       })
     : null
+  const boQuaGiay = options.boQuaGiay === true
   const lapGiay = options.lapGiay === true
   const chonGiay = options.loaiGiay ?? []
 
@@ -140,8 +148,8 @@ export async function taoGiaoDichDaParse(
   // Cùng một resolver được dùng cho phần "Thông tin giấy đề nghị" trên màn hình:
   // không mở phần đó thì lấy mặc định; đã chọn thì kiểm tra lại ID ở máy chủ.
   const formGiay = options.formData ?? new FormData()
-  let contextGiay: BoiCanhGiay
-  try {
+  let contextGiay: BoiCanhGiay | null = null
+  if (!boQuaGiay || lapGiay) try {
     const context = await boiCanhGiay({ id: options.actorId, ho_ten: options.actorName })
     const contextNguoiDeNghi = apDungNguoiDeNghiTheoForm(context, formGiay)
     contextGiay = apDungNguoiKyMacDinh(contextNguoiDeNghi)
@@ -156,7 +164,16 @@ export async function taoGiaoDichDaParse(
   try {
     ketQua = await trongTransaction(options.actorId, async (client): Promise<KetQuaTaoGiaoDich> => {
       await khoaSoTaiChinh(client)
-      const donVi = await chuanHoaDonVi(client, d.hinh_thuc, d.don_vi_id, d.noi_dung)
+      const donVi = await chuanHoaDonVi(client, d.hinh_thuc, d.don_vi_id, d.noi_dung, boQuaGiay)
+      if (d.hoi_nghi_id) {
+        if (!boQuaGiay) throw new LoiHoiNghi('Chỉ giao dịch con mới được tạo trong Hội nghị.')
+        const { rows: hoiNghiRows } = await client.query<{ loai_giao_dich: string; ngay: string }>(
+          `select loai_giao_dich, to_char(ngay,'YYYY-MM-DD') as ngay from hoi_nghi where id=$1 and not da_xoa for update`, [d.hoi_nghi_id])
+        if (!hoiNghiRows.length) throw new LoiHoiNghi('Hội nghị không tồn tại hoặc đã bị xóa.')
+        if (hoiNghiRows[0].loai_giao_dich !== d.hinh_thuc) throw new LoiHoiNghi('Hình thức giao dịch không phù hợp với Hội nghị.')
+        // Ngày dạng YYYY-MM-DD nên so sánh chuỗi là đúng thứ tự thời gian.
+        if (d.ngay > hoiNghiRows[0].ngay) throw new LoiHoiNghi(`Ngày giao dịch con (${d.ngay}) không được vượt quá ngày Hội nghị (${hoiNghiRows[0].ngay}).`)
+      }
       const { rows } = await client.query<{ so_thu_tu: number }>(
         'select coalesce(max(so_thu_tu), 0) + 1 as so_thu_tu from giao_dich where ngay=$1 and not da_xoa', [d.ngay])
       const normalized = {
@@ -173,17 +190,17 @@ export async function taoGiaoDichDaParse(
       if (canhBao && (!options.xacNhanHoanTamUng || options.fingerprintHoanTamUng !== canhBao.fingerprint)) {
         return { canhBao }
       }
-      const nguoiDeNghiId = contextGiay.cauHinh.nguoiDeNghiId
-      const lanhDaoTiepKhachId = contextGiay.cauHinh.lanhDaoTiepKhachId
-      const lanhDaoThanhToanId = contextGiay.cauHinh.lanhDaoThanhToanId
-      const truongPhongId = contextGiay.cauHinh.truongPhongId
-      const keToanKiemSoatId = contextGiay.cauHinh.keToanKiemSoatId
+      const nguoiDeNghiId = contextGiay?.cauHinh.nguoiDeNghiId ?? null
+      const lanhDaoTiepKhachId = contextGiay?.cauHinh.lanhDaoTiepKhachId ?? null
+      const lanhDaoThanhToanId = contextGiay?.cauHinh.lanhDaoThanhToanId ?? null
+      const truongPhongId = contextGiay?.cauHinh.truongPhongId ?? null
+      const keToanKiemSoatId = contextGiay?.cauHinh.keToanKiemSoatId ?? null
       const nguoiKyIds = [nguoiDeNghiId, lanhDaoTiepKhachId, lanhDaoThanhToanId, truongPhongId, keToanKiemSoatId]
         .filter((ma): ma is string => Boolean(ma))
       const { rows: canBoRows } = await client.query<{ id: string }>(
         'select id from can_bo where id = any($1::uuid[]) and dang_hoat_dong', [[...new Set(nguoiKyIds)]])
       const canBoDangHoatDong = new Set(canBoRows.map(cb => cb.id))
-      if (!nguoiDeNghiId || nguoiKyIds.some(ma => !canBoDangHoatDong.has(ma))) {
+      if (!boQuaGiay && (!nguoiDeNghiId || nguoiKyIds.some(ma => !canBoDangHoatDong.has(ma)))) {
         throw new Error('Người ký giấy đề nghị không tồn tại hoặc đã ngừng hoạt động.')
       }
       const inserted = await client.query<{ id: string }>(`insert into giao_dich (
@@ -194,8 +211,8 @@ export async function taoGiaoDichDaParse(
         nguoi_lay_hd_id, phi_lay_hd_ghi_de, co_tinh_phi_lay_hd, trang_thai_tt_phi, ghi_chu,
         hinh_thuc_thanh_toan, tai_khoan_nhan_so, tai_khoan_nhan_ngan_hang, tai_khoan_nhan_chi_nhanh,
         tai_khoan_nhan_ten_chu_tk, nguoi_tao, nguoi_sua, tien_duoc_thanh_toan_goc, ngay_de_nghi, chi_thuc_te, co_so_tinh_phi_lay_hd,
-        chi_tiet_hoa_don, nguon_bu_chi_thuc_te
-      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$34,$35,$36,$37,$38,$39::jsonb,$40) returning id`, [
+        chi_tiet_hoa_don, nguon_bu_chi_thuc_te, hoi_nghi_id
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$34,$35,$36,$37,$38,$39::jsonb,$40,$41) returning id`, [
         d.ngay, rows[0].so_thu_tu, donVi.noiDung, donVi.donViId, d.ky_hieu_hd, d.so_hd, d.loai_hd, trangThaiHd, d.hinh_thuc,
         d.tong_tien, d.tien_ruou_bia, tienDuocThanhToan, lamTronXuongHangNghin,
         dongTien.tam_ung_tu_cq, dongTien.giao_tien_chi_thuy, dongTien.dua_tien_cq_tra_thang_cho_chi_thuy, dongTien.hoan_ung_tien_mat,
@@ -204,7 +221,7 @@ export async function taoGiaoDichDaParse(
         hinhThucThanhToan, taiKhoanNhanGhiDe?.soTaiKhoan ?? null, taiKhoanNhanGhiDe?.nganHang ?? null,
         taiKhoanNhanGhiDe?.chiNhanh ?? null, taiKhoanNhanGhiDe?.tenChuTk ?? null, options.actorId,
         tienDuocThanhToanGoc, ngayDeNghi, chiThucTe, coSoTinhPhi,
-        d.chi_tiet_hoa_don ? JSON.stringify(d.chi_tiet_hoa_don) : null, nguonBuChiThucTe,
+        d.chi_tiet_hoa_don ? JSON.stringify(d.chi_tiet_hoa_don) : null, nguonBuChiThucTe, d.hoi_nghi_id ?? null,
       ])
       const giaoDichId = inserted.rows[0].id
       const result: KetQuaTaoGiaoDich = { giaoDichId }
@@ -213,7 +230,7 @@ export async function taoGiaoDichDaParse(
         try {
           const gd = await timGiaoDichTinh(giaoDichId, client)
           if (!gd) throw new Error('Không tìm thấy giao dịch vừa thêm')
-          const giay = giayCuaGiaoDich(gd, contextGiay)
+          const giay = giayCuaGiaoDich(gd, contextGiay!)
           const ids: string[] = []
           for (const g of giay.filter(g => g.loai === giayChinhChoHinhThuc(gd.hinhThuc) && (!chonGiay.length || chonGiay.includes(g.loai)))) {
             const t = await taoHoacLayTaiLieu(options.actorId, giaoDichId, g.loai, null,
@@ -232,6 +249,7 @@ export async function taoGiaoDichDaParse(
     if (ketQua.canhBao) return ketQua
   } catch (error: unknown) {
     if (error instanceof LoiDonVi) return { loi: 'Đơn vị tiếp khách không tồn tại hoặc đã bị vô hiệu hóa. Vui lòng chọn lại.' }
+    if (error instanceof LoiHoiNghi) return { loi: error.message }
     if (laLoiTrungHoaDon(error)) return { loi: 'Hóa đơn có cùng ký hiệu và số đã tồn tại. Hãy hủy hoặc sửa số/ký hiệu trước khi lưu.', maLoi: 'trung_hoa_don' }
     console.error('Không thể thêm giao dịch.')
     return { loi: 'Không thể lưu giao dịch. Kiểm tra các trường bắt buộc và dữ liệu hóa đơn.' }

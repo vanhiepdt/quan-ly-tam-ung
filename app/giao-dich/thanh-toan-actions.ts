@@ -87,6 +87,7 @@ export async function xacNhanDaThanhToanPhi(id: unknown): Promise<KetQuaXacNhanP
   }
   if (ketQua.thanhCong) {
     revalidatePath('/giao-dich')
+    revalidatePath('/giao-dich/theo-doi')
     revalidatePath('/dashboard')
   }
   return ketQua

@@ -77,6 +77,7 @@ export const schemaGiaoDich = z.object({
   co_tinh_phi_lay_hd: checkbox,
   co_so_tinh_phi_lay_hd: z.enum(DS_CO_SO_TINH_PHI).default(CO_SO_TINH_PHI.TONG_TIEN),
   trang_thai_tt_phi: stringOrNull,
+  hoi_nghi_id: uuidOrNull,
   ghi_chu: stringOrNull,
   // Tiền mặt / chuyển khoản / hoàn tạm ứng. Hình thức giao dịch quyết định giá trị nào
   // hợp lệ, nên chỉ kiểm tra được kiểu ở đây; ràng buộc theo hình thức nằm ở refine dưới.
@@ -101,14 +102,17 @@ export const schemaGiaoDich = z.object({
 }).refine((d) => canDonVi(d.hinh_thuc) || Boolean(noiDungTheoHinhThuc(d.hinh_thuc)) || d.noi_dung.length > 0, {
   message: 'Nội dung không được để trống.',
   path: ['noi_dung']
-}).refine((d) => !canDonVi(d.hinh_thuc) || d.don_vi_id !== null, {
-  // Chỉ Hoàn tạm ứng và Cơ quan trả thẳng mới gắn đơn vị, nhưng khi đã gắn thì bắt buộc.
+}).refine((d) => d.hoi_nghi_id !== null || !canDonVi(d.hinh_thuc) || d.don_vi_id !== null, {
+  // Giao dịch con Hội nghị không gắn đơn vị; giao dịch độc lập có hóa đơn vẫn bắt buộc.
   message: 'Hình thức này phải chọn đơn vị tiếp khách.',
   path: ['don_vi_id']
-}).refine((d) => canDonVi(d.hinh_thuc) || d.don_vi_id === null, {
+}).refine((d) => d.hoi_nghi_id !== null || canDonVi(d.hinh_thuc) || d.don_vi_id === null, {
   // Chiều ngược lại: dòng tiền nội bộ không được mang đơn vị, kể cả khi client cố gửi lên.
   message: 'Hình thức này không gắn với đơn vị tiếp khách.',
   path: ['don_vi_id']
+}).refine((d) => d.hoi_nghi_id === null || canDonVi(d.hinh_thuc), {
+  message: 'Giao dịch con Hội nghị phải là Hoàn tạm ứng hoặc Cơ quan trả thẳng.',
+  path: ['hinh_thuc']
 }).refine((d) => canDonVi(d.hinh_thuc) || d.tien_duoc_thanh_toan === null, {
   message: 'Chỉ giao dịch có hóa đơn mới có tiền được hoàn/thanh toán.',
   path: ['tien_duoc_thanh_toan']

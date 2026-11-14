@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { PoolClient } from 'pg'
 import { batBuocVaiTro } from '@/lib/xac-thuc/bao-ve'
-import { trongTransaction } from '@/lib/db/pool'
+import { trongTransaction, db } from '@/lib/db/pool'
 import { schemaGiaoDich } from '@/lib/validation/giao-dich'
 import { taoGiaoDichDaParse, type KetQuaTaoGiaoDich } from '@/lib/tai-chinh/tao-giao-dich'
 
@@ -156,7 +156,7 @@ function layDuLieu(formData: FormData) {
     hoan_ung_tien_mat: get('hoan_ung_tien_mat') || 0, nguoi_lay_hd_id: get('nguoi_lay_hd_id'),
     phi_lay_hd_ghi_de: get('phi_lay_hd_ghi_de'), co_tinh_phi_lay_hd: get('co_tinh_phi_lay_hd'),
     co_so_tinh_phi_lay_hd: get('co_so_tinh_phi_lay_hd') ?? undefined, trang_thai_tt_phi: get('trang_thai_tt_phi'),
-    ghi_chu: get('ghi_chu'), hinh_thuc_thanh_toan: get('hinh_thuc_thanh_toan'),
+    ghi_chu: get('ghi_chu'), hoi_nghi_id: get('hoi_nghi_id'), hinh_thuc_thanh_toan: get('hinh_thuc_thanh_toan'),
     dung_tai_khoan_mac_dinh: get('dung_tai_khoan_mac_dinh'),
     tai_khoan_nhan_so: get('tai_khoan_nhan_so'),
     tai_khoan_nhan_ngan_hang: get('tai_khoan_nhan_ngan_hang'),
@@ -168,6 +168,22 @@ function layDuLieu(formData: FormData) {
 export async function themGiaoDich(_: KetQua, formData: FormData): Promise<KetQua> {
   const phien = await batBuocVaiTro('admin', 'nhap_lieu')
   const duLieu = layDuLieu(formData)
+  if (duLieu.hinh_thuc === HINH_THUC.HOI_NGHI) {
+    const hoiNghi = z.object({
+      ten: z.string().trim().min(1).max(1000),
+      ngay: z.string().date(),
+      ghiChu: z.string().trim().min(1).max(5000),
+      loaiGiaoDich: z.enum([HINH_THUC.HOAN_TAM_UNG, HINH_THUC.CQ_TRA_THANG]),
+      nguonPhi: z.enum(['quy_chi_thuy', 'so_du']),
+    }).safeParse({
+      ten: duLieu.noi_dung, ngay: duLieu.ngay, ghiChu: duLieu.ghi_chu,
+      loaiGiaoDich: formData.get('loai_giao_dich_con'), nguonPhi: formData.get('nguon_phi'),
+    })
+    if (!hoiNghi.success) return { loi: hoiNghi.error.issues[0]?.message ?? 'Thông tin Hội nghị không hợp lệ.' }
+    await db.query<{ id: string }>('insert into hoi_nghi(ten,ngay,ghi_chu,loai_giao_dich,nguon_phi,nguoi_tao,nguoi_sua) values($1,$2,$3,$4,$5,$6,$6) returning id', [hoiNghi.data.ten, hoiNghi.data.ngay, hoiNghi.data.ghiChu, hoiNghi.data.loaiGiaoDich, hoiNghi.data.nguonPhi, phien.id])
+    revalidatePath('/giao-dich/theo-doi')
+    return { thanhCong: 'Đã tạo Hội nghị. Mở Hội nghị trong trang Theo dõi để thêm giao dịch con.' }
+  }
   const parsed = schemaGiaoDich.safeParse(duLieu)
   if (!parsed.success) {
     return { loi: parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ.' }
@@ -182,16 +198,41 @@ export async function themGiaoDich(_: KetQua, formData: FormData): Promise<KetQu
     xacNhanHoanTamUng: formData.get('xac_nhan_hoan_tam_ung') === '1',
     fingerprintHoanTamUng: typeof formData.get('fingerprint_hoan_tam_ung') === 'string' ? String(formData.get('fingerprint_hoan_tam_ung')) : null,
     formData,
+    boQuaGiay: formData.get('giao_dich_con') === '1',
   })
   if (ketQua.canhBao || ketQua.loi) return ketQua
   revalidatePath('/giao-dich')
+  revalidatePath('/giao-dich/theo-doi')
   revalidatePath('/dashboard')
   revalidatePath('/tep')
   if (ketQua.giaoDichId) revalidatePath(`/tep/${ketQua.giaoDichId}`)
   return { ...ketQua, thanhCong: 'Đã thêm giao dịch.' }
 }
 
-// Sửa đúng MỘT trường mỗi lần lưu. Tên cột lấy từ danh sách trắng TRUONG_SUA, không
+export async function themGiaoDichConHoiNghi(_: KetQua, formData: FormData): Promise<KetQua> {
+  const phien = await batBuocVaiTro('admin', 'nhap_lieu')
+  const duLieu = layDuLieu(formData)
+  const parsed = schemaGiaoDich.safeParse(duLieu)
+  if (!parsed.success) return { loi: parsed.error.issues[0]?.message ?? 'Dữ liệu giao dịch con không hợp lệ.' }
+  const tepHoaDon = formData.get('tep_hoa_don')
+  const ketQua = await taoGiaoDichDaParse(parsed.data, {
+    actorId: phien.id,
+    actorName: phien.ho_ten,
+    tepHoaDon: tepHoaDon instanceof File ? tepHoaDon : null,
+    lapGiay: false,
+    xacNhanHoanTamUng: formData.get('xac_nhan_hoan_tam_ung') === '1',
+    fingerprintHoanTamUng: typeof formData.get('fingerprint_hoan_tam_ung') === 'string' ? String(formData.get('fingerprint_hoan_tam_ung')) : null,
+    formData,
+    boQuaGiay: true,
+  })
+  if (ketQua.canhBao || ketQua.loi) return ketQua
+  revalidatePath('/giao-dich')
+  revalidatePath('/giao-dich/theo-doi')
+  revalidatePath('/dashboard')
+  return { ...ketQua, thanhCong: 'Đã thêm giao dịch con vào Hội nghị.' }
+}
+
+
 // bao giờ lấy từ client; client chỉ gửi mã trường đã được đối chiếu với vai trò.
 export async function suaGiaoDich(_: KetQua, formData: FormData): Promise<KetQua> {
   const phien = await batBuocVaiTro('admin', 'nhap_lieu')
@@ -495,6 +536,7 @@ export async function suaGiaoDich(_: KetQua, formData: FormData): Promise<KetQua
     return { loi: 'Không thể lưu thay đổi. Kiểm tra ràng buộc số tiền, ví dụ tiền không được thanh toán không được vượt tổng tiền.' }
   }
   revalidatePath('/giao-dich')
+  revalidatePath('/giao-dich/theo-doi')
   revalidatePath('/dashboard')
   revalidatePath(`/giay/${id.data}`)
   return ketQua
@@ -571,6 +613,7 @@ export async function suaThongTinGiayGiaoDich(_: KetQua, formData: FormData): Pr
   }
   if ('loi' in ketQua) return ketQua
   revalidatePath('/giao-dich')
+  revalidatePath('/giao-dich/theo-doi')
   revalidatePath('/dashboard')
   revalidatePath(`/giay/${parsed.data.id}`)
   return ketQua
@@ -584,5 +627,6 @@ export async function xoaMemGiaoDich(id: string): Promise<void> {
       sua_luc=now(), nguoi_sua=$1 where id=$2 and not da_xoa`, [phien.id, id])
   })
   revalidatePath('/giao-dich')
+  revalidatePath('/giao-dich/theo-doi')
   revalidatePath('/dashboard')
 }

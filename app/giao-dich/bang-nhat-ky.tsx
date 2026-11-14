@@ -3,10 +3,9 @@
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import type { GiaoDichTinh } from '@/lib/tai-chinh/kieu'
+import type { DongNhatKy, GiaoDichTinh } from '@/lib/tai-chinh/kieu'
 import { canDonVi } from '@/lib/tai-chinh/hinh-thuc'
 import type { NguoiLayHdChon } from '@/lib/tai-chinh/tai-khoan'
-import type { tinhToan } from '@/lib/tai-chinh/tinh-toan'
 import { giayChoHinhThuc } from '@/lib/tai-chinh/giay'
 import { ThanhToan } from './thanh-toan'
 import { NutXoa } from './xoa-nut'
@@ -21,7 +20,7 @@ import { xuatNhatKyExcel } from './xuat-nhat-ky-excel'
 const vnd = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })
 const LEDGER_STICKY_TOP = 64
 const badge = (s: string) => s === 'Hợp lệ' ? 'good' : s === 'Chờ HĐ' || s === 'Chưa thanh toán' ? 'warn' : s === 'Không hợp lệ' ? 'bad' : 'neutral'
-type Dong = ReturnType<typeof tinhToan>[number]
+type Dong = DongNhatKy
 type StickyHeader = { left: number; width: number; scrollLeft: number } | null
 
 // Click vào một nút hoặc liên kết trong cột thao tác phải giữ nguyên dòng đang chọn;
@@ -33,21 +32,30 @@ function clickTuongTac(event: MouseEvent<HTMLTableRowElement>): boolean {
 function giaTri(r: Dong, id: CotId, coTheSua: boolean, phuTro: PhuTro): ReactNode {
   switch (id) {
     case 'ngay': return r.ngay
+    case 'hoiNghi': return r.hoiNghiTen
+      ? <span className="inline-flex items-center rounded-lg bg-indigo-50 px-2 py-1 text-indigo-700 ring-1 ring-indigo-100" title={r.hoiNghiTen}>Hội nghị: {r.hoiNghiTen}</span>
+      : <span className="text-slate-400">{TRONG}</span>
     case 'noiDung': return <><b className="font-semibold text-slate-900">{r.noiDung}</b>{r.ghiChu && <div className="mt-1 text-xs text-slate-500">{r.ghiChu}</div>}</>
     case 'donVi': return r.donViTen ?? <span className="text-slate-400">{TRONG}</span>
     case 'nguoiDeNghi': return r.nguoiDeNghiTen ?? <span className="text-slate-400">{TRONG}</span>
     case 'nguoiLayHd': return r.nguoiLayHdTen ?? <span className="text-slate-400">{TRONG}</span>
-    case 'chungTu': return r.kyHieuHd || r.soHd ? <>{r.kyHieuHd ?? TRONG}<br />{r.soHd ?? TRONG}</> : TRONG
+    case 'chungTu': return r.gopHoiNghi
+      ? (r.gopHoiNghi.soHoaDon ? `${r.gopHoiNghi.soHoaDon} hóa đơn` : TRONG)
+      : r.kyHieuHd || r.soHd ? <>{r.kyHieuHd ?? TRONG}<br />{r.soHd ?? TRONG}</> : TRONG
     case 'trangThaiHd': return <div className="flex flex-col items-start gap-2">
       <span className={`badge ${badge(r.trangThaiHd)}`}>{r.trangThaiHd}</span>
       {canDonVi(r.hinhThuc) && <span className={`badge ${r.chiThucTe ? 'good' : 'neutral'}`}>{r.chiThucTe ? 'Chi thực tế' : 'Không chi thực tế'}</span>}
     </div>
-    case 'trangThaiTtPhi': return <div className="flex flex-col items-start gap-2"><span className={`badge ${badge(r.trangThaiTtPhi)}`}>{r.trangThaiTtPhi}</span>{coTheSua && r.trangThaiTtPhi === 'Chưa thanh toán' && <ThanhToan id={r.id} coTheXacNhan={phuTro.vaiTro === 'admin'} />}</div>
+    case 'trangThaiTtPhi': return <div className="flex flex-col items-start gap-2"><span className={`badge ${badge(r.trangThaiTtPhi)}`}>{r.trangThaiTtPhi}</span>{coTheSua && !r.gopHoiNghi && r.trangThaiTtPhi === 'Chưa thanh toán' && <ThanhToan id={r.id} coTheXacNhan={phuTro.vaiTro === 'admin'} />}</div>
     case 'hinhThuc': return r.hinhThuc
-    case 'tep': return <Link href={`/tep/${r.id}`} prefetch={false} className="text-indigo-700 hover:underline">
+    case 'tep': return r.gopHoiNghi
+      ? <span className="text-slate-500">{r.coHoaDon ? '✓ HĐ' : TRONG}<br />{r.coChuyenKhoan ? '✓ CK' : TRONG}</span>
+      : <Link href={`/tep/${r.id}`} prefetch={false} className="text-indigo-700 hover:underline">
       {r.coHoaDon ? '✓ HĐ' : TRONG}<br />{r.coChuyenKhoan ? '✓ CK' : TRONG}
     </Link>
-    case 'thaoTac': return <div className="flex flex-wrap gap-2">
+    case 'thaoTac': return r.gopHoiNghi
+      ? <Link className="btn btn-secondary min-h-8 px-3 py-1" href={`/giao-dich/theo-doi#hoi-nghi-${r.gopHoiNghi.hoiNghiId}`} prefetch={false}>Mở Hội nghị</Link>
+      : <div className="flex flex-wrap gap-2">
       {coTheSua && <SuaGiaoDich row={r} collectors={phuTro.collectors} donVi={phuTro.donVi} vaiTro={phuTro.vaiTro} />}
       {/* Giấy đề nghị là bản in của dữ liệu nên mọi vai trò đều mở được, kể cả chi_doc;
           chỉ những hình thức có lập giấy mới hiện nút. */}
@@ -151,7 +159,7 @@ function HopLoc({ neo, cotTen, cotId, rows, boLoc, onBatTat, onXoaCot, onDong }:
 }
 
 export function BangNhatKy({ rows, coTheSua, banDau, loiBanDau, phuTro }: {
-  rows: ReturnType<typeof tinhToan>; coTheSua: boolean; banDau: TuyChonCot; loiBanDau?: string; phuTro: PhuTro
+  rows: DongNhatKy[]; coTheSua: boolean; banDau: TuyChonCot; loiBanDau?: string; phuTro: PhuTro
 }) {
   const [tuyChon, setTuyChon] = useState(banDau)
   const [daLuu, setDaLuu] = useState(banDau)

@@ -140,16 +140,20 @@ export function FormGiaoDich({
   donVi = [],
   nguoiLayHdMacDinhId = null,
   trangThaiTtPhiMacDinh = 'Không phát sinh',
+  hoiNghiId = null,
+  loaiHinhThucKhoa = null,
 }: {
   collectors?: NguoiLayHdChon[]
   donVi?: DonViTiepKhach[]
   // Người lấy hóa đơn mặc định trong Cài đặt: hiện trước trên form thêm giao dịch.
   nguoiLayHdMacDinhId?: string | null
   trangThaiTtPhiMacDinh?: string | null
+  hoiNghiId?: string | null
+  loaiHinhThucKhoa?: string | null
 }) {
   const id = useId()
   const macForm = { collectors, nguoiLayHdMacDinhId, trangThaiTtPhiMacDinh }
-  const [values, setValues] = useState(() => defaultValues(macForm))
+  const [values, setValues] = useState<Record<string, string>>(() => ({ ...defaultValues(macForm), ...(loaiHinhThucKhoa ? { hinh_thuc: loaiHinhThucKhoa, noi_dung: '' } : {}) }))
   const [canhBaoKyHieu, setCanhBaoKyHieu] = useState('')
   const kyHieuDaKiem = useRef('')
   const [donViMoi, setDonViMoi] = useState<DonViTiepKhach[]>([])
@@ -216,6 +220,7 @@ export function FormGiaoDich({
       if (name === 'hinh_thuc') { setLapGiay(false); setChonGiay([]); setMoThongTinGiay(false) }
       if (name === 'ky_hieu_hd') setCanhBaoKyHieu('')
       setValues((current) => {
+        if (name === 'hinh_thuc' && loaiHinhThucKhoa) return current
         const updated = { ...current, [name]: newValue }
         if (name === 'ngay' && canDonVi(updated.hinh_thuc)) updated.ngay_de_nghi = ngayDeNghiMacDinh(newValue)
         // Tự động điền loại chứng từ khi đổi hình thức giao dịch
@@ -233,7 +238,7 @@ export function FormGiaoDich({
             updated.ngay_de_nghi = ngayDeNghiMacDinh(updated.ngay)
           }
           const noiDungCoDinh = noiDungTheoHinhThuc(newValue)
-          if (noiDungCoDinh) updated.noi_dung = noiDungCoDinh
+          if (noiDungCoDinh && newValue !== HINH_THUC.HOI_NGHI) updated.noi_dung = noiDungCoDinh
           // Khi quay từ dòng tiền nội bộ vào nhóm có hóa đơn, nạp lại mặc định phí
           // trong Cài đặt. Khi chỉ đổi giữa Hoàn tạm ứng / Cơ quan trả thẳng thì
           // giữ nguyên lựa chọn mà người dùng đã chọn trên form.
@@ -319,7 +324,7 @@ export function FormGiaoDich({
   const noiDungHienThi = canChonDonVi
     ? (donViDaChon ? noiDungTheoDonVi(donViDaChon.ten) : '')
     : (noiDungCoDinh ?? values.noi_dung)
-  const noiDungChiDoc = Boolean(canChonDonVi || noiDungCoDinh)
+  const noiDungChiDoc = Boolean(canChonDonVi || (noiDungCoDinh && hinhThuc !== HINH_THUC.HOI_NGHI))
   const loaiHdTuDong = getAutoLoaiHd(hinhThuc)
   const loaiHdOptions = loaiHdTuDong ? [loaiHdTuDong] : needsInvoice ? loaiHdInvoiceOnly : loaiHdAll
 
@@ -460,6 +465,7 @@ export function FormGiaoDich({
         if (canDonVi(values.hinh_thuc)) data.set('ngay_de_nghi', ngayDeNghiMacDinh(values.ngay))
         startTransition(() => action(data))
       }} onChange={() => setCanhBao(undefined)}>
+        <input type="hidden" name="hoi_nghi_id" value={hoiNghiId ?? ''} />
         <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur sm:px-7">
           <div>
             <h2 id={`${id}-title`} className="text-xl font-semibold tracking-tight text-slate-950">Thêm giao dịch</h2>
@@ -481,14 +487,16 @@ export function FormGiaoDich({
                 <div className="flex flex-wrap items-end gap-3 sm:col-span-2">
                   <label className="field min-w-0 flex-1">
                     Hình thức giao dịch *
-                    <select required {...bind('hinh_thuc')}>
+                    <select required disabled={Boolean(loaiHinhThucKhoa)} {...bind('hinh_thuc')}>
                       <option value={HINH_THUC.TAM_UNG_THEM}>Tạm ứng thêm</option>
                       <option value={HINH_THUC.GIAO_CHI_THUY}>Giao tiền chị Thúy</option>
                       <option value={HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY}>Đưa tiền CQ trả thẳng cho Chị Thúy</option>
                       <option value={HINH_THUC.HOAN_TAM_UNG}>Hoàn tạm ứng</option>
                       <option value={HINH_THUC.CQ_TRA_THANG}>Cơ quan trả thẳng</option>
                       <option value={HINH_THUC.NOP_HOAN_CQ}>Nộp hoàn CQ</option>
+                      <option value={HINH_THUC.HOI_NGHI}>Hội nghị</option>
                     </select>
+                    {loaiHinhThucKhoa ? <input type="hidden" name="giao_dich_con" value="1" /> : null}
                   </label>
                   {needsInvoice && <label className="flex min-h-11 shrink-0 items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
                     <input type="checkbox" className="size-4 accent-indigo-600" checked={chiThucTe} aria-label="Chi thực tế" onChange={event => {
@@ -522,6 +530,10 @@ export function FormGiaoDich({
                   </label>
                 )}
 
+                {hinhThuc === HINH_THUC.HOI_NGHI && <>
+                  <label className="field">Loại giao dịch con *<select className="input" name="loai_giao_dich_con" required defaultValue={HINH_THUC.HOAN_TAM_UNG}><option value={HINH_THUC.HOAN_TAM_UNG}>Hoàn tạm ứng</option><option value={HINH_THUC.CQ_TRA_THANG}>Cơ quan trả thẳng</option></select></label>
+                  <label className="field">Nguồn phí chung *<select className="input" name="nguon_phi" required defaultValue="so_du"><option value="so_du">Dư theo loại giao dịch</option><option value="quy_chi_thuy">Quỹ Chị Thúy</option></select></label>
+                </>}
                 <div className="field sm:col-span-2">
                   <label className="flex min-w-0 flex-col gap-2">
                     Nội dung *
@@ -530,7 +542,7 @@ export function FormGiaoDich({
                       : <input required placeholder="Ví dụ: Tiếp khách đối tác" {...bind('noi_dung')} />}
                   </label>
                   {canChonDonVi && <span className="text-xs font-normal text-slate-500">Tự động theo đơn vị tiếp khách, không sửa được.</span>}
-                  {noiDungCoDinh && <span className="text-xs font-normal text-slate-500">Tự điền theo hình thức giao dịch, không cần điền.</span>}
+                  {noiDungCoDinh && hinhThuc !== HINH_THUC.HOI_NGHI && <span className="text-xs font-normal text-slate-500">Tự điền theo hình thức giao dịch, không cần điền.</span>}
                 </div>
               </div>
             </section>
@@ -762,7 +774,7 @@ export function FormGiaoDich({
 
             <section className="form-section">
               <h3>Ghi chú</h3>
-              <label className="field">Thông tin bổ sung<textarea rows={2} placeholder="Tùy chọn" {...bind('ghi_chu')}></textarea></label>
+              <label className="field">Thông tin bổ sung<textarea rows={2} placeholder={hinhThuc === HINH_THUC.HOI_NGHI ? 'Ghi chú Hội nghị' : 'Tùy chọn'} required={hinhThuc === HINH_THUC.HOI_NGHI} {...bind('ghi_chu')}></textarea></label>
             </section>
 
             <div className="flex flex-wrap justify-end gap-3">

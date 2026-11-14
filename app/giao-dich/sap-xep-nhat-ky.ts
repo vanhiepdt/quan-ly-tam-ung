@@ -18,6 +18,7 @@ export function giaTriSoSanh(r: GiaoDichTinh, id: CotId): string | number {
     case 'thaoTac': return ''
     // Cột trùng tên với trường của giao dịch.
     case 'ngay': return r.ngay
+    case 'hoiNghi': return r.hoiNghiTen ?? ''
     case 'noiDung': return r.noiDung
     case 'hinhThuc': return r.hinhThuc
     case 'tongTien': return r.tongTien
@@ -41,7 +42,7 @@ export function giaTriSoSanh(r: GiaoDichTinh, id: CotId): string | number {
   }
 }
 
-export function sapXepDong(rows: GiaoDichTinh[], khoa: readonly KhoaSapXep[]): GiaoDichTinh[] {
+export function sapXepDong<T extends GiaoDichTinh>(rows: T[], khoa: readonly KhoaSapXep[]): T[] {
   if (!khoa.length) return rows
   return [...rows].sort((a, b) => {
     for (const k of khoa) {

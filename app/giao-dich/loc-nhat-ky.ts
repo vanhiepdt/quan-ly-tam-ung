@@ -17,6 +17,7 @@ export type Facet = {
 // việc tổng hợp đã do hàng tổng đảm nhiệm.
 export const FACET_COT: Partial<Record<CotId, readonly Facet[]>> = {
   ngay: [{ id: 'ngay', ten: 'Ngày', giaTri: r => r.ngay }],
+  hoiNghi: [{ id: 'hoiNghi', ten: 'Hội nghị', giaTri: r => r.hoiNghiTen ?? '' }],
   noiDung: [
     { id: 'noiDung', ten: 'Nội dung', giaTri: r => r.noiDung },
     { id: 'ghiChu', ten: 'Ghi chú', giaTri: r => r.ghiChu ?? '' },
@@ -66,7 +67,7 @@ export function dangLocFacet(boLoc: BoLoc, facetId: string): string[] {
 }
 
 // Nhiều nhóm khác nhau thì lấy giao (AND); trong cùng một nhóm thì lấy hợp (OR).
-export function locDong(rows: GiaoDichTinh[], boLoc: BoLoc): GiaoDichTinh[] {
+export function locDong<T extends GiaoDichTinh>(rows: T[], boLoc: BoLoc): T[] {
   const dangLoc = Object.entries(boLoc).filter(([, giaTri]) => giaTri.length > 0)
   if (!dangLoc.length) return rows
   return rows.filter(r => dangLoc.every(([id, giaTri]) => {

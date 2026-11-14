@@ -15,7 +15,7 @@ describe('column preference validation', () => {
     expect(tuyChonSchema.safeParse({ an: [], rong: {}, thuTu: [...order.slice(0, -1), order[0]] }).success).toBe(false)
     expect(tuyChonSchema.safeParse({ an: [], rong: {}, thuTu: ['khongCo'] }).success).toBe(false)
   })
-  it('appends columns missing from a saved order so new columns still show up', () => {
+  it('inserts columns missing from a saved order next to their default neighbour', () => {
     // Tùy chọn lưu từ trước các cột Đơn vị và các số dư CQ trả thẳng.
     const thuTuCu: CotId[] = [
       'ngay', 'noiDung', 'nguoiDeNghi', 'nguoiLayHd', 'chungTu', 'trangThaiHd', 'trangThaiTtPhi', 'hinhThuc',
@@ -25,7 +25,10 @@ describe('column preference validation', () => {
     const cu = { an: [], rong: {}, thuTu: thuTuCu }
     const parsed = tuyChonSchema.parse(cu)
     const daCo = new Set(thuTuCu)
-    expect(thuTuCot(parsed)).toEqual([...thuTuCu, ...cotNhatKy.map(c => c.id).filter(id => !daCo.has(id))])
+    const ket = thuTuCot(parsed)
+    // Bố cục cũ là một dãy con của thứ tự mặc định nên cột thiếu được chèn về đúng chỗ cũ.
+    expect(ket).toEqual(cotNhatKy.map(c => c.id))
+    expect(ket.filter(id => daCo.has(id))).toEqual(thuTuCu)
     expect(thuTuCot({ an: [], rong: {} })).toEqual(cotNhatKy.map(c => c.id))
   })
   it('shows all CQ direct-payment and combined-balance columns by default with their new labels', () => {
@@ -53,7 +56,8 @@ describe('column preference validation', () => {
     const parsed = tuyChonSchema.parse(chuyenTuyChonCu(cu))
     expect(parsed.an).toEqual(['trangThaiHd', 'trangThaiTtPhi'])
     expect(parsed.rong).toEqual({ trangThaiHd: 190, trangThaiTtPhi: 190 })
-    expect(thuTuCot(parsed).slice(0, 4)).toEqual(['ngay', 'trangThaiHd', 'trangThaiTtPhi', 'thaoTac'])
+    const giuLai = new Set(['ngay', 'trangThaiHd', 'trangThaiTtPhi', 'thaoTac'])
+    expect(thuTuCot(parsed).filter(id => giuLai.has(id))).toEqual(['ngay', 'trangThaiHd', 'trangThaiTtPhi', 'thaoTac'])
   })
   it.each([89, 601, 100.5, NaN, Infinity, '170', null])('rejects invalid width %s', width => {
     expect(tuyChonSchema.safeParse({ an: [], rong: { ngay: width } }).success).toBe(false)

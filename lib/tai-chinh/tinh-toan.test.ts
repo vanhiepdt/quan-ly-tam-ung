@@ -291,7 +291,49 @@ describe('số dư khi chọn Chi thực tế', () => {
     const [r] = tinhToan([dong({ hinhThuc: HINH_THUC.CQ_TRA_THANG, chiThucTe: true, tongTien: 1_000_000 })])
     expect(r).toMatchObject({ cqTraThang: 1_000_000, duTienCqTraThang: 0 })
   })
+
+  it('phí Hội nghị lấy Quỹ Chị Thúy không trừ Dư TƯ thực tế và cộng vào tổng quỹ', () => {
+    const rows = tinhToan([
+      dong({ id: 'advance', hinhThuc: HINH_THUC.TAM_UNG_THEM, tamUngTuCq: 10_000_000 }),
+      dong({ id: 'hoi-nghi-hoan', soThuTu: 2, hinhThuc: HINH_THUC.HOAN_TAM_UNG,
+        tongTien: 2_000_000, hoiNghiId: 'hoi-1', hoiNghiNguonPhi: NGUON_BU.QUY_CHI_THUY,
+        coTinhPhi: true, phiLayHdGhiDe: 300_000 }),
+    ])
+    expect(rows[1]).toMatchObject({
+      hoanTamUng: 2_000_000, phiLayHd: 300_000,
+      duThucTe: 10_000_000, duDangCam: 10_000_000,
+      layQuyChiThuy: 300_000, tongLayQuyChiThuy: 300_000,
+    })
+  })
+
+  it('phí Hội nghị lấy Quỹ Chị Thúy không làm giảm số dư Cơ quan trả thẳng', () => {
+    const rows = tinhToan([
+      dong({ id: 'hoi-nghi-cq', hinhThuc: HINH_THUC.CQ_TRA_THANG, tongTien: 2_000_000,
+        hoiNghiId: 'hoi-2', hoiNghiNguonPhi: NGUON_BU.QUY_CHI_THUY,
+        coTinhPhi: true, phiLayHdGhiDe: 300_000 }),
+    ])
+    expect(rows[0]).toMatchObject({
+      cqTraThang: 2_000_000, phiLayHd: 300_000,
+      duTienCqTraThang: 2_000_000,
+      duThucTe: 0, duDangCam: 0,
+      layQuyChiThuy: 300_000, tongLayQuyChiThuy: 300_000,
+    })
+  })
+
+  it('phí Hội nghị lấy từ số dư vẫn giữ cách trừ phí cũ', () => {
+    const rows = tinhToan([
+      dong({ id: 'advance', hinhThuc: HINH_THUC.TAM_UNG_THEM, tamUngTuCq: 10_000_000 }),
+      dong({ id: 'hoi-nghi-so-du', soThuTu: 2, hinhThuc: HINH_THUC.HOAN_TAM_UNG,
+        tongTien: 2_000_000, hoiNghiId: 'hoi-3', hoiNghiNguonPhi: NGUON_BU.SO_DU,
+        coTinhPhi: true, phiLayHdGhiDe: 300_000 }),
+    ])
+    expect(rows[1]).toMatchObject({
+      phiLayHd: 300_000, duThucTe: 9_700_000, duDangCam: 10_000_000,
+      layQuyChiThuy: 0, tongLayQuyChiThuy: 0,
+    })
+  })
 })
+
 
 describe('nguồn bù tiền không được thanh toán của Chi thực tế', () => {
   it('CQ trả thẳng lấy quỹ chị Thúy không trừ Dư tiền CQ trả thẳng, cộng dồn Tổng lấy quỹ chị Thúy', () => {

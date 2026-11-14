@@ -32,3 +32,6 @@ ops/backup.env
 
 # OAuth client Google (không đưa khóa bí mật lên Git)
 client_secret_*.json
+
+# Gói sao lưu tải về từ Drive — chứa dữ liệu thật, không bao giờ đẩy lên git
+tam-ung-*.tar.gz

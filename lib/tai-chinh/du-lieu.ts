@@ -40,6 +40,11 @@ export function chuyenDongGiaoDich(g: DongGiaoDich): GiaoDichTho {
     tienDuocThanhToan: g.tien_duoc_thanh_toan === null || g.tien_duoc_thanh_toan === undefined ? null : so(g.tien_duoc_thanh_toan),
     tienDuocThanhToanGoc: g.tien_duoc_thanh_toan_goc === null || g.tien_duoc_thanh_toan_goc === undefined ? null : so(g.tien_duoc_thanh_toan_goc),
     lamTronXuongHangNghin: g.lam_tron_xuong_hang_nghin === true || g.lam_tron_xuong_hang_nghin === 'true',
+    hoiNghiId: g.hoi_nghi_id == null ? null : String(g.hoi_nghi_id),
+    hoiNghiTen: g.hoi_nghi_ten == null ? null : String(g.hoi_nghi_ten),
+    hoiNghiNgay: g.hoi_nghi_ngay == null ? null : String(g.hoi_nghi_ngay),
+    hoiNghiNguonPhi: g.hoi_nghi_nguon_phi === 'quy_chi_thuy' || g.hoi_nghi_nguon_phi === 'so_du'
+      ? g.hoi_nghi_nguon_phi : null,
     nguoiDeNghiId: g.nguoi_de_nghi_id === null || g.nguoi_de_nghi_id === undefined ? null : String(g.nguoi_de_nghi_id),
     nguoiDeNghiTen: g.nguoi_de_nghi_ten == null ? null : String(g.nguoi_de_nghi_ten),
     lanhDaoTiepKhachId: g.lanh_dao_tiep_khach_id === null || g.lanh_dao_tiep_khach_id === undefined ? null : String(g.lanh_dao_tiep_khach_id),
@@ -80,6 +85,9 @@ export async function layDuLieuTaiChinh(client: Pick<import('pg').PoolClient, 'q
       n.so_tai_khoan as nguoi_lay_hd_so_tai_khoan, n.ngan_hang_bin as nguoi_lay_hd_ngan_hang_bin,
       n.ten_ngan_hang as nguoi_lay_hd_ten_ngan_hang, n.ten_chu_tk as nguoi_lay_hd_ten_chu_tk,
       dv.ten as don_vi_ten,
+      h.ten as hoi_nghi_ten,
+      to_char(h.ngay, 'YYYY-MM-DD') as hoi_nghi_ngay,
+      h.nguon_phi as hoi_nghi_nguon_phi,
       coalesce(bool_or(t.loai='hoa_don'), false) co_hoa_don,
       coalesce(bool_or(t.loai='chuyen_khoan'), false) co_chuyen_khoan
       from giao_dich g
@@ -87,9 +95,10 @@ export async function layDuLieuTaiChinh(client: Pick<import('pg').PoolClient, 'q
       left join nguoi_dung nd on nd.id=g.nguoi_tao
       left join nguoi_lay_hd n on n.id=g.nguoi_lay_hd_id
       left join don_vi dv on dv.id=g.don_vi_id
+      left join hoi_nghi h on h.id=g.hoi_nghi_id and not h.da_xoa
       left join tep_dinh_kem t on t.giao_dich_id=g.id
       where not g.da_xoa
-      group by g.id, cb.ho_ten, nd.ho_ten, n.ten, n.so_tai_khoan, n.ngan_hang_bin, n.ten_ngan_hang, n.ten_chu_tk, dv.ten
+      group by g.id, cb.ho_ten, nd.ho_ten, n.ten, n.so_tai_khoan, n.ngan_hang_bin, n.ten_ngan_hang, n.ten_chu_tk, dv.ten, h.ten, h.ngay, h.nguon_phi
       order by g.ngay, g.so_thu_tu, g.tao_luc, g.id`)
   const nlh = await client.query<DongNguoiLay>('select id, ty_le_phi from nguoi_lay_hd where dang_hoat_dong and ty_le_phi is not null')
   const ch = await client.query<DongCauHinh>("select gia_tri from cau_hinh where khoa='ty_le_phi_chung'")

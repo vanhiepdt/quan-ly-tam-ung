@@ -141,7 +141,7 @@ export function DocHoaDon({ onDien, onTep, tep }: {
     {tinhTrangAi?.muc === 'ok' && <p className="notice success" role="status">{tinhTrangAi.thongDiep}</p>}
     <label className="field">
       Đọc từ hóa đơn
-      <input type="file" accept=".pdf,.xml,application/pdf,application/xml,text/xml" disabled={dangDoc || !tinhTrangAi} onChange={doc} />
+      <input name="tep_hoa_don" type="file" accept=".pdf,.xml,application/pdf,application/xml,text/xml" disabled={dangDoc || !tinhTrangAi} onChange={doc} />
       <small className="font-normal text-slate-500">Chỉ nhận PDF hoặc XML, tối đa 10 MB. Tệp được giữ trong hồ sơ giao dịch khi lưu. Kết quả chỉ là đề xuất, hãy soát rồi lưu.</small>
     </label>
     {tep && <p className="mt-2 text-sm text-slate-600" role="status">Sẽ giữ file <b className="font-semibold text-slate-800">{tep.name}</b> khi lưu giao dịch.{onTep && <button type="button" className="ml-2 text-indigo-700 underline" onClick={() => onTep(null)}>Bỏ file</button>}</p>}

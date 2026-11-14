@@ -16,7 +16,6 @@ export function tinhToan(ds: readonly GiaoDichTho[], thamSo: ThamSoTinh = { tyLe
     // thực tế (hoàn tạm ứng) / Dư tiền CQ trả thẳng; quỹ chị Thúy thì ghi vào cột riêng;
     // tự chịu thì không trừ vào đâu. Hai lựa chọn sau đều không trừ ở số dư.
     const nguonBu=laHoanTamUngChiThucTe||laCqTraThangChiThucTe ? gd.nguonBuChiThucTe ?? NGUON_BU.SO_DU : NGUON_BU.SO_DU
-    const layQuyChiThuy=nguonBu===NGUON_BU.QUY_CHI_THUY?gd.tienRuouBia:0
     const khongTruSoDu=nguonBu===NGUON_BU.SO_DU?0:gd.tienRuouBia
     const tongTienChiThucTeHoanUng=laHoanTamUngChiThucTe?gd.tongTien-khongTruSoDu:0
     const thayDoiTienCqTraThang=hopLe&&gd.hinhThuc===HINH_THUC.CQ_TRA_THANG
@@ -32,15 +31,20 @@ export function tinhToan(ds: readonly GiaoDichTho[], thamSo: ThamSoTinh = { tyLe
     // (đã áp dụng lựa chọn làm tròn) khi giao dịch chọn rõ cơ sở đó.
     const coSoPhi=gd.coSoTinhPhi===CO_SO_TINH_PHI.TIEN_DUOC_THANH_TOAN?tienRong:gd.tongTien
     const phiLayHd=coTinhPhi && coHoaDonTinhPhi ? gd.phiLayHdGhiDe ?? Math.round(coSoPhi*tyLe) : 0
-    const phiDaTra=gd.trangThaiTtPhi===TRANG_THAI.PHI_DA_TRA?phiLayHd:0
+    // Phí của giao dịch con thuộc Hội nghị có nguồn Quỹ Chị Thúy là khoản
+    // quỹ chi riêng: vẫn hiển thị đầy đủ, nhưng không làm giảm các số dư CQ.
+    const phiTuQuy=gd.hoiNghiNguonPhi===NGUON_BU.QUY_CHI_THUY ? phiLayHd : 0
+    const phiTruSoDu=phiLayHd-phiTuQuy
+    const phiDaTra=gd.trangThaiTtPhi===TRANG_THAI.PHI_DA_TRA?phiTruSoDu:0
+    const layQuyChiThuy=(nguonBu===NGUON_BU.QUY_CHI_THUY?gd.tienRuouBia:0)+phiTuQuy
     lyThuyet+=gd.tamUngTuCq-hoanTamUng-gd.hoanUngTienMat
     // Cộng dồn riêng mỗi số dư từ dòng trước, giữ nguyên chênh lệch phí đã có.
     // Chi thực tế hoàn tạm ứng trừ toàn bộ Tổng tiền; phí HĐ được cộng lại vào
     // phần phát sinh đang cầm của dòng này, không gán lại số dư đang cầm.
     // Các giao dịch khác vẫn chỉ trừ phí đã trả khỏi tiền đang cầm.
     // Tiền hoàn sửa tay/làm tròn chỉ dùng cho dư lý thuyết ở trên.
-    const phatSinhThucTe=gd.tamUngTuCq-gd.giaoTienChiThuy-phiLayHd-gd.hoanUngTienMat-tongTienChiThucTeHoanUng
-    const phiCongLaiDangCam=laHoanTamUngChiThucTe?phiLayHd:phiLayHd-phiDaTra
+    const phatSinhThucTe=gd.tamUngTuCq-gd.giaoTienChiThuy-phiTruSoDu-gd.hoanUngTienMat-tongTienChiThucTeHoanUng
+    const phiCongLaiDangCam=laHoanTamUngChiThucTe?phiTruSoDu:phiTruSoDu-phiDaTra
     thucTe+=phatSinhThucTe
     dangCam+=phatSinhThucTe+phiCongLaiDangCam
     duTienCqTraThang+=thayDoiTienCqTraThang-duaTienCqTraThangChoChiThuy

@@ -4,11 +4,11 @@ export const HINH_THUC = {
   TAM_UNG_THEM: 'Tạm ứng thêm', GIAO_CHI_THUY: 'Giao tiền chị Thúy',
   DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY: 'Đưa tiền CQ trả thẳng cho Chị Thúy',
   HOAN_TAM_UNG: 'Hoàn tạm ứng', CQ_TRA_THANG: 'Cơ quan trả thẳng',
-  NOP_HOAN_CQ: 'Nộp hoàn CQ',
+  NOP_HOAN_CQ: 'Nộp hoàn CQ', HOI_NGHI: 'Hội nghị',
 } as const
 export const DS_HINH_THUC = [
   HINH_THUC.TAM_UNG_THEM, HINH_THUC.GIAO_CHI_THUY, HINH_THUC.HOAN_TAM_UNG,
-  HINH_THUC.CQ_TRA_THANG, HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY, HINH_THUC.NOP_HOAN_CQ,
+  HINH_THUC.CQ_TRA_THANG, HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY, HINH_THUC.NOP_HOAN_CQ, HINH_THUC.HOI_NGHI,
 ] as const
 export const TRANG_THAI = { HOP_LE: 'Hợp lệ', CHO_HD: 'Chờ HĐ', PHI_DA_TRA: 'Đã thanh toán' } as const
 export const CO_SO_TINH_PHI = { TONG_TIEN: 'tong_tien', TIEN_DUOC_THANH_TOAN: 'tien_duoc_thanh_toan' } as const
@@ -46,6 +46,11 @@ export type GiaoDichTho = {
   // Giá trị thực tế được hoàn/thanh toán cho giao dịch có hóa đơn. Dữ liệu cũ
   // có thể không có trường này, khi đó máy suy ra từ tổng tiền trừ rượu bia.
   tienDuocThanhToan?: number | null; tienDuocThanhToanGoc?: number | null; lamTronXuongHangNghin?: boolean;
+  // Hội nghị là nhóm tổ chức; giao dịch con vẫn là dòng tài chính độc lập.
+  hoiNghiId?: string | null
+  hoiNghiTen?: string | null
+  hoiNghiNgay?: string | null
+  hoiNghiNguonPhi?: 'quy_chi_thuy' | 'so_du' | null
   nguoiDeNghiId: string | null; nguoiDeNghiTen: string | null; nguoiLayHdId: string | null; nguoiLayHdTen: string | null; phiLayHdGhiDe: number | null; coTinhPhi: boolean; coSoTinhPhi?: CoSoTinhPhi; trangThaiTtPhi: string; ghiChu: string | null;
   // Năm người ký được chốt cùng giao dịch. Các trường optional để dữ liệu trước
   // migration vẫn đi qua các hàm tính toán và in giấy an toàn.
@@ -79,4 +84,9 @@ export type GiaoDichTinh = GiaoDichTho & {
   duDangCam: number
   duHiepDangCam: number
 }
+// Dòng gộp của Hội nghị trong nhật ký: tổng hợp nhiều giao dịch con thành một
+// dòng. Đây không phải bản ghi trong bảng giao_dich nên không sửa, xóa hay in giấy
+// trực tiếp được; mọi thao tác phải mở trang Theo dõi giao dịch.
+export type GopHoiNghi = { hoiNghiId: string; soCon: number; soHoaDon: number }
+export type DongNhatKy = GiaoDichTinh & { gopHoiNghi?: GopHoiNghi | null }
 export type ThamSoTinh = { tyLePhiChung: number; tyLeTheoNguoi: Record<string,number> }

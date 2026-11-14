@@ -16,7 +16,7 @@ export function noiDungTheoDonVi(tenDonVi: string): string {
 
 const HINH_THUC_NOI_DUNG_CO_DINH = new Set<string>([
   HINH_THUC.TAM_UNG_THEM, HINH_THUC.GIAO_CHI_THUY,
-  HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY, HINH_THUC.NOP_HOAN_CQ,
+  HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY, HINH_THUC.NOP_HOAN_CQ, HINH_THUC.HOI_NGHI,
 ])
 
 // Các dòng tiền nội bộ luôn lấy đúng tên hình thức, không cho client ghi đè nội dung.
@@ -57,6 +57,7 @@ const LUA_CHON_THEO_HINH_THUC: Record<string, readonly HinhThucThanhToan[]> = {
   [HINH_THUC.HOAN_TAM_UNG]: [HINH_THUC_THANH_TOAN.HOAN_TAM_UNG],
   [HINH_THUC.CQ_TRA_THANG]: [HINH_THUC_THANH_TOAN.TIEN_MAT, HINH_THUC_THANH_TOAN.CHUYEN_KHOAN],
   [HINH_THUC.DUA_TIEN_CQ_TRA_THANG_CHO_CHI_THUY]: [HINH_THUC_THANH_TOAN.TIEN_MAT, HINH_THUC_THANH_TOAN.CHUYEN_KHOAN],
+  [HINH_THUC.HOI_NGHI]: [],
 }
 
 export function dsHinhThucThanhToan(hinhThuc: string): readonly HinhThucThanhToan[] {
