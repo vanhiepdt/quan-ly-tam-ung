@@ -60,8 +60,25 @@ zcat /root/rollback-db-20261114T180223Z.sql.gz \
 
 ### Dọn dẹp định kỳ
 
-Build cache Docker phình rất nhanh: lần này nó chiếm 20GB (ổ còn 5.4G) và phải chạy
-`docker builder prune -af` mới đủ chỗ build, sau đó còn 23G trống. Kiểm tra bằng
-`docker system df` trước mỗi lần build. Các image `quan-ly-tam-ung:rollback-*` cũ cũng
-đang giữ nhiều GB — xóa bớt những bản quá cũ khi cần chỗ, nhưng **giữ lại ít nhất bản
-rollback của lần triển khai gần nhất**.
+Máy này gánh bốn ứng dụng (`quan-ly-tam-ung`, `qlcv` + OnlyOffice, `exam-checker`), nên
+phần lớn đĩa không phải của ứng dụng này: image OnlyOffice 4.86G và dữ liệu exam-checker
+4.1G đều không đụng được. Dữ liệu thật của ứng dụng này rất nhỏ — volume 512M gồm cả
+CSDL lẫn tệp hóa đơn.
+
+Image nằm ở `/var/lib/containerd` (Docker dùng containerd snapshotter), **không** phải
+`/var/lib/docker`. Xem bằng `docker system df -v`, cột `UNIQUE SIZE` mới là phần thu lại
+được khi xóa một image.
+
+Hai thứ phình âm thầm sau mỗi lần triển khai:
+
+- **Build cache** — có lần lên tới 20G và suýt làm hết đĩa. Chạy `docker builder prune -af`
+  sau mỗi lần build xong.
+- **Image `rollback-*`** — mỗi lần deploy đẻ thêm một bản ~720MB. Giữ lại **ít nhất bản
+  rollback của lần triển khai gần nhất**, xóa các bản cũ hơn bằng
+  `docker rmi quan-ly-tam-ung:<tag>`.
+
+Ngày 15/11/2026 đã dọn: xóa 12 image rollback từ 22/09 đến 14/10, xóa build cache, và
+giới hạn journald bằng `/etc/systemd/journald.conf.d/99-gioi-han.conf`
+(`SystemMaxUse=200M`, `SystemKeepFree=2G`) vì log trước đó không có trần và đã đạt 661M.
+Kết quả: đĩa từ 28G xuống 21G đã dùng (còn trống 27G, 44%), số image từ 18 còn 6, cả sáu
+container vẫn chạy bình thường.
