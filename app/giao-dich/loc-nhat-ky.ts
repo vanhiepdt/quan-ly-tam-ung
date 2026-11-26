@@ -32,7 +32,7 @@ export const FACET_COT: Partial<Record<CotId, readonly Facet[]>> = {
   ],
   trangThaiHd: [
     { id: 'trangThaiHd', ten: 'Trạng thái hóa đơn', giaTri: r => r.trangThaiHd },
-    { id: 'chiThucTe', ten: 'Chi thực tế', giaTri: r => canDonVi(r.hinhThuc) && r.chiThucTe ? 'Chi thực tế' : 'Không chi thực tế' },
+    { id: 'chiThucTe', ten: 'Chi thực tế', giaTri: r => (('gopHoiNghi' in r && r.gopHoiNghi) || canDonVi(r.hinhThuc)) && r.chiThucTe ? 'Chi thực tế' : 'Không chi thực tế' },
   ],
   trangThaiTtPhi: [{ id: 'trangThaiTtPhi', ten: 'Thanh toán phí', giaTri: r => r.trangThaiTtPhi }],
   hinhThuc: [{ id: 'hinhThuc', ten: 'Hình thức', giaTri: r => r.hinhThuc }],

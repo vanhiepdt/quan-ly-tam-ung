@@ -531,7 +531,7 @@ export function FormGiaoDich({
                 )}
 
                 {hinhThuc === HINH_THUC.HOI_NGHI && <>
-                  <label className="field">Loại giao dịch con *<select className="input" name="loai_giao_dich_con" required defaultValue={HINH_THUC.HOAN_TAM_UNG}><option value={HINH_THUC.HOAN_TAM_UNG}>Hoàn tạm ứng</option><option value={HINH_THUC.CQ_TRA_THANG}>Cơ quan trả thẳng</option></select></label>
+                  <label className="field">Loại giao dịch con mặc định *<select className="input" name="loai_giao_dich_con" required defaultValue={HINH_THUC.HOAN_TAM_UNG}><option value={HINH_THUC.HOAN_TAM_UNG}>Hoàn tạm ứng</option><option value={HINH_THUC.CQ_TRA_THANG}>Cơ quan trả thẳng</option></select></label>
                   <label className="field">Nguồn phí chung *<select className="input" name="nguon_phi" required defaultValue="so_du"><option value="so_du">Dư theo loại giao dịch</option><option value="quy_chi_thuy">Quỹ Chị Thúy</option></select></label>
                 </>}
                 <div className="field sm:col-span-2">

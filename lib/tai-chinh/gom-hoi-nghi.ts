@@ -1,5 +1,7 @@
 import type { DongNhatKy, GiaoDichTinh } from './kieu'
 
+export const NHIEU_HINH_THUC = 'Nhiều hình thức'
+
 // Cột tiền phát sinh: dòng gộp lấy tổng của các giao dịch con, nhờ vậy hàng tổng
 // của nhật ký vẫn ra đúng số như khi hiện từng dòng con.
 const CONG_DON = [
@@ -41,6 +43,9 @@ function gop(hoiNghiId: string, ds: readonly GiaoDichTinh[]): DongNhatKy {
     noiDung: cuoi.hoiNghiTen ?? 'Hội nghị',
     ghiChu: `${ds.length} giao dịch con`,
     kyHieuHd: null, soHd: null, loaiHd: null, chiTietHoaDon: null,
+    // Giao dịch con tự chọn Hoàn tạm ứng hoặc CQ trả thẳng, nên một Hội nghị có thể
+    // trộn cả hai; khi đó không lấy hình thức của dòng con cuối làm đại diện.
+    hinhThuc: giongNhau(ds, r => r.hinhThuc) ?? NHIEU_HINH_THUC,
     trangThaiHd: motTrangThaiHd ? ds[0].trangThaiHd : 'Nhiều trạng thái',
     trangThaiTtPhi: motTrangThaiPhi ? ds[0].trangThaiTtPhi : 'Nhiều trạng thái',
     chiThucTe: ds.every(r => r.chiThucTe === true),

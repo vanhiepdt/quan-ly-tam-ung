@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { HINH_THUC, TRANG_THAI, type GiaoDichTho } from './kieu'
 import { tinhToan } from './tinh-toan'
-import { gomHoiNghi } from './gom-hoi-nghi'
+import { gomHoiNghi, NHIEU_HINH_THUC } from './gom-hoi-nghi'
 
 const dong = (phan: Partial<GiaoDichTho>): GiaoDichTho => ({
   id: phan.id ?? crypto.randomUUID(), ngay: phan.ngay ?? '2026-01-01', soThuTu: phan.soThuTu ?? 1,
@@ -19,6 +19,27 @@ const con = (phan: Partial<GiaoDichTho>): GiaoDichTho => dong({
 })
 
 describe('gomHoiNghi', () => {
+  it('giữ hình thức chung khi mọi giao dịch con cùng loại', () => {
+    const rows = tinhToan([
+      con({ id: 'c1', soThuTu: 1, hinhThuc: HINH_THUC.CQ_TRA_THANG, tongTien: 1_000_000 }),
+      con({ id: 'c2', soThuTu: 2, hinhThuc: HINH_THUC.CQ_TRA_THANG, tongTien: 2_000_000 }),
+    ])
+    expect(gomHoiNghi(rows)[0].hinhThuc).toBe(HINH_THUC.CQ_TRA_THANG)
+  })
+
+  it('báo "Nhiều hình thức" và cộng riêng từng cột khi trộn Hoàn tạm ứng với CQ trả thẳng', () => {
+    const rows = tinhToan([
+      con({ id: 'c1', soThuTu: 1, hinhThuc: HINH_THUC.HOAN_TAM_UNG, tongTien: 1_000_000 }),
+      con({ id: 'c2', soThuTu: 2, hinhThuc: HINH_THUC.CQ_TRA_THANG, tongTien: 2_000_000 }),
+    ])
+    const [gop] = gomHoiNghi(rows)
+    expect(gop.hinhThuc).toBe(NHIEU_HINH_THUC)
+    expect(gop.hoanTamUng).toBe(rows[0].hoanTamUng + rows[1].hoanTamUng)
+    expect(gop.cqTraThang).toBe(rows[0].cqTraThang + rows[1].cqTraThang)
+    expect(gop.hoanTamUng).toBeGreaterThan(0)
+    expect(gop.cqTraThang).toBeGreaterThan(0)
+  })
+
   it('giữ nguyên giao dịch không thuộc Hội nghị nào', () => {
     const rows = tinhToan([dong({ id: 'a', tongTien: 1_000_000 }), dong({ id: 'b', soThuTu: 2, tamUngTuCq: 500_000 })])
     expect(gomHoiNghi(rows)).toEqual(rows)

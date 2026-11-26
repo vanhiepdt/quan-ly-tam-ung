@@ -170,7 +170,8 @@ export async function taoGiaoDichDaParse(
         const { rows: hoiNghiRows } = await client.query<{ loai_giao_dich: string; ngay: string }>(
           `select loai_giao_dich, to_char(ngay,'YYYY-MM-DD') as ngay from hoi_nghi where id=$1 and not da_xoa for update`, [d.hoi_nghi_id])
         if (!hoiNghiRows.length) throw new LoiHoiNghi('Hội nghị không tồn tại hoặc đã bị xóa.')
-        if (hoiNghiRows[0].loai_giao_dich !== d.hinh_thuc) throw new LoiHoiNghi('Hình thức giao dịch không phù hợp với Hội nghị.')
+        // Mỗi giao dịch con tự chọn Hoàn tạm ứng hoặc Cơ quan trả thẳng; loại của Hội nghị chỉ là mặc định.
+        if (d.hinh_thuc !== HINH_THUC.HOAN_TAM_UNG && d.hinh_thuc !== HINH_THUC.CQ_TRA_THANG) throw new LoiHoiNghi('Giao dịch con trong Hội nghị chỉ được là Hoàn tạm ứng hoặc Cơ quan trả thẳng.')
         // Ngày dạng YYYY-MM-DD nên so sánh chuỗi là đúng thứ tự thời gian.
         if (d.ngay > hoiNghiRows[0].ngay) throw new LoiHoiNghi(`Ngày giao dịch con (${d.ngay}) không được vượt quá ngày Hội nghị (${hoiNghiRows[0].ngay}).`)
       }

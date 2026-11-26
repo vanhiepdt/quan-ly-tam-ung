@@ -27,6 +27,8 @@ export function GiaoDichCon({ hoiNghiId, hinhThuc, ngayHoiNghi, collectors, tyLe
 }) {
   const router = useRouter()
   const [state, action, pending] = useActionState(themGiaoDichConHoiNghi, initial)
+  // Loại của Hội nghị chỉ là giá trị mặc định; từng giao dịch con được chọn riêng.
+  const [loai, setLoai] = useState<string>(hinhThuc === HINH_THUC.CQ_TRA_THANG ? HINH_THUC.CQ_TRA_THANG : HINH_THUC.HOAN_TAM_UNG)
   const [noiDung, setNoiDung] = useState('')
   const [ngay, setNgay] = useState(() => new Date().toISOString().slice(0, 10))
   const [tongTien, setTongTien] = useState('0')
@@ -102,7 +104,6 @@ export function GiaoDichCon({ hoiNghiId, hinhThuc, ngayHoiNghi, collectors, tyLe
     <input type="hidden" name="fingerprint_hoan_tam_ung" value={state.canhBao?.fingerprint ?? ''} />
     <input type="hidden" name="co_tinh_phi_lay_hd" value={coTinhPhi ? '1' : '0'} />
     <input type="hidden" name="hoi_nghi_id" value={hoiNghiId} />
-    <input type="hidden" name="hinh_thuc" value={hinhThuc} />
     <input type="hidden" name="don_vi_id" value="" />
     <input type="hidden" name="loai_hd" value="Hóa đơn" />
     <input type="hidden" name="trang_thai_hd" value={TRANG_THAI.HOP_LE} />
@@ -117,7 +118,7 @@ export function GiaoDichCon({ hoiNghiId, hinhThuc, ngayHoiNghi, collectors, tyLe
     <input type="hidden" name="tien_ruou_bia" value={tienKhongThanhToan} />
     <input type="hidden" name="tien_duoc_thanh_toan" value={tienThanhToan} />
     <input type="hidden" name="tong_tien" value={tongTien} />
-    <div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold text-slate-900">Thêm giao dịch con</h3><p className="text-xs text-slate-600">Loại giao dịch cố định theo Hội nghị: {hinhThuc}. Không lập giấy đề nghị.</p></div></div>
+    <div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold text-slate-900">Thêm giao dịch con</h3><p className="text-xs text-slate-600">Chọn Hoàn tạm ứng hoặc Cơ quan trả thẳng cho từng giao dịch con. Không lập giấy đề nghị.</p></div></div>
     {state.loi && <p className="notice error" role="alert">{state.loi}</p>}
     {state.thanhCong && <p className="notice success" role="status">{state.thanhCong}</p>}
     {state.canhBao && <div className="notice bg-amber-50 text-amber-900 border border-amber-200 p-3 rounded-lg space-y-2">
@@ -125,6 +126,7 @@ export function GiaoDichCon({ hoiNghiId, hinhThuc, ngayHoiNghi, collectors, tyLe
       <p className="text-sm">Số tiền hoàn ({vnd.format(state.canhBao.hoanTamUng)}) vượt dư lý thuyết ({vnd.format(state.canhBao.duLyThuyet)}) là <strong>{vnd.format(state.canhBao.thieu)}</strong>. Nhấn nút bên dưới để xác nhận lưu tiếp.</p>
     </div>}
     <div className="grid gap-3 sm:grid-cols-2">
+      <label className="field">Loại giao dịch con *<select className="input" name="hinh_thuc" value={loai} required onChange={e => setLoai(e.target.value)}><option value={HINH_THUC.HOAN_TAM_UNG}>Hoàn tạm ứng</option><option value={HINH_THUC.CQ_TRA_THANG}>Cơ quan trả thẳng</option></select></label>
       <label className="field">Ngày *<input className="input" type="date" name="ngay" value={ngay} required max={ngayHoiNghi} onChange={e => setNgay(e.target.value)} /><span className="text-xs text-slate-500">Không được vượt quá ngày Hội nghị ({ngayHoiNghi}).</span></label>
       <label className="field sm:col-span-2">Nội dung *<input className="input" name="noi_dung" value={noiDung} required maxLength={1000} onChange={e => setNoiDung(e.target.value)} placeholder="Nội dung giao dịch con" /></label>
       <label className="field">Tổng tiền (VND) *<input className="input" inputMode="numeric" value={vnd.format(Number(tongTien) || 0)} required onChange={e => doiTongTien(money(e.target.value))} /></label>

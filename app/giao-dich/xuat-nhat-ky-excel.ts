@@ -53,7 +53,7 @@ export function giaTriXuatNhatKy(row: GiaoDichTinh, id: CotXuatId): GiaTriExcel 
     case 'nguoiDeNghi': return vanBanExcel(row.nguoiDeNghiTen ?? '—')
     case 'nguoiLayHd': return vanBanExcel(row.nguoiLayHdTen ?? '—')
     case 'chungTu': return vanBanExcel(chungTu(row))
-    case 'trangThaiHd': return vanBanExcel(canDonVi(row.hinhThuc)
+    case 'trangThaiHd': return vanBanExcel((('gopHoiNghi' in row && row.gopHoiNghi) || canDonVi(row.hinhThuc))
       ? row.trangThaiHd + '\n' + (row.chiThucTe ? 'Chi thực tế' : 'Không chi thực tế')
       : row.trangThaiHd)
     case 'trangThaiTtPhi': return vanBanExcel(row.trangThaiTtPhi)
