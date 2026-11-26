@@ -7,6 +7,43 @@ Quy trình đang dùng: clone đúng tag từ GitHub vào `/root/deploy-src`, r�
 sang `/opt/quan-ly-tam-ung` (giữ lại `deploy/.env` và `releases/`), build image, chạy
 migration, rồi `docker compose up -d app`.
 
+## 2026-11-26 (lần 2) — Hội nghị: thêm chức năng xóa
+
+| | |
+|---|---|
+| Tag | `v2026.11.26-xoa-hoi-nghi` |
+| Commit mới | `9612b8e` |
+| **Commit cũ (đích rollback)** | **`0017a53`** (tag `v2026.11.26-hoi-nghi-loai-con`; commit `208328c` sau đó chỉ sửa tài liệu) |
+| Image mới | `quan-ly-tam-ung:latest` (`50101e6a862b`) |
+| **Image cũ (đích rollback)** | **`quan-ly-tam-ung:rollback-20261126T154241Z`** (`46ad73c3d8a5`) |
+| Mã nguồn cũ | `/root/rollback-src-20261126T154241Z.tar.gz` |
+| Sao lưu CSDL trước khi đổi | `/root/rollback-db-20261126T154241Z.sql.gz` (177K; 84 dòng giao dịch gồm 62 chưa xóa và 22 đã xóa mềm; 1 Hội nghị) |
+| Migration | Không có migration mới |
+
+Kiểm tra sau khi lên: `/dang-nhap` trả 200 (cả nội bộ lẫn `https://hc.ttdt.site`),
+`/giao-dich` và `/giao-dich/theo-doi` trả 307 (chuyển hướng đăng nhập), log không có lỗi,
+vẫn 84 dòng giao dịch (62 chưa xóa) và 1 Hội nghị chưa xóa. Đã chạy `docker builder prune -af`
+(thu lại 2.5G); đĩa 22G/50G (47%).
+
+Ghi chú: số "84 giao dịch" ở mục trước là tổng số dòng, gồm cả dòng đã xóa mềm.
+
+### Quay về bản cũ
+
+Lần này không đổi cấu trúc cơ sở dữ liệu, nên **chỉ cần đổi lại image**:
+
+```bash
+cd /opt/quan-ly-tam-ung
+docker tag quan-ly-tam-ung:rollback-20261126T154241Z quan-ly-tam-ung:latest
+docker compose -f deploy/docker-compose.yml up -d app
+docker compose -f deploy/docker-compose.yml ps
+```
+
+Mã nguồn cũ trên đĩa: `cd /opt && tar -xzf /root/rollback-src-20261126T154241Z.tar.gz`.
+
+Hội nghị nào đã xóa bằng bản mới thì sau khi quay về vẫn ở trạng thái đã xóa (bản cũ cũng
+ẩn Hội nghị và giao dịch có `da_xoa`). Muốn lấy lại phải sửa thẳng trong CSDL hoặc phục hồi
+từ bản sao lưu.
+
 ## 2026-11-26 — Hội nghị: chọn loại cho từng giao dịch con
 
 | | |
