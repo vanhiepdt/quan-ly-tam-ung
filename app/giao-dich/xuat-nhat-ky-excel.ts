@@ -1,4 +1,4 @@
-import type { GiaoDichTinh } from '@/lib/tai-chinh/kieu'
+import type { DongNhatKy, GiaoDichTinh } from '@/lib/tai-chinh/kieu'
 import { canDonVi } from '@/lib/tai-chinh/hinh-thuc'
 import { cotNhatKy, type Cot, type CotId } from './cot-nhat-ky'
 
@@ -37,6 +37,9 @@ function vanBanExcel(value: string): string {
 }
 
 function chungTu(row: GiaoDichTinh): string {
+  // Dòng gộp Hội nghị không có số hóa đơn riêng; giống bảng nhật ký, chỉ đếm số hóa đơn con.
+  const gop = (row as DongNhatKy).gopHoiNghi
+  if (gop) return gop.soHoaDon ? gop.soHoaDon + ' hóa đơn' : '—'
   const phan = [
     row.kyHieuHd ? 'Ký hiệu: ' + row.kyHieuHd : '',
     row.soHd ? 'Số HĐ: ' + row.soHd : '',
