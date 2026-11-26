@@ -7,6 +7,41 @@ Quy trình đang dùng: clone đúng tag từ GitHub vào `/root/deploy-src`, r�
 sang `/opt/quan-ly-tam-ung` (giữ lại `deploy/.env` và `releases/`), build image, chạy
 migration, rồi `docker compose up -d app`.
 
+## 2026-11-26 — Hội nghị: chọn loại cho từng giao dịch con
+
+| | |
+|---|---|
+| Tag | `v2026.11.26-hoi-nghi-loai-con` |
+| Commit mới | `0017a53` |
+| **Commit cũ (đích rollback)** | **`4e66318`** (tag `v2026.11.15-hoi-nghi`; hai commit sau đó chỉ sửa tài liệu) |
+| Image mới | `quan-ly-tam-ung:latest` (`46ad73c3d8a5`) |
+| **Image cũ (đích rollback)** | **`quan-ly-tam-ung:rollback-20261126T142529Z`** (`24607283d36e`) |
+| Mã nguồn cũ | `/root/rollback-src-20261126T142529Z.tar.gz` |
+| Sao lưu CSDL trước khi đổi | `/root/rollback-db-20261126T142529Z.sql.gz` (177K, 84 giao dịch, 1 Hội nghị) |
+| Migration | Không có migration mới (029 đã chạy từ lần trước) |
+
+Kiểm tra sau khi lên: `/dang-nhap` trả 200 (cả nội bộ lẫn `https://hc.ttdt.site`),
+`/giao-dich` và `/giao-dich/theo-doi` trả 307 (chuyển hướng đăng nhập), log không có lỗi,
+số giao dịch vẫn 84 và số Hội nghị vẫn 1. Đã chạy `docker builder prune -af` (thu lại
+2.7G); đĩa 22G/50G (46%).
+
+### Quay về bản cũ
+
+Lần này không đổi cơ sở dữ liệu, nên **chỉ cần đổi lại image**:
+
+```bash
+cd /opt/quan-ly-tam-ung
+docker tag quan-ly-tam-ung:rollback-20261126T142529Z quan-ly-tam-ung:latest
+docker compose -f deploy/docker-compose.yml up -d app
+docker compose -f deploy/docker-compose.yml ps
+```
+
+Mã nguồn cũ trên đĩa: `cd /opt && tar -xzf /root/rollback-src-20261126T142529Z.tar.gz`.
+
+Sau khi quay về, các giao dịch con đã lưu với loại khác loại mặc định của Hội nghị vẫn
+nằm nguyên trong CSDL. Bản cũ vẫn cộng đúng tiền từng cột, chỉ hiện hình thức của giao
+dịch con cuối cùng trên dòng gộp, và không cho thêm giao dịch con khác loại mặc định.
+
 ## 2026-11-15 — Hội nghị (gộp giao dịch con, phí theo % hoặc số tiền)
 
 | | |
