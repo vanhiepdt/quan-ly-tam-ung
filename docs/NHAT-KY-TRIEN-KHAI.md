@@ -7,6 +7,38 @@ Quy trình đang dùng: clone đúng tag từ GitHub vào `/root/deploy-src`, r�
 sang `/opt/quan-ly-tam-ung` (giữ lại `deploy/.env` và `releases/`), build image, chạy
 migration, rồi `docker compose up -d app`.
 
+## 2026-11-26 (lần 3) — Sửa xuất Excel khi có Hội nghị
+
+| | |
+|---|---|
+| Tag | `v2026.11.26-excel-hoi-nghi` |
+| Commit mới | `0d41751` |
+| **Commit cũ (đích rollback)** | **`9612b8e`** (tag `v2026.11.26-xoa-hoi-nghi`; commit `de54cb4` sau đó chỉ sửa tài liệu) |
+| Image mới | `quan-ly-tam-ung:latest` (`b328e0381e1a`) |
+| **Image cũ (đích rollback)** | **`quan-ly-tam-ung:rollback-20261126T165524Z`** (`50101e6a862b`) |
+| Mã nguồn cũ | `/root/rollback-src-20261126T165524Z.tar.gz` |
+| Sao lưu CSDL trước khi đổi | `/root/rollback-db-20261126T165524Z.sql.gz` (179K; 90 dòng giao dịch gồm 67 chưa xóa; 1 Hội nghị) |
+| Migration | Không có migration mới |
+
+Lỗi: nút Xuất Excel báo "Không thể xuất Excel" mỗi khi nhật ký có dòng Hội nghị. Dòng gộp
+Hội nghị có mã `hoi-nghi:<uuid>` nhưng API `/api/giao-dich/xuat-excel` chỉ nhận UUID nên trả 400
+cho cả lần xuất. Bản sửa nhận cả hai loại mã. Mỗi Hội nghị ra một dòng trên sheet nhật ký,
+link sang sheet riêng chứa giao dịch con, hàng tổng và chứng từ Hội nghị. Sheet Hội nghị có
+link quay lại dòng gốc.
+
+Kiểm tra sau khi lên: `/dang-nhap` trả 200 (cả nội bộ lẫn `https://hc.ttdt.site`), `/giao-dich`
+trả 307, API xuất Excel trả 401 khi chưa đăng nhập, log không có lỗi. Đĩa 22G/50G (48%).
+
+### Quay về bản cũ
+
+Không đổi cấu trúc CSDL, nên chỉ cần đổi lại image:
+
+```bash
+cd /opt/quan-ly-tam-ung
+docker tag quan-ly-tam-ung:rollback-20261126T165524Z quan-ly-tam-ung:latest
+docker compose -f deploy/docker-compose.yml up -d app
+```
+
 ## 2026-11-26 (lần 2) — Hội nghị: thêm chức năng xóa
 
 | | |
